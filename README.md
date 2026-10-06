@@ -11,7 +11,7 @@ SLIIT final-year research project **J26-IT-352**.
 |----|-----------|-----------|--------|
 | C1 | Food Recognition & Nutritional Analysis | [`components/c1_food_nutrition/`](components/c1_food_nutrition/) | Phase 0 scaffold |
 | C2 | Glucose forecasting | not created yet | |
-| C3 | Risk profiling + explainability (XAI) | not created yet | |
+| C3 | Risk profiling + explainability (XAI) | [`components/c3_risk_profiling/`](components/c3_risk_profiling/) | PP1 prototype |
 | C4 | Mobile app (Flutter) | not created yet | |
 
 Components integrate only through versioned HTTP APIs. C1 serves `/api/v1`, consumed by

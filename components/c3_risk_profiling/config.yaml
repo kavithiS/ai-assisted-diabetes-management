@@ -1,0 +1,27 @@
+# Central configuration. Change settings here, never hard-code them in scripts.
+dataset:
+  name: "CDC Diabetes Health Indicators (BRFSS 2015)"
+  raw_file: "data/raw/diabetes_012_health_indicators_BRFSS2015.csv"
+  target_column: "Diabetes_012"
+  # PP1 uses a binary target (no diabetes vs prediabetes+diabetes).
+  # Set to false for the full 3-class problem in PP2.
+  binarise_target: true
+
+preprocess:
+  drop_exact_duplicates: true
+  test_size: 0.2
+  random_state: 42
+
+model:
+  # Which model predict.py loads: logistic_regression | random_forest | xgboost
+  active: "random_forest"
+  output_dir: "models"
+
+risk_bands:
+  # Presentation bands for the risk category. NOT clinical cut-offs.
+  low_max: 0.33
+  moderate_max: 0.66
+
+explain:
+  top_k: 5
+  background_samples: 100
