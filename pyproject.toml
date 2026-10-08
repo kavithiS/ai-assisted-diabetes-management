@@ -7,6 +7,10 @@ version = "0.1.0"
 description = "DiaCare AI monorepo workspace root (research prototype)"
 requires-python = ">=3.11,<3.12"
 dependencies = [
+    "c1-food-nutrition",
+    "c2-glycemic-forecasting",
+    "c3-risk-xai",
+    "c4-foot-monitoring",
     "diacare-gateway",
     "diacare-shared",
 ]
@@ -26,6 +30,10 @@ package = false
 members = ["server/shared", "server/gateway", "server/services/*"]
 
 [tool.uv.sources]
+c1-food-nutrition = { workspace = true }
+c2-glycemic-forecasting = { workspace = true }
+c3-risk-xai = { workspace = true }
+c4-foot-monitoring = { workspace = true }
 diacare-gateway = { workspace = true }
 diacare-shared = { workspace = true }
 
@@ -54,6 +62,10 @@ explicit_package_bases = true
 mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/server/shared/src",
     "$MYPY_CONFIG_FILE_DIR/server/gateway/src",
+    "$MYPY_CONFIG_FILE_DIR/server/services/c1_food_nutrition/src",
+    "$MYPY_CONFIG_FILE_DIR/server/services/c2_glycemic_forecasting/src",
+    "$MYPY_CONFIG_FILE_DIR/server/services/c3_risk_xai/src",
+    "$MYPY_CONFIG_FILE_DIR/server/services/c4_foot_monitoring/src",
 ]
 plugins = ["pydantic.mypy"]
 
