@@ -271,7 +271,8 @@ Each component below uses the same layout: TAF tasks, novelty, data, inputs and 
 | Database | PostgreSQL 16, SQLAlchemy 2, Alembic | Team decision |
 | Experiments and data | MLflow, DVC | Team decision |
 | Python tooling | uv (one workspace, one `uv.lock`), Ruff, mypy, pytest, pre-commit | Team decision |
-| Delivery | Docker, Docker Compose, GitHub Actions, GitHub flow | Team decision |
+| Delivery | GitHub Actions, GitHub flow | Team decision |
+| Local runtime | uv + uvicorn, native PostgreSQL 16, local MLflow (SQLite) | Team decision, ADR 0003 |
 
 **Do not add** ASP.NET/C#, React/Node frontends, extra databases or other frameworks. Install no ML libraries in the scaffold; each owner adds their own on their branch.
 
@@ -306,7 +307,6 @@ Each component below uses the same layout: TAF tasks, novelty, data, inputs and 
 │   ├── gateway/
 │   │   ├── src/diacare_gateway/             # main.py, config.py, routes/{meals,glucose,risk,foot}.py
 │   │   ├── tests/test_health.py
-│   │   ├── Dockerfile
 │   │   └── pyproject.toml
 │   └── services/
 │       ├── c1_food_nutrition/
@@ -315,7 +315,6 @@ Each component below uses the same layout: TAF tasks, novelty, data, inputs and 
 │       │   ├── notebooks/                   # .gitkeep
 │       │   ├── tests/test_health.py
 │       │   ├── docs/                        # member's own documents (.gitkeep)
-│       │   ├── Dockerfile
 │       │   ├── pyproject.toml
 │       │   └── README.md                    # C1 subsection from section 1a
 │       ├── c2_glycemic_forecasting/         # same layout; README = C2 subsection
@@ -324,13 +323,15 @@ Each component below uses the same layout: TAF tasks, novelty, data, inputs and 
 ├── contracts/
 │   └── README.md                            # versioning rules + planned contracts table
 ├── infra/
-│   ├── docker-compose.yml
 │   └── postgres/init.sql                    # creates schemas c1, c2, c3, c4
+├── scripts/
+│   └── dev.ps1                              # starts the gateway and C1–C4 locally
 ├── data/                                    # gitignored, DVC-tracked: c1/ c2/ c3/ c4/ with .gitkeep
 ├── docs/
 │   ├── adr/
 │   │   ├── 0001-client-server-monorepo.md
-│   │   └── 0002-c1-secondary-datasets.md
+│   │   ├── 0002-c1-secondary-datasets.md
+│   │   └── 0003-remove-docker.md
 │   ├── TEAM.md
 │   └── SETUP_PROMPT.md                      # this file
 ├── .env.example
@@ -429,8 +430,7 @@ uv run pytest
 
 - [ ] `uv sync` succeeds.
 - [ ] `uv run ruff check .`, `uv run mypy server` and `uv run pytest` all pass.
-- [ ] `docker compose -f infra/docker-compose.yml up --build` starts the gateway, C1 to C4, Postgres and MLflow.
-- [ ] `http://localhost:8000/health` reports all four services as ok.
+- [ ] `scripts/dev.ps1` starts all services, and `http://localhost:8000/health` reports all four as ok.
 - [ ] `flutter analyze` and `flutter test` pass in `client/mobile_app`.
 - [ ] Each service README contains its section 1a subsection.
 - [ ] Final report lists: files created, every command run with its result, and the open items.
