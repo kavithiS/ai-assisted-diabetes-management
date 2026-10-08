@@ -1,0 +1,18 @@
+[project]
+name = "diacare-gateway"
+version = "0.1.0"
+description = "DiaCare AI API gateway: routing and orchestration for the C1–C4 services"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "diacare-shared",
+    "fastapi>=0.115",
+    "httpx>=0.27",
+    "uvicorn[standard]>=0.30",
+]
+
+[tool.uv.sources]
+diacare-shared = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

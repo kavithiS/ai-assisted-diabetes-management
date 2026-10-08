@@ -1,0 +1,17 @@
+[project]
+name = "c1-food-nutrition"
+version = "0.1.0"
+description = "C1 Food Recognition & Nutritional Analysis service (DiaCare AI research prototype)"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "diacare-shared",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
+
+[tool.uv.sources]
+diacare-shared = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
