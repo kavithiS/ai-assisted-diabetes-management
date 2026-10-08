@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+!.env.example
+
+# Data (DVC-tracked, never committed to git)
+data/**
+!data/*/
+!data/*/.gitkeep
+*.dvc.lock
+
+# ML artefacts
+mlruns/
+mlartifacts/
+*.pt
+*.pth
+*.onnx
+*.ckpt
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Flutter / Dart
+client/mobile_app/.dart_tool/
+client/mobile_app/.flutter-plugins
+client/mobile_app/.flutter-plugins-dependencies
+client/mobile_app/build/
+client/mobile_app/.packages
+client/mobile_app/pubspec.lock
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

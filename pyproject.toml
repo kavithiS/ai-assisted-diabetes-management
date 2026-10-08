@@ -1,0 +1,41 @@
+# uv workspace root for DiaCare AI (J26-IT-352).
+# One shared environment and one uv.lock for the gateway, shared package and C1–C4 services.
+
+[project]
+name = "diacare"
+version = "0.1.0"
+description = "DiaCare AI monorepo workspace root (research prototype)"
+requires-python = ">=3.11,<3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy>=1.11",
+    "pre-commit>=3.8",
+    "pytest>=8.3",
+    "ruff>=0.6",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["server/shared", "server/gateway", "server/services/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["client"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+explicit_package_bases = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["server"]
+addopts = ["--import-mode=importlib"]
