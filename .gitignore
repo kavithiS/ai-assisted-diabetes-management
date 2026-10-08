@@ -24,6 +24,7 @@ data/**
 # ML artefacts
 mlruns/
 mlartifacts/
+mlflow.db
 *.pt
 *.pth
 *.onnx
