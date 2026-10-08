@@ -29,7 +29,8 @@ It is replaced by this layout.
 5. **Python tooling:** one uv workspace and one `uv.lock` (Python 3.11), with Ruff, mypy, pytest
    and pre-commit. Package names are unique and use the `src/` layout.
 6. **Delivery:** Docker and Docker Compose for local runs, and GitHub Actions CI on PRs to `main`
-   and on pushes to `main` and `c*_*` branches.
+   and on pushes to `main` and `c*_*` branches. *Superseded by
+   [ADR 0003](0003-remove-docker.md) for local runtime.*
 7. **Ownership:** each member owns `server/services/c<N>_*/` and `data/c<N>/`. `client/` and
    `server/gateway/` are proposed for C4, pending confirmation.
 
