@@ -54,30 +54,63 @@ server/shared/          diacare_shared: config, logging, health helpers
 server/gateway/         diacare_gateway: API gateway (port 8000)
 server/services/c1_…c4_ FastAPI services, one per component
 contracts/              Inter-component payload contracts
-infra/                  Docker Compose and Postgres init
+infra/                  Postgres schema init (init.sql)
+scripts/                dev.ps1: starts the gateway and C1–C4 locally
 data/                   Gitignored, DVC-tracked data (c1/ … c4/)
 docs/                   ADRs, team list, setup prompt
 ```
 
 ## Getting started
 
-Requirements: [uv](https://docs.astral.sh/uv/) (installs Python 3.11), Docker, and the Flutter
-SDK (stable) for the client.
+Requirements: [uv](https://docs.astral.sh/uv/) (installs Python 3.11), PostgreSQL 16 (native
+install), and the Flutter SDK (stable) for the client. Everything runs locally on Windows; see
+[ADR 0003](docs/adr/0003-remove-docker.md).
+
+### Quick start (PowerShell, from the repository root)
+
+1. Install the Python environment:
+
+   ```powershell
+   Copy-Item .env.example .env
+   uv sync
+   ```
+
+2. One-time PostgreSQL setup: create the `diacare` user and database, then the c1–c4 schemas:
+
+   ```powershell
+   psql -U postgres -c "CREATE USER diacare WITH PASSWORD 'change-me';"
+   psql -U postgres -c "CREATE DATABASE diacare OWNER diacare;"
+   psql -U diacare -d diacare -f infra/postgres/init.sql
+   ```
+
+3. Start the gateway and C1–C4 (one window each, with auto-reload):
+
+   ```powershell
+   .\scripts\dev.ps1
+   ```
+
+4. Open <http://localhost:8000/health>. All four services should report `ok`.
+
+5. Run the tests:
+
+   ```powershell
+   uv run pytest
+   ```
+
+Optional: MLflow tracking server with a local SQLite backend (matches `MLFLOW_TRACKING_URI`):
+
+```powershell
+uvx mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlartifacts --port 5000
+```
+
+### Checks (same as CI)
 
 ```bash
-cp .env.example .env
-uv sync                                   # one environment for every Python package
 uv run pre-commit install                 # optional: run checks on commit
-
-# Checks (same as CI)
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy server
 uv run pytest
-
-# Full stack: gateway, C1–C4, Postgres, MLflow
-docker compose -f infra/docker-compose.yml up --build
-curl http://localhost:8000/health
 
 # Client
 cd client/mobile_app && flutter pub get && flutter analyze && flutter test
