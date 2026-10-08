@@ -1,0 +1,74 @@
+# uv workspace root for DiaCare AI (J26-IT-352).
+# One shared environment and one uv.lock for the gateway, shared package and C1–C4 services.
+
+[project]
+name = "diacare"
+version = "0.1.0"
+description = "DiaCare AI monorepo workspace root (research prototype)"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "c1-food-nutrition",
+    "c2-glycemic-forecasting",
+    "c3-risk-xai",
+    "c4-foot-monitoring",
+    "diacare-gateway",
+    "diacare-shared",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.11",
+    "pre-commit>=3.8",
+    "pytest>=8.3",
+    "ruff>=0.6",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["server/shared", "server/gateway", "server/services/*"]
+
+[tool.uv.sources]
+c1-food-nutrition = { workspace = true }
+c2-glycemic-forecasting = { workspace = true }
+c3-risk-xai = { workspace = true }
+c4-foot-monitoring = { workspace = true }
+diacare-gateway = { workspace = true }
+diacare-shared = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["client"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "diacare_shared",
+    "diacare_gateway",
+    "c1_food_nutrition",
+    "c2_glycemic_forecasting",
+    "c3_risk_xai",
+    "c4_foot_monitoring",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+explicit_package_bases = true
+mypy_path = [
+    "$MYPY_CONFIG_FILE_DIR/server/shared/src",
+    "$MYPY_CONFIG_FILE_DIR/server/gateway/src",
+    "$MYPY_CONFIG_FILE_DIR/server/services/c1_food_nutrition/src",
+    "$MYPY_CONFIG_FILE_DIR/server/services/c2_glycemic_forecasting/src",
+    "$MYPY_CONFIG_FILE_DIR/server/services/c3_risk_xai/src",
+    "$MYPY_CONFIG_FILE_DIR/server/services/c4_foot_monitoring/src",
+]
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["server"]
+addopts = ["--import-mode=importlib"]
