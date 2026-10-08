@@ -7,8 +7,9 @@
 | Port | 8001 |
 | Postgres schema | `c1` |
 | Health | `GET /health` |
-| Placeholder route | `POST /v1/meals/analyze` (returns `501 Not Implemented`) |
+| Meal analysis | `POST /v1/meals/analyze` (returns a **mock** response, `meta.is_mock: true`) |
 | Gateway prefix | `/api/v1/meals/*` |
+| API docs | `GET /docs` |
 
 Run locally from the repository root:
 
@@ -17,6 +18,25 @@ uv sync
 uv run uvicorn c1_food_nutrition.main:app --reload --port 8001
 uv run pytest server/services/c1_food_nutrition
 ```
+
+## Settings
+
+Read from environment variables (or `.env`) by `src/c1_food_nutrition/config.py`:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `ALLOWED_IMAGE_TYPES` | `image/jpeg,image/png` | Comma-separated; may only narrow this set |
+| `MAX_IMAGE_BYTES` | `10485760` (10 MiB) | Largest accepted image |
+| `UPLOAD_CHUNK_BYTES` | `65536` | Read size for the chunked size check |
+| `MULTIPART_OVERHEAD_BYTES` | `65536` | Request-body cap is `MAX_IMAGE_BYTES` plus this |
+| `CAPTURED_AT_MAX_FUTURE_SKEW_SECONDS` | `300` | How far in the future `captured_at` may be |
+| `REFERENCE_OBJECT_MAX_LENGTH` | `200` | Maximum length of the experimental `reference_object` |
+| `DATABASE_URL` | `sqlite:///./c1_local.db` | Database for the nutrition tables |
+
+Database migrations (Alembic): `uv run alembic -c server/services/c1_food_nutrition/alembic.ini upgrade head`.
+
+Docs brought over from the old `c1_kavithi` branch: [request contract](docs/adr/0004-meal-analyze-request-contract.md),
+[API notes](docs/api/meals-analyze.md), [roadmap](docs/ROADMAP.md).
 
 ## Component details
 
