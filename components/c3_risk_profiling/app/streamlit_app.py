@@ -7,21 +7,25 @@ Streamlit was chosen over React for the PP1 prototype because the panel is
 assessing the risk engine and the explanations, not front-end work. The group's
 real front end is Component 4's Flutter app; this is a research demo only.
 """
+
 import sys
 from pathlib import Path
+
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src.explain import explain_patient            # noqa: E402
-from src.predict import EXAMPLE_PATIENT            # noqa: E402
+from src.explain import explain_patient  # noqa: E402
+from src.predict import EXAMPLE_PATIENT  # noqa: E402
 
 st.set_page_config(page_title="Diabetic Risk Profiling", layout="wide")
 st.title("Multi-Factor Diabetic Risk Profiling with Explainable AI")
 st.caption("Component 3 research prototype - J26-IT-352. Not a medical device.")
 
-st.warning("Research prototype. Produces a statistical risk estimate for "
-           "self-management support only. It does not diagnose diabetes and "
-           "does not replace professional medical assessment.")
+st.warning(
+    "Research prototype. Produces a statistical risk estimate for "
+    "self-management support only. It does not diagnose diabetes and "
+    "does not replace professional medical assessment."
+)
 
 with st.sidebar:
     st.header("Patient information")
@@ -37,9 +41,11 @@ with st.sidebar:
     patient["Stroke"] = int(st.checkbox("Stroke history"))
     patient["DiffWalk"] = int(st.checkbox("Difficulty walking"))
     patient["GenHlth"] = st.select_slider(
-        "Self-rated general health", [1, 2, 3, 4, 5], value=3,
-        format_func=lambda v: {1: "Excellent", 2: "Very good", 3: "Good",
-                               4: "Fair", 5: "Poor"}[v])
+        "Self-rated general health",
+        [1, 2, 3, 4, 5],
+        value=3,
+        format_func=lambda v: {1: "Excellent", 2: "Very good", 3: "Good", 4: "Fair", 5: "Poor"}[v],
+    )
     run = st.button("Assess risk", type="primary", use_container_width=True)
 
 if run:
@@ -55,20 +61,35 @@ if run:
 
     st.subheader("Why this result - SHAP")
     st.caption("Each value is this feature's contribution to the model output.")
-    st.dataframe([{"Factor": r["readable"], "Patient value": r["value"],
-                   "Contribution": round(r["shap"], 4), "Effect": r["direction"]}
-                  for r in result["shap"]], use_container_width=True)
+    st.dataframe(
+        [
+            {
+                "Factor": r["readable"],
+                "Patient value": r["value"],
+                "Contribution": round(r["shap"], 4),
+                "Effect": r["direction"],
+            }
+            for r in result["shap"]
+        ],
+        use_container_width=True,
+    )
 
     st.subheader("Cross-check - LIME")
-    st.dataframe([{"Rule": r["rule"], "Weight": round(r["weight"], 4),
-                   "Effect": r["direction"]} for r in result["lime"]],
-                 use_container_width=True)
+    st.dataframe(
+        [
+            {"Rule": r["rule"], "Weight": round(r["weight"], 4), "Effect": r["direction"]}
+            for r in result["lime"]
+        ],
+        use_container_width=True,
+    )
 
     agree = result["agreement"]
-    st.info(f"SHAP and LIME agree on {int(agree['overlap_ratio'] * 100)}% of the "
-            f"top factors: {', '.join(agree['shared']) or 'none'}. "
-            "The two methods answer different questions, so partial disagreement "
-            "is expected and is reported rather than hidden.")
+    st.info(
+        f"SHAP and LIME agree on {int(agree['overlap_ratio'] * 100)}% of the "
+        f"top factors: {', '.join(agree['shared']) or 'none'}. "
+        "The two methods answer different questions, so partial disagreement "
+        "is expected and is reported rather than hidden."
+    )
 
     st.subheader("Plain-language summary")
     st.write(result["explanation_text"])

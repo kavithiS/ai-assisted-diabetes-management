@@ -3,8 +3,9 @@
 These prove the functions behave correctly, which is PP1 testing evidence.
 Screenshot the passing output and save it in outputs/reports/.
 """
+
 import pytest
-from src.predict import predict_risk, categorise, to_frame, load_model, EXAMPLE_PATIENT
+from src.predict import EXAMPLE_PATIENT, categorise, load_model, predict_risk, to_frame
 
 
 def test_prediction_returns_valid_probability():
@@ -34,10 +35,8 @@ def test_feature_order_matches_training():
 
 def test_higher_risk_profile_scores_higher():
     """Directional sanity check: a worse profile should not score lower."""
-    low = dict(EXAMPLE_PATIENT, HighBP=0, HighChol=0, BMI=22.0,
-               GenHlth=1, PhysActivity=1, Age=3)
-    high = dict(EXAMPLE_PATIENT, HighBP=1, HighChol=1, BMI=38.0,
-                GenHlth=5, PhysActivity=0, Age=12)
+    low = dict(EXAMPLE_PATIENT, HighBP=0, HighChol=0, BMI=22.0, GenHlth=1, PhysActivity=1, Age=3)
+    high = dict(EXAMPLE_PATIENT, HighBP=1, HighChol=1, BMI=38.0, GenHlth=5, PhysActivity=0, Age=12)
     assert predict_risk(high)["risk_probability"] > predict_risk(low)["risk_probability"]
 
 
@@ -48,6 +47,7 @@ def test_extreme_values_do_not_crash():
 
 @pytest.mark.slow
 def test_explanations_return_requested_number_of_factors():
-    from src.explain import shap_explain, lime_explain
+    from src.explain import lime_explain, shap_explain
+
     assert len(shap_explain(EXAMPLE_PATIENT)) == 5
     assert len(lime_explain(EXAMPLE_PATIENT)) == 5

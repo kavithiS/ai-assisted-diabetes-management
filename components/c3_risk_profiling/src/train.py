@@ -3,16 +3,24 @@
 Run:
     python -m src.train
 """
+
 import json
+
 import joblib
-import numpy as np
-from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    average_precision_score,
+    brier_score_loss,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import (roc_auc_score, average_precision_score, f1_score,
-                             recall_score, precision_score, confusion_matrix,
-                             brier_score_loss)
+
 from .config import CFG, abs_path
 from .preprocess import build_dataset
 
@@ -31,21 +39,36 @@ def get_models():
     seed = CFG["preprocess"]["random_state"]
     models = {
         # Scaling is inside the pipeline, so it is fitted on train folds only.
-        "logistic_regression": Pipeline([
-            ("scaler", StandardScaler()),
-            ("clf", LogisticRegression(max_iter=1000, class_weight="balanced",
-                                       random_state=seed)),
-        ]),
+        "logistic_regression": Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                (
+                    "clf",
+                    LogisticRegression(max_iter=1000, class_weight="balanced", random_state=seed),
+                ),
+            ]
+        ),
         "random_forest": RandomForestClassifier(
-            n_estimators=300, min_samples_leaf=5, class_weight="balanced",
-            n_jobs=-1, random_state=seed),
+            n_estimators=300,
+            min_samples_leaf=5,
+            class_weight="balanced",
+            n_jobs=-1,
+            random_state=seed,
+        ),
     }
     try:
         from xgboost import XGBClassifier
+
         models["xgboost"] = XGBClassifier(
-            n_estimators=300, max_depth=5, learning_rate=0.1,
-            subsample=0.9, colsample_bytree=0.9, eval_metric="logloss",
-            random_state=seed, n_jobs=-1)
+            n_estimators=300,
+            max_depth=5,
+            learning_rate=0.1,
+            subsample=0.9,
+            colsample_bytree=0.9,
+            eval_metric="logloss",
+            random_state=seed,
+            n_jobs=-1,
+        )
     except ImportError:
         print("xgboost not installed - skipping it")
     return models
@@ -79,8 +102,7 @@ def main():
     for name, model in get_models().items():
         print(f"\nTraining {name} ...")
         model.fit(X_train, y_train)
-        joblib.dump({"model": model, "features": list(X_train.columns)},
-                    out_dir / f"{name}.joblib")
+        joblib.dump({"model": model, "features": list(X_train.columns)}, out_dir / f"{name}.joblib")
         metrics = evaluate(name, model, X_test, y_test)
         results.append(metrics)
         for k, v in metrics.items():
