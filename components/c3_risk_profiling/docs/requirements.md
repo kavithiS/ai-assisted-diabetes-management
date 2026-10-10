@@ -13,14 +13,17 @@
 | ID | Requirement | PP1 status |
 |---|---|---|
 | FR1 | The system shall accept a patient risk-factor record as structured input | Implemented |
-| FR2 | The system shall validate inputs and report any missing fields rather than silently defaulting them | Implemented |
-| FR3 | The system shall preprocess inputs using the same transformations applied during training | Implemented |
-| FR4 | The system shall output a diabetes risk probability between 0 and 1 | Implemented |
-| FR5 | The system shall map the probability to a Low / Moderate / High band | Implemented |
+| FR2 | The system shall reject impossible values and report any missing fields rather than silently defaulting them | Implemented |
+| FR2a | The system shall return an insufficient-data status, with no risk band, when age, BMI or blood pressure is missing | Implemented |
+| FR3 | The system shall preprocess inputs using the same transformations (training medians) applied during training | Implemented |
+| FR4 | The system shall output a calibrated diabetes risk probability between 0 and 1 | Implemented |
+| FR5 | The system shall map the probability to a Low / Moderate / High band using cut-offs chosen from training data | Implemented (cut-offs pending clinical review) |
+| FR5a | The system shall use a glucose-aware model only when a glucose result is provided | Implemented |
+| FR5b | The system shall add a referral note to every High-band result | Implemented |
 | FR6 | The system shall generate SHAP contributions for an individual prediction | Implemented |
-| FR7 | The system shall generate LIME local explanations for the same prediction | Implemented |
-| FR8 | The system shall report the agreement between SHAP and LIME | Implemented |
-| FR9 | The system shall produce a plain-language explanation naming the main contributing factors | Implemented |
+| FR7 | The system shall generate LIME local explanations, with local fit (R²), for the same prediction | Implemented |
+| FR8 | The system shall report the agreement between SHAP and LIME and flag weak explanations | Implemented |
+| FR9 | The system shall produce a plain-language explanation separating modifiable from non-modifiable factors | Implemented |
 | FR10 | The system shall display a disclaimer stating the output is not a diagnosis | Implemented |
 | FR11 | The system shall compute an adaptive Diabetic Health Score (0-100) | PP2 |
 | FR12 | The system shall track DHS trends over time | PP2 |
