@@ -3,7 +3,9 @@
 Run it on its own to inspect the data:
     python -m src.data_loader
 """
+
 import pandas as pd
+
 from .config import CFG, abs_path
 
 

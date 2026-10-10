@@ -7,8 +7,10 @@ OUTPUT     risk probability + risk category + data-completeness status
 Run the built-in example:
     python -m src.predict
 """
+
 import joblib
 import pandas as pd
+
 from .config import CFG, abs_path
 
 
@@ -52,20 +54,39 @@ def predict_risk(patient: dict, model_name: str | None = None) -> dict:
         "model_used": model_name or CFG["model"]["active"],
         "missing_fields": missing,
         "data_complete": len(missing) == 0,
-        "disclaimer": ("Statistical risk estimate for self-management support. "
-                       "This is not a diagnosis and does not replace medical advice."),
+        "disclaimer": (
+            "Statistical risk estimate for self-management support. "
+            "This is not a diagnosis and does not replace medical advice."
+        ),
     }
 
 
 # A sample patient for testing. Field names must match the dataset columns.
 EXAMPLE_PATIENT = {
-    "HighBP": 1, "HighChol": 1, "CholCheck": 1, "BMI": 29.4, "Smoker": 0,
-    "Stroke": 0, "HeartDiseaseorAttack": 0, "PhysActivity": 0, "Fruits": 0,
-    "Veggies": 1, "HvyAlcoholConsump": 0, "AnyHealthcare": 1, "NoDocbcCost": 0,
-    "GenHlth": 3, "MentHlth": 2, "PhysHlth": 5, "DiffWalk": 0, "Sex": 1,
-    "Age": 9, "Education": 5, "Income": 6,
+    "HighBP": 1,
+    "HighChol": 1,
+    "CholCheck": 1,
+    "BMI": 29.4,
+    "Smoker": 0,
+    "Stroke": 0,
+    "HeartDiseaseorAttack": 0,
+    "PhysActivity": 0,
+    "Fruits": 0,
+    "Veggies": 1,
+    "HvyAlcoholConsump": 0,
+    "AnyHealthcare": 1,
+    "NoDocbcCost": 0,
+    "GenHlth": 3,
+    "MentHlth": 2,
+    "PhysHlth": 5,
+    "DiffWalk": 0,
+    "Sex": 1,
+    "Age": 9,
+    "Education": 5,
+    "Income": 6,
 }
 
 if __name__ == "__main__":
     import json
+
     print(json.dumps(predict_risk(EXAMPLE_PATIENT), indent=2))

@@ -6,8 +6,10 @@ is fitted on the TRAINING split only, then applied to the test split.
 Run:
     python -m src.preprocess
 """
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
+
 from .config import CFG, abs_path
 from .data_loader import load_raw
 
@@ -39,7 +41,8 @@ def build_dataset():
 
     # stratify keeps the class balance identical in both splits.
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
+        X,
+        y,
         test_size=cfg["preprocess"]["test_size"],
         random_state=cfg["preprocess"]["random_state"],
         stratify=y,
