@@ -25,3 +25,13 @@ risk_bands:
 explain:
   top_k: 5
   background_samples: 100
+
+# South Asian experiment: real Bangladesh data plus synthetic augmentation.
+south_asia:
+  processed_file: "data/processed/c3_south_asia.csv"
+  cv_folds: 5
+
+synthetic:
+  # Synthetic rows per real training row. The test set is always 100% real.
+  ratio: 1.0
+  random_state: 7
