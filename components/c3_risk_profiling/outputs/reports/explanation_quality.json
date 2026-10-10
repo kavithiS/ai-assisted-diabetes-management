@@ -1,0 +1,16 @@
+{
+  "without_glucose": {
+    "patients": 30,
+    "median_shap_lime_top5_overlap": 0.8,
+    "share_meeting_60pct_target": 1.0,
+    "median_lime_fidelity_r2": 0.743,
+    "median_lime_stability_jaccard": 1.0
+  },
+  "with_glucose": {
+    "patients": 30,
+    "median_shap_lime_top5_overlap": 0.8,
+    "share_meeting_60pct_target": 0.967,
+    "median_lime_fidelity_r2": 0.327,
+    "median_lime_stability_jaccard": 0.778
+  }
+}
