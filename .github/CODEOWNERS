@@ -1,0 +1,34 @@
+# Code owners for DiaCare AI (J26-IT-352).
+#
+# [INFORMATION REQUIRED] GitHub usernames have not been confirmed yet.
+# When they are, uncomment each rule and replace the placeholder with the member's
+# @username. In CODEOWNERS, the last matching rule takes precedence.
+#
+#   C1  Thilakarathne K.S  (IT23295742)  -> @C1_GITHUB_USERNAME
+#   C2  Jayamanna J.M.A.N.D (IT23319042) -> @C2_GITHUB_USERNAME
+#   C3  Rajapaksha R.M.L.I (IT23315846)  -> @C3_GITHUB_USERNAME
+#   C4  G.P. Welikala      (IT23327580)  -> @C4_GITHUB_USERNAME
+
+# --- C1: Food Recognition & Nutritional Analysis ---
+# /server/services/c1_food_nutrition/  @C1_GITHUB_USERNAME
+# /data/c1/                            @C1_GITHUB_USERNAME
+
+# --- C2: Glycemic Prediction & Risk Forecasting ---
+# /server/services/c2_glycemic_forecasting/  @C2_GITHUB_USERNAME
+# /data/c2/                                  @C2_GITHUB_USERNAME
+
+# --- C3: Multi-Factor Diabetic Risk Profiling & XAI ---
+# /server/services/c3_risk_xai/  @C3_GITHUB_USERNAME
+# /data/c3/                      @C3_GITHUB_USERNAME
+
+# --- C4: Mobile Platform & Foot Monitoring ---
+# /server/services/c4_foot_monitoring/  @C4_GITHUB_USERNAME
+# /data/c4/                             @C4_GITHUB_USERNAME
+
+# --- Client and gateway: proposed owner C4, pending confirmation ---
+# /client/          @C4_GITHUB_USERNAME
+# /server/gateway/  @C4_GITHUB_USERNAME
+
+# --- Shared: all four members ---
+# /contracts/      @C1_GITHUB_USERNAME @C2_GITHUB_USERNAME @C3_GITHUB_USERNAME @C4_GITHUB_USERNAME
+# /server/shared/  @C1_GITHUB_USERNAME @C2_GITHUB_USERNAME @C3_GITHUB_USERNAME @C4_GITHUB_USERNAME
