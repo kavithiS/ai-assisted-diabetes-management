@@ -1,4 +1,3 @@
-
 """Prepare meal-centred CGMacros samples for C2 glucose forecasting."""
 
 from __future__ import annotations
@@ -20,7 +19,6 @@ NUTRITION = ("Calories", "Carbs", "Protein", "Fat", "Fiber", "Amount Consumed")
 TARGET_MINUTES = tuple(range(0, 241, 15))
 
 
-
 def load_participant(path: Path) -> pd.DataFrame:
     """Load and validate one participant's CSV."""
     df = pd.read_csv(path)
@@ -37,42 +35,26 @@ def load_participant(path: Path) -> pd.DataFrame:
     }
     missing = required - set(df.columns)
     if missing:
-        raise ValueError(
-            f"{path.name} is missing columns: {sorted(missing)}"
-        )
+        raise ValueError(f"{path.name} is missing columns: {sorted(missing)}")
 
     if "Amount Consumed" not in df.columns:
         df["Amount Consumed"] = np.nan
 
-    df[TIME] = pd.to_datetime(
-        df[TIME], errors="coerce", format="mixed"
-    ).astype("datetime64[ns]")
+    df[TIME] = pd.to_datetime(df[TIME], errors="coerce", format="mixed").astype("datetime64[ns]")
 
-    df = (
-        df.dropna(subset=[TIME])
-        .sort_values(TIME)
-        .reset_index(drop=True)
-    )
+    df = df.dropna(subset=[TIME]).sort_values(TIME).reset_index(drop=True)
 
     for column in (*SENSORS, *NUTRITION):
-        df[column] = pd.to_numeric(
-            df[column], errors="coerce"
-        )
+        df[column] = pd.to_numeric(df[column], errors="coerce")
 
     return df
-
 
 
 def find_meals(df: pd.DataFrame) -> pd.DataFrame:
     """Identify rows annotated as meal events."""
     types = (
-    df[MEAL_TYPE]
-    .fillna("")
-    .astype(str)
-    .str.strip()
-    .str.lower()
-    .replace({"snacks": "snack"})
-)
+        df[MEAL_TYPE].fillna("").astype(str).str.strip().str.lower().replace({"snacks": "snack"})
+    )
     has_type = types.ne("")
     has_nutrition = df[list(NUTRITION)].notna().any(axis=1)
 
@@ -94,8 +76,7 @@ def nearest_reading(
         return np.nan
 
     position = int(np.searchsorted(timestamps_ns, target_ns))
-    candidates = [i for i in (position - 1, position)
-                  if 0 <= i < len(timestamps_ns)]
+    candidates = [i for i in (position - 1, position) if 0 <= i < len(timestamps_ns)]
     if not candidates:
         return np.nan
 
@@ -135,40 +116,29 @@ def process_participant(
         meal_time = meal[TIME]
         meal_ns = int(meal_time.value)
 
-        next_meal = (
-            meals.iloc[i + 1][TIME]
-            if i + 1 < len(meals)
-            else pd.NaT
-        )
+        next_meal = meals.iloc[i + 1][TIME] if i + 1 < len(meals) else pd.NaT
         overlap = bool(
-            pd.notna(next_meal)
-            and meal_time < next_meal <= meal_time + pd.Timedelta(hours=4)
+            pd.notna(next_meal) and meal_time < next_meal <= meal_time + pd.Timedelta(hours=4)
         )
 
         record = {
             "participant_id": participant_id,
             "meal_timestamp": meal_time.isoformat(),
             "meal_type": meal["_meal_type"],
-            "next_meal_timestamp": (
-                next_meal.isoformat() if pd.notna(next_meal) else None
-            ),
+            "next_meal_timestamp": (next_meal.isoformat() if pd.notna(next_meal) else None),
             "next_meal_within_4h": overlap,
         }
 
         for column in NUTRITION:
             name = column.lower().replace(" ", "_")
-            record[name] = (
-                float(meal[column]) if pd.notna(meal[column]) else np.nan
-            )
+            record[name] = float(meal[column]) if pd.notna(meal[column]) else np.nan
 
         for sensor in SENSORS:
             sensor_name = sensor.lower().replace(" ", "_")
             times_ns, values = sensor_data[sensor]
 
             # Baseline must be measured at or before the meal, never after it.
-            before = (times_ns < meal_ns) & (
-    times_ns >= meal_ns - 15 * 60_000_000_000
-)
+            before = (times_ns < meal_ns) & (times_ns >= meal_ns - 15 * 60_000_000_000)
             if before.any():
                 previous_time = times_ns[before][-1]
                 previous_value = values[before][-1]
@@ -191,10 +161,7 @@ def process_participant(
         target_names = [f"libre_gl_t{minute:03d}" for minute in TARGET_MINUTES]
         target_count = sum(pd.notna(record[name]) for name in target_names)
         required_nutrition = ("carbs", "protein", "fat", "fiber")
-        missing_nutrition = [
-            name for name in required_nutrition
-            if pd.isna(record.get(name))
-        ]
+        missing_nutrition = [name for name in required_nutrition if pd.isna(record.get(name))]
         has_baseline = pd.notna(record["premeal_libre_gl"])
         complete_trajectory = target_count == len(TARGET_MINUTES)
 
@@ -208,14 +175,16 @@ def process_participant(
         if missing_nutrition:
             reasons.append("missing_required_nutrition")
 
-        record.update({
-            "libre_target_count_15min": target_count,
-            "complete_4h_libre_trajectory": complete_trajectory,
-            "has_premeal_libre_glucose": has_baseline,
-            "missing_nutrition_fields": ",".join(missing_nutrition),
-            "eligible_for_clean_dataset": not reasons,
-            "exclusion_reasons": ";".join(reasons),
-        })
+        record.update(
+            {
+                "libre_target_count_15min": target_count,
+                "complete_4h_libre_trajectory": complete_trajectory,
+                "has_premeal_libre_glucose": has_baseline,
+                "missing_nutrition_fields": ",".join(missing_nutrition),
+                "eligible_for_clean_dataset": not reasons,
+                "exclusion_reasons": ";".join(reasons),
+            }
+        )
         records.append(record)
 
     return records
@@ -236,8 +205,7 @@ def prepare_dataset(
     files = [p for p in files if p.parent.name == p.stem]
     if not files:
         raise FileNotFoundError(
-            f"No participant CSVs found under {data_dir}. "
-            "Expected CGMacros-###/CGMacros-###.csv."
+            f"No participant CSVs found under {data_dir}. Expected CGMacros-###/CGMacros-###.csv."
         )
 
     records = []
@@ -253,15 +221,19 @@ def prepare_dataset(
             records.extend(participant_records)
             LOGGER.info(
                 "%s: %d rows, %d meal samples",
-                participant_id, len(participant), len(participant_records),
+                participant_id,
+                len(participant),
+                len(participant_records),
             )
         except (ValueError, OSError, pd.errors.ParserError) as exc:
             LOGGER.exception("Could not process %s", path)
-            failures.append({
-                "participant_id": participant_id,
-                "file": str(path),
-                "error": str(exc),
-            })
+            failures.append(
+                {
+                    "participant_id": participant_id,
+                    "file": str(path),
+                    "error": str(exc),
+                }
+            )
 
     if not records:
         raise RuntimeError("No samples were generated. Check the input files.")
@@ -269,11 +241,17 @@ def prepare_dataset(
     output_dir.mkdir(parents=True, exist_ok=True)
     all_samples = pd.DataFrame(records)
     audit_columns = [
-        "participant_id", "meal_timestamp", "meal_type",
-        "next_meal_timestamp", "next_meal_within_4h",
-        "has_premeal_libre_glucose", "libre_target_count_15min",
-        "complete_4h_libre_trajectory", "missing_nutrition_fields",
-        "eligible_for_clean_dataset", "exclusion_reasons",
+        "participant_id",
+        "meal_timestamp",
+        "meal_type",
+        "next_meal_timestamp",
+        "next_meal_within_4h",
+        "has_premeal_libre_glucose",
+        "libre_target_count_15min",
+        "complete_4h_libre_trajectory",
+        "missing_nutrition_fields",
+        "eligible_for_clean_dataset",
+        "exclusion_reasons",
     ]
     audit = all_samples[audit_columns].copy()
     clean = all_samples.loc[all_samples["eligible_for_clean_dataset"]].copy()
@@ -325,9 +303,7 @@ def main() -> None:
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    summary = prepare_dataset(
-        args.data_dir, args.output_dir, args.tolerance_minutes
-    )
+    summary = prepare_dataset(args.data_dir, args.output_dir, args.tolerance_minutes)
     print(json.dumps(summary, indent=2))
 
 

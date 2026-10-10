@@ -1,17 +1,11 @@
-
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-
 # Dataset locations
 DESKTOP = Path.home() / "Desktop"
-INPUT_FILE = (
-    DESKTOP
-    / "CGMacros_C2_processed"
-    / "cgmacros_meal_samples_clean.csv"
-)
+INPUT_FILE = DESKTOP / "CGMacros_C2_processed" / "cgmacros_meal_samples_clean.csv"
 OUTPUT_DIR = DESKTOP / "CGMacros_C2_processed" / "splits"
 
 RANDOM_SEED = 42
