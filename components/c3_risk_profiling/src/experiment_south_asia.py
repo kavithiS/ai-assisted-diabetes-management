@@ -17,7 +17,6 @@ Run (after python -m src.south_asia_dataset):
 
 import json
 
-import joblib
 import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
@@ -65,7 +64,8 @@ def cross_validate(X, y) -> dict:
     return out
 
 
-def fit_and_score(X_fit, y_fit, X_test, y_test, weight, label: dict, save_as=None) -> list:
+def fit_and_score(X_fit, y_fit, X_test, y_test, weight, label: dict) -> list:
+    """Research comparison only; the deployable models come from src.train."""
     rows = []
     for name, model in get_models(weight).items():
         model.fit(X_fit, y_fit)
@@ -75,10 +75,6 @@ def fit_and_score(X_fit, y_fit, X_test, y_test, weight, label: dict, save_as=Non
             f"  {label} {name}: acc {metrics['accuracy']}  ROC-AUC {metrics['roc_auc']}  "
             f"PR-AUC {metrics['pr_auc']}  recall {metrics['recall_sensitivity']}"
         )
-        if save_as:
-            bundle = {"model": model, "features": list(X_fit.columns), "fill_values": save_as}
-            name_part = f"{label['scenario']}_{label['features']}_{name}"
-            joblib.dump(bundle, abs_path(CFG["model"]["output_dir"]) / f"sa_{name_part}.joblib")
     return rows
 
 
@@ -117,8 +113,7 @@ def main_experiment(diabd: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
         }
         for scenario, (X_fit, y_fit) in scenarios.items():
             label = {"scenario": scenario, "features": fs_name}
-            keep = fill[cols].to_dict() if scenario != "synthetic_only" else None
-            results += fit_and_score(X_fit, y_fit, X_test_f[cols], y_test, w, label, keep)
+            results += fit_and_score(X_fit, y_fit, X_test_f[cols], y_test, w, label)
 
     combined = pd.concat(
         [
@@ -177,7 +172,6 @@ def pooled(df: pd.DataFrame) -> list:
 def main():
     df = pd.read_csv(abs_path(CFG["south_asia"]["processed_file"]))
     diabd, narsingdi = df[df["source"] == "diabd"], df[df["source"] == "narsingdi"]
-    abs_path(CFG["model"]["output_dir"]).mkdir(parents=True, exist_ok=True)
 
     print("\n== Main: DiaBD real / real+synthetic / synthetic ==")
     report, combined = main_experiment(diabd)
