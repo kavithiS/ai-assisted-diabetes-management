@@ -25,7 +25,7 @@ from .config import CFG, abs_path
 from .preprocess import build_dataset
 
 
-def get_models():
+def get_models(pos_weight: float = 1.0):
     """Three models, deliberately chosen - be ready to justify each one.
 
     - Logistic regression: interpretable baseline. If a complex model cannot
@@ -35,6 +35,8 @@ def get_models():
     - XGBoost: strong tabular performance; optional for PP1.
 
     class_weight="balanced" matters because the positive class is a minority.
+    XGBoost has no class_weight, so pos_weight (negatives / positives in the
+    training split) gives it the same balancing through scale_pos_weight.
     """
     seed = CFG["preprocess"]["random_state"]
     models = {
@@ -66,6 +68,7 @@ def get_models():
             subsample=0.9,
             colsample_bytree=0.9,
             eval_metric="logloss",
+            scale_pos_weight=pos_weight,
             random_state=seed,
             n_jobs=-1,
         )
@@ -82,6 +85,7 @@ def evaluate(name, model, X_test, y_test) -> dict:
     tn, fp, fn, tp = confusion_matrix(y_test, pred).ravel()
     return {
         "model": name,
+        "accuracy": round((tp + tn) / len(y_test), 4),
         "roc_auc": round(roc_auc_score(y_test, proba), 4),
         "pr_auc": round(average_precision_score(y_test, proba), 4),
         "recall_sensitivity": round(recall_score(y_test, pred), 4),
@@ -98,8 +102,9 @@ def main():
     out_dir = abs_path(CFG["model"]["output_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    pos_weight = (y_train == 0).sum() / (y_train == 1).sum()
     results = []
-    for name, model in get_models().items():
+    for name, model in get_models(pos_weight).items():
         print(f"\nTraining {name} ...")
         model.fit(X_train, y_train)
         joblib.dump({"model": model, "features": list(X_train.columns)}, out_dir / f"{name}.joblib")
