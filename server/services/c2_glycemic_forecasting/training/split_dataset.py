@@ -43,7 +43,7 @@ def main() -> None:
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    used_ids = set()
+    used_ids: set[str] = set()
 
     for split_name, participant_ids in splits.items():
         participant_set = set(participant_ids.tolist())
