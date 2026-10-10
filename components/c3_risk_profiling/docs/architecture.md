@@ -3,48 +3,72 @@
 ## Simple view
 
 ```
-Patient data (questionnaire + clinical)
+Patient data (questionnaire + clinical, optional glucose)
           |
           v
-   Input validation          <- reject impossible values, report missing fields
+   Input validation          <- reject impossible values (e.g. BMI 500)
           |
           v
-   Preprocessing             <- same transforms as training, no leakage
+   Completeness check        <- missing age/BMI/BP: "insufficient_data", NO band
+          |                     other gaps: training median, listed in the output
+          v
+   Model choice              <- glucose given ? "with_glucose" : "without_glucose"
           |
           v
-   Feature alignment         <- exact column order the model expects
+   Risk model                <- selected by cross-validated PR-AUC
+          |                     (logistic regression / random forest / XGBoost)
+          v
+   Calibration               <- Platt scaling fitted on out-of-fold scores
           |
           v
-   Risk prediction model     <- logistic regression / random forest / XGBoost
+   Risk band                 <- data-driven cut-offs (90% sensitivity / 90% specificity)
+          |                     FUNCTION 1 OUTPUT (+ referral note for High)
+          v
+   SHAP  +  LIME             <- contributions and local surrogate (+ LIME fit R²)
           |
           v
-   Risk probability + band   <- FUNCTION 1 OUTPUT
+   Agreement + quality flag  <- top-5 overlap vs the proposal's 60% target
           |
           v
-   SHAP  +  LIME             <- contributions and local surrogate
-          |
+   Plain-language summary    <- modifiable vs not-modifiable factors
+          |                     FUNCTION 2 OUTPUT
           v
-   Agreement check           <- do the two methods pick the same factors?
-          |
-          v
-   Plain-language explanation  <- FUNCTION 2 OUTPUT
-          |
-          v
-   Streamlit demo UI (PP1)  /  FastAPI service (PP2)
+   Streamlit demo UI (PP1)  /  FastAPI service in server/services/c3_risk_xai (PP2)
+```
+
+## Training pipeline
+
+```
+DiaBD + Narsingdi (Bangladesh)  --south_asia_dataset-->  harmonised table
+        |
+        v  stratified 80/20 split (DiaBD); 20% REAL test set is locked away
+        |
+   5-fold CV on the training split; inside every fold:
+        medians + synthetic generator fitted on that fold only -> real+synthetic fit
+        |
+        v
+   out-of-fold scores -> model choice, calibration, band cut-offs
+        |
+        v
+   refit on full training split (real + synthetic) -> scored once on the real test set
 ```
 
 ## Where each block lives
 
 | Block | File | PP1 status |
 |---|---|---|
+| Download with provenance | `src/external_data.py` | Done |
+| Harmonise + plausibility | `src/south_asia_dataset.py` | Done |
 | Load and inspect | `src/data_loader.py` | Done |
-| Clean and split | `src/preprocess.py` | Done |
-| Train and compare | `src/train.py` | Done |
+| Split | `src/preprocess.py` | Done |
+| Synthetic generator | `src/synthetic.py` | Done |
+| Train, calibrate, bands | `src/train.py` | Done |
 | Predict (Function 1) | `src/predict.py` | Done |
 | Explain (Function 2) | `src/explain.py` | Done |
+| Evidence figures | `src/evidence.py` | Done |
 | Demo UI | `app/streamlit_app.py` | Done |
 | DHS engine | not yet created | PP2 |
-| FastAPI service | not yet created | PP2 |
+| FastAPI service | `server/services/c3_risk_xai` (team scaffold) | PP2 |
 
 ## Integration with the other components
 
@@ -60,34 +84,49 @@ Do not implement the other members' modules. Agree the **contract** only.
                                                   +--(risk, DHS, explanations)--> C4 Mobile App
 ```
 
-### Input contract C3 expects (placeholder - confirm with the team)
+### Input C3 accepts today (`predict_risk`)
 
 ```json
 {
-  "patient_id": "string",
-  "questionnaire": { "Age": 9, "Sex": 1, "Smoker": 0, "PhysActivity": 1 },
-  "clinical":      { "BMI": 29.4, "HighBP": 1, "HighChol": 1 },
-  "nutrition_c1":  { "status": "pending", "source": "Component 1" },
-  "forecast_c2":   { "status": "pending", "source": "Component 2" }
+  "age": 58, "sex_male": 1, "bmi": 27.8,
+  "systolic_bp": 150, "diastolic_bp": 95, "pulse_rate": 84,
+  "glucose_mmol": 9.8,
+  "family_history_diabetes": 1, "family_history_hypertension": 1,
+  "hypertensive": 1, "cardiovascular_disease": 0, "stroke": 0
 }
 ```
 
-### Output contract C3 produces
+`glucose_mmol` is optional. In PP2 the C1 nutrition and C2 forecast fields are added
+to this contract in `contracts/`.
+
+### Output C3 produces (`explain_patient`)
 
 ```json
 {
-  "risk_probability": 0.52,
-  "risk_category": "Moderate",
-  "top_factors": [
-    { "feature": "HighBP", "readable": "high blood pressure",
-      "contribution": 0.0729, "direction": "increases risk" }
-  ],
-  "xai_agreement": 0.6,
-  "explanation_text": "...",
-  "data_complete": true,
-  "disclaimer": "Not a diagnosis."
+  "prediction": {
+    "status": "ok",
+    "risk_category": "High",
+    "risk_probability": 0.5657,
+    "feature_set": "with_glucose",
+    "model_used": "random_forest",
+    "thresholds": {"low_max": 0.0259, "high_min": 0.1345},
+    "imputed_fields": [],
+    "data_complete": true,
+    "referral": "Because the estimate is in the High band, ...",
+    "disclaimer": "... not a diagnosis ..."
+  },
+  "shap": [{"feature": "hypertensive", "factor_type": "medical history",
+            "shap": 0.2646, "direction": "increases risk"}],
+  "lime": [{"rule": "hypertensive > 0.00", "weight": 0.2863}],
+  "lime_fidelity": 0.69,
+  "agreement": {"overlap_ratio": 0.8, "meets_target": true},
+  "explanation_quality": "consistent",
+  "explanation_text": "Your estimated risk band is High. ..."
 }
 ```
+
+Other statuses: `insufficient_data` (lists `missing_critical_fields`, no band) and
+`invalid_input` (lists `problems`).
 
 **If Component 3 is removed**, the system can still recognise food and forecast
 glucose, but nobody is told what their overall diabetes risk is, which factors
