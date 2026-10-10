@@ -92,7 +92,7 @@ def process_participant(
     participant_id: str,
     df: pd.DataFrame,
     tolerance_minutes: int,
-) -> list[dict]:
+) -> list[dict[str, object]]:
     """Create meal-centred four-hour trajectory samples."""
     meals = find_meals(df)
     if meals.empty:
@@ -112,11 +112,11 @@ def process_participant(
 
     records = []
 
-    for i, meal in meals.iterrows():
+    for position, (_, meal) in enumerate(meals.iterrows()):
         meal_time = meal[TIME]
         meal_ns = int(meal_time.value)
 
-        next_meal = meals.iloc[i + 1][TIME] if i + 1 < len(meals) else pd.NaT
+        next_meal = meals.iloc[position + 1][TIME] if position + 1 < len(meals) else pd.NaT
         overlap = bool(
             pd.notna(next_meal) and meal_time < next_meal <= meal_time + pd.Timedelta(hours=4)
         )
@@ -194,7 +194,7 @@ def prepare_dataset(
     data_dir: Path,
     output_dir: Path,
     tolerance_minutes: int = 5,
-) -> dict:
+) -> dict[str, object]:
     """Process participants and write derived datasets and quality reports."""
     if tolerance_minutes < 0:
         raise ValueError("Tolerance must be non-negative.")
