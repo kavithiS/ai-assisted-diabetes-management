@@ -1,0 +1,13 @@
+feature,factor_group,diabd_source,narsingdi_source,diabd_missing_percent,narsingdi_missing_percent
+age,1 Demographic,age,Age,0.0,0.0
+sex_male,1 Demographic,gender,not recorded,0.0,100.0
+bmi,2 Anthropometric,bmi,BMI,0.1,0.0
+systolic_bp,7 Clinical,systolic_bp,BP(Systolic),0.0,0.0
+diastolic_bp,7 Clinical,diastolic_bp,BP(Diastolic),0.0,1.0
+pulse_rate,7 Clinical,pulse_rate,not recorded,0.1,100.0
+glucose_mmol,7 Clinical (optional),glucose,Glucose / 18,0.4,0.0
+family_history_diabetes,5 Medical & family history,family_diabetes,DiabetesPedigreeFunction > 0,0.0,0.0
+family_history_hypertension,5 Medical & family history,family_hypertension,not recorded,0.0,100.0
+hypertensive,5 Medical & family history,hypertensive,not recorded,0.0,100.0
+cardiovascular_disease,5 Medical & family history,cardiovascular_disease,not recorded,0.0,100.0
+stroke,5 Medical & family history,stroke,not recorded,0.0,100.0
