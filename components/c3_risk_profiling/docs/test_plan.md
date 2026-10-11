@@ -10,24 +10,24 @@ Never pre-fill results you have not observed.**
 
 | ID | Feature | Input | Expected result | Actual | Status | Evidence |
 |---|---|---|---|---|---|---|
-| T01 | Data load | Both Bangladesh files | DiaBD 5,288 rows; Narsingdi 496 unique rows | | | `python -m src.data_loader` screenshot |
-| T02 | Duplicate removal | Narsingdi raw file | 569 duplicates removed | | | terminal screenshot |
-| T03 | Impossible values | BMI 574, pulse 5 | Set to missing | | | `test_impossible_values_become_missing` |
-| T04 | Train/test split | DiaBD | Diabetes rate equal in both splits | | | `python -m src.preprocess` screenshot |
-| T05 | Model training | Train split | 3 models x 2 feature sets trained, CV reported, one selected per set | | | `models/` + `model_comparison.json` |
-| T06 | Prediction range | Example patient | Status ok, probability 0-1, valid band | | | `test_prediction_returns_valid_probability_and_band` |
-| T07 | Model choice | With / without glucose | with_glucose / without_glucose model used | | | `test_glucose_decides_which_model_is_used` |
-| T08 | Critical missing | Age + BMI only | insufficient_data, no band | | | `test_missing_critical_field_returns_no_band` |
-| T09 | Optional missing | No pulse | ok, pulse listed in imputed_fields | | | `test_missing_optional_field_is_reported_not_hidden` |
-| T10 | Invalid input | BMI 500, stroke = 3 | invalid_input | | | `test_impossible_values_are_rejected` |
-| T11 | Feature order | Example patient | Column order matches training | | | `test_feature_order_matches_training` |
-| T12 | Directional sanity | Low vs high profile | High profile scores higher | | | `test_higher_risk_profile_scores_higher` |
-| T13 | Referral | High-band result | Referral note present only for High | | | `test_high_band_carries_referral` |
-| T14 | Risk bands | 0.01 / 0.10 / 0.50 | Low / Moderate / High | | | `test_risk_bands_are_ordered` |
-| T15 | Band cut-offs | Scores + labels | Cut-offs from data, low <= high | | | `test_thresholds_come_from_data_and_are_ordered` |
-| T16 | Calibration | Scores | Ranking unchanged after calibration | | | `test_calibration_keeps_ranking` |
-| T17 | Synthetic data | Training rows | Same columns, class balance kept, binary stays 0/1, < 5% copies | | | `test_synthetic_rows_keep_shape_labels_and_binary_columns` |
-| T18 | SHAP + LIME | Both models | 5 SHAP factors, LIME factors, agreement 0-1, factor types | | | `test_explanations_for_both_models` |
-| T19 | No explanation on bad data | Age only | Only the prediction status returned | | | `test_insufficient_data_skips_explanations` |
-| T20 | UI end to end | Presets in Streamlit | Band, summary, SHAP chart, LIME table, no errors | | | app screenshot |
-| T21 | Disclaimer | Any prediction | Non-diagnostic warning always shown | | | app screenshot |
+| T01 | Data load | Both Bangladesh files | DiaBD 5,288 rows; Narsingdi 496 unique rows | DiaBD 5,288; Narsingdi 496 | Pass | `python -m src.data_loader` screenshot |
+| T02 | Duplicate removal | Narsingdi raw file | 569 duplicates removed | 1,065 raw rows -> 496 unique | Pass | terminal screenshot |
+| T03 | Impossible values | BMI 574, pulse 5 | Set to missing | PASSED | Pass | `test_impossible_values_become_missing` |
+| T04 | Train/test split | DiaBD | Diabetes rate equal in both splits | Train 4,230 (6.48%), test 1,058 (6.43%) | Pass | `python -m src.preprocess` screenshot |
+| T05 | Model training | Train split | 3 models x 2 feature sets trained, CV reported, one selected per set | 3 models x 2 sets trained; LR and RF selected | Pass | `models/` + `model_comparison.json` |
+| T06 | Prediction range | Example patient | Status ok, probability 0-1, valid band | PASSED; real model gives 0.57, High | Pass | `test_prediction_returns_valid_probability_and_band` |
+| T07 | Model choice | With / without glucose | with_glucose / without_glucose model used | PASSED | Pass | `test_glucose_decides_which_model_is_used` |
+| T08 | Critical missing | Age + BMI only | insufficient_data, no band | PASSED; status insufficient_data, no band | Pass | `test_missing_critical_field_returns_no_band` |
+| T09 | Optional missing | No pulse | ok, pulse listed in imputed_fields | PASSED | Pass | `test_missing_optional_field_is_reported_not_hidden` |
+| T10 | Invalid input | BMI 500, stroke = 3 | invalid_input | PASSED | Pass | `test_impossible_values_are_rejected` |
+| T11 | Feature order | Example patient | Column order matches training | PASSED | Pass | `test_feature_order_matches_training` |
+| T12 | Directional sanity | Low vs high profile | High profile scores higher | PASSED | Pass | `test_higher_risk_profile_scores_higher` |
+| T13 | Referral | High-band result | Referral note present only for High | PASSED | Pass | `test_high_band_carries_referral` |
+| T14 | Risk bands | 0.01 / 0.10 / 0.50 | Low / Moderate / High | PASSED | Pass | `test_risk_bands_are_ordered` |
+| T15 | Band cut-offs | Scores + labels | Cut-offs from data, low <= high | PASSED | Pass | `test_thresholds_come_from_data_and_are_ordered` |
+| T16 | Calibration | Scores | Ranking unchanged after calibration | PASSED | Pass | `test_calibration_keeps_ranking` |
+| T17 | Synthetic data | Training rows | Same columns, class balance kept, binary stays 0/1, < 5% copies | PASSED | Pass | `test_synthetic_rows_keep_shape_labels_and_binary_columns` |
+| T18 | SHAP + LIME | Both models | 5 SHAP factors, LIME factors, agreement 0-1, factor types | PASSED (with and without glucose) | Pass | `test_explanations_for_both_models` |
+| T19 | No explanation on bad data | Age only | Only the prediction status returned | PASSED | Pass | `test_insufficient_data_skips_explanations` |
+| T20 | UI end to end | Presets in Streamlit | Band, summary, SHAP chart, LIME table, no errors | Band, summary, SHAP and LIME shown, no errors | Pass | app screenshot |
+| T21 | Disclaimer | Any prediction | Non-diagnostic warning always shown | Disclaimer shown | Pass | app screenshot |
