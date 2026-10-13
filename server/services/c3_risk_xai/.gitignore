@@ -1,0 +1,7 @@
+# C3 safety net on top of the root .gitignore.
+# Data, models and reports live in data/c3/ (repo root), which the root ignores.
+# These patterns stop a stray model or dataset in this folder from being committed.
+*.joblib
+*.pkl
+*.csv
+.ipynb_checkpoints/

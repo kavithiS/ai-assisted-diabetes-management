@@ -1,0 +1,84 @@
+# Central configuration. Change settings here, never hard-code them in scripts.
+
+# All paths are relative to the repository root. data/c3/ is gitignored (DVC).
+paths:
+  raw_dir: "data/c3/raw/external"
+  processed_dir: "data/c3/processed"
+  reports_dir: "data/c3/outputs/reports"
+  figures_dir: "server/services/c3_risk_xai/docs/figures"
+
+dataset:
+  name: "South Asian diabetes data (DiaBD + Narsingdi hospital, Bangladesh)"
+  # Development uses DiaBD only; Narsingdi is kept for the second-site check.
+  development_source: "diabd"
+
+preprocess:
+  test_size: 0.2
+  random_state: 42
+  cv_folds: 5
+
+# Two models are trained. predict.py uses "with_glucose" when the user gives a
+# blood glucose result and "without_glucose" (questionnaire + BP) otherwise.
+feature_sets:
+  without_glucose:
+    - age
+    - sex_male
+    - bmi
+    - systolic_bp
+    - diastolic_bp
+    - pulse_rate
+    - family_history_diabetes
+    - family_history_hypertension
+    - hypertensive
+    - cardiovascular_disease
+    - stroke
+  with_glucose:
+    - age
+    - sex_male
+    - bmi
+    - systolic_bp
+    - diastolic_bp
+    - pulse_rate
+    - glucose_mmol
+    - family_history_diabetes
+    - family_history_hypertension
+    - hypertensive
+    - cardiovascular_disease
+    - stroke
+
+# Without these the estimate is not trustworthy, so no risk band is returned.
+critical_fields: [age, bmi, systolic_bp, diastolic_bp]
+
+model:
+  # auto = the model with the best cross-validated PR-AUC, or name one:
+  # logistic_regression | random_forest | xgboost
+  active: "auto"
+  output_dir: "data/c3/models"
+
+risk_bands:
+  # Chosen from cross-validated training predictions, never from the test set.
+  # Low  = below the score that still keeps this share of diabetic people above it.
+  # High = above the score that this share of non-diabetic people stay below.
+  # Pending clinical review - these are NOT clinical cut-offs.
+  low_band_sensitivity: 0.90
+  high_band_specificity: 0.90
+
+explain:
+  top_k: 5
+  background_samples: 100
+  lime_background_samples: 500
+  lime_num_samples: 3000
+  # Proposal targets: top-5 SHAP/LIME overlap >= 60%; flag LIME fits below this R^2.
+  agreement_target: 0.6
+  lime_fidelity_min: 0.3
+
+# Real data plus synthetic augmentation (supervisor-approved for PP1).
+south_asia:
+  processed_file: "data/c3/processed/c3_south_asia.csv"
+  cv_folds: 5
+
+synthetic:
+  # Synthetic rows per real training row. Test data is always 100% real.
+  ratio: 1.0
+  random_state: 7
+  augment_training: true
