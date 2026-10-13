@@ -67,6 +67,20 @@ class NutrientProfile {
     );
   }
 
+  /// Multiplies every known nutrient by [factor]. Unknown (`null`) nutrients stay unknown.
+  NutrientProfile scale(double factor) {
+    double? scaled(double? value) => value == null ? null : value * factor;
+    return NutrientProfile(
+      energyKcal: scaled(energyKcal),
+      carbohydrateG: scaled(carbohydrateG),
+      sugarsG: scaled(sugarsG),
+      dietaryFiberG: scaled(dietaryFiberG),
+      proteinG: scaled(proteinG),
+      fatG: scaled(fatG),
+      sodiumMg: scaled(sodiumMg),
+    );
+  }
+
   final double? energyKcal;
   final double? carbohydrateG;
   final double? sugarsG;
@@ -87,9 +101,14 @@ class Portion {
     );
   }
 
+  /// Set when the patient has changed the grams in the app.
+  static const String userEdited = 'user_edited';
+
   final double grams;
   final String? householdMeasure;
   final String estimationMethod;
+
+  bool get isUserEdited => estimationMethod == userEdited;
 }
 
 class FoodItem {
@@ -116,6 +135,24 @@ class FoodItem {
   final String label;
   final Portion portion;
   final NutrientProfile nutrition;
+
+  /// The nutrients are for the estimated grams, so they can only be rescaled from a
+  /// non-zero portion.
+  bool get canEditPortion => portion.grams > 0;
+
+  /// Returns this food with the patient's [grams], its nutrients scaled to match.
+  ///
+  /// The household measure is dropped because it described the estimated portion.
+  FoodItem withGrams(double grams) {
+    if (!canEditPortion) throw StateError('Cannot rescale a portion of 0 g.');
+    return FoodItem(
+      itemId: itemId,
+      label: label,
+      portion: Portion(grams: grams, estimationMethod: Portion.userEdited),
+      nutrition: nutrition.scale(grams / portion.grams),
+      nutritionSource: nutritionSource,
+    );
+  }
 
   /// `MRI_SL_FCDB`, `USDA_FDC` or `MOCK`.
   final String? nutritionSource;

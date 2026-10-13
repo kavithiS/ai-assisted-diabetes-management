@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../data/meal_analysis.dart';
 import '../meal_scan_style.dart';
+import 'portion_edit_dialog.dart';
 
-/// Shows the detected foods and meal totals. The patient can remove wrongly detected foods;
-/// totals are then summed again from the remaining items.
+/// Shows the detected foods and meal totals. The patient can remove wrongly detected foods
+/// and correct portion sizes; totals are then summed again from the current items.
 ///
 /// Model confidence is never shown here (team rule).
 class MealResultView extends StatefulWidget {
@@ -20,10 +21,29 @@ class MealResultView extends StatefulWidget {
 class _MealResultViewState extends State<MealResultView> {
   late List<FoodItem> _items = List.of(widget.analysis.items);
 
-  bool get _edited => _items.length != widget.analysis.items.length;
+  /// Until the patient changes something, show the server's totals as they are.
+  bool _edited = false;
 
   NutrientProfile get _totals =>
       _edited ? NutrientProfile.sum([for (final item in _items) item.nutrition]) : widget.analysis.totals;
+
+  void _remove(FoodItem item) {
+    setState(() {
+      _items = List.of(_items)..remove(item);
+      _edited = true;
+    });
+  }
+
+  Future<void> _editPortion(FoodItem item) async {
+    final grams = await showPortionEditDialog(context, item);
+    if (grams == null || !mounted) return;
+    final index = _items.indexOf(item);
+    if (index < 0) return;
+    setState(() {
+      _items = List.of(_items)..[index] = item.withGrams(grams);
+      _edited = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +65,8 @@ class _MealResultViewState extends State<MealResultView> {
           for (final item in _items) ...[
             _FoodItemCard(
               item: item,
-              onRemove: () => setState(() => _items = List.of(_items)..remove(item)),
+              onEdit: item.canEditPortion ? () => _editPortion(item) : null,
+              onRemove: () => _remove(item),
             ),
             const SizedBox(height: 8),
           ],
@@ -133,15 +154,21 @@ class _EmptyItems extends StatelessWidget {
 }
 
 class _FoodItemCard extends StatelessWidget {
-  const _FoodItemCard({required this.item, required this.onRemove});
+  const _FoodItemCard({required this.item, required this.onEdit, required this.onRemove});
 
   final FoodItem item;
+
+  /// `null` when the portion can't be rescaled (0 g); the edit button is then hidden.
+  final VoidCallback? onEdit;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
     final portion = item.portion;
     final measure = portion.householdMeasure == null ? '' : ' (${portion.householdMeasure})';
+    final amount = portion.isUserEdited
+        ? '${formatAmount(portion.grams)} g (edited)'
+        : 'About ${formatAmount(portion.grams)} g$measure';
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
       decoration: MealScanStyle.cardDecoration(),
@@ -161,8 +188,7 @@ class _FoodItemCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'About ${formatAmount(portion.grams)} g$measure · '
-                  '${formatNutrient(item.nutrition.energyKcal, 'kcal')}',
+                  '$amount · ${formatNutrient(item.nutrition.energyKcal, 'kcal')}',
                   style: const TextStyle(color: MealScanStyle.textSecondary),
                 ),
                 const SizedBox(height: 2),
@@ -173,6 +199,12 @@ class _FoodItemCard extends StatelessWidget {
               ],
             ),
           ),
+          if (onEdit != null)
+            IconButton(
+              tooltip: 'Edit portion of ${item.label}',
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined, color: MealScanStyle.textSecondary),
+            ),
           IconButton(
             tooltip: 'Remove ${item.label}',
             onPressed: onRemove,

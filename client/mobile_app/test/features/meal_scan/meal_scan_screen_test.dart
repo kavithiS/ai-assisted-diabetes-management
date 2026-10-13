@@ -97,6 +97,68 @@ void main() {
     expect(find.text('Not available'), findsNothing);
   });
 
+  Future<void> showResult(WidgetTester tester) async {
+    await tester.pumpWidget(
+      screenWith((_) async => http.Response(jsonEncode(mockAnalysisJson()), 200)),
+    );
+    await pickPhotoAndMealType(tester);
+    await tapAnalyse(tester);
+  }
+
+  Future<void> enterGrams(WidgetTester tester, String food, String grams) async {
+    await tester.tap(find.byTooltip('Edit portion of $food'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), grams);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('editing a portion rescales the food and the totals', (tester) async {
+    useTallView(tester);
+    await showResult(tester);
+
+    // Test Food A: 150 g and 200 kcal, so 300 g gives 400 kcal; the total is 400 + 100.
+    await enterGrams(tester, 'Test Food A', '300');
+
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('300 g (edited) · 400 kcal'), findsOneWidget);
+    expect(find.text('500 kcal'), findsOneWidget);
+    // Sugars are still unknown for Test Food A, so the total stays unknown, never zero.
+    expect(find.text('Not available'), findsOneWidget);
+  });
+
+  testWidgets('an invalid portion shows an error and changes nothing', (tester) async {
+    useTallView(tester);
+    await showResult(tester);
+
+    await enterGrams(tester, 'Test Food A', '0');
+    expect(find.textContaining('above 0 g'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), '5000');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('up to 2000 g'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('About 150 g (1 cup) · 200 kcal'), findsOneWidget);
+    expect(find.text('300 kcal'), findsOneWidget);
+  });
+
+  testWidgets('cancelling the portion dialog keeps the estimate', (tester) async {
+    useTallView(tester);
+    await showResult(tester);
+
+    await tester.tap(find.byTooltip('Edit portion of Test Food B'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '10');
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('About 80 g · 100 kcal'), findsOneWidget);
+    expect(find.textContaining('(edited)'), findsNothing);
+  });
+
   testWidgets('an API error returns to capture with a friendly message', (tester) async {
     useTallView(tester);
     await tester.pumpWidget(screenWith((_) async => http.Response(
