@@ -9,7 +9,7 @@ void main() {
     for (final label in ['Meal Scan', 'Glucose', 'Risk Profile', 'Foot Monitor', 'Dashboard']) {
       expect(find.text(label), findsWidgets);
     }
-    expect(find.text('Meal Scan — placeholder (C1)'), findsOneWidget);
+    expect(find.text('Take a photo of your meal'), findsOneWidget);
 
     await tester.tap(find.text('Glucose'));
     await tester.pumpAndSettle();
