@@ -23,5 +23,10 @@ diacare-shared = { workspace = true }
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+# c1_training holds the data and training code. Its numpy-only modules are tested with the
+# service; Pillow and PyTorch are imported lazily and live only in the training environment.
+packages = ["src/c1_food_nutrition", "src/c1_training"]
+
 [dependency-groups]
 dev = []
