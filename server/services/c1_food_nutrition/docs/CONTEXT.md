@@ -26,7 +26,8 @@ Component 1 of DiaCare AI (J26-IT-352), a research prototype for Sri Lankan diab
 | Area | Status |
 |---|---|
 | Backend scaffold (FastAPI, schemas, DB models, migrations, mock recognizer, tests) | Done (Phase 0). Checked 2026-10-16: ruff, ruff format, mypy clean; pytest 183 passed, 20 skipped in the project environment; 202 passed, 1 skipped in the server environment with PyTorch |
-| Nutrition importers into the database (USDA, MRI Sri Lanka) | Still stubs; the service does **not** use the database for nutrition yet. The CSV lookup below replaced the need for them for now |
+| Nutrition importers into the database (USDA, MRI Sri Lanka) | Implemented 2026-10-16 over the combined CSV (idempotent). Run the import once to fill the `food` tables. Nutrition in `/v1/meals/analyze` still comes from the CSV lookup |
+| Meal history and food search (backend + Flutter) | Backend done 2026-10-16. Migration `c3e5a1b7d2f4` applied; 241 MRI SL + 232 USDA rows imported. Flutter screens done 2026-10-16: `MealHistoryScreen`, `MealDetailScreen`, `AddFoodScreen`, `TodaySummaryScreen`; navigation tabs "Meals" and "Today" added to `main.dart`. Gateway routes not built yet |
 | Flutter Meal Scan screen and portion editing | Done and merged |
 | Image dataset cleaning and preprocessing (7 datasets + Food-101) | Done |
 | Nutrition table cleaning (2,716 foods) | Done; items awaiting the publisher and supervisors |

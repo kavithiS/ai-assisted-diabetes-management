@@ -9,10 +9,12 @@ from fastapi import FastAPI
 
 from c1_food_nutrition import __version__
 from c1_food_nutrition.api.exception_handlers import register_exception_handlers
+from c1_food_nutrition.api.history import router as history_router
 from c1_food_nutrition.api.middleware import BodySizeLimitMiddleware, RequestContextMiddleware
 from c1_food_nutrition.api.routes import router
 from c1_food_nutrition.config import Settings, get_settings
 from c1_food_nutrition.core.logging import configure_logging
+from c1_food_nutrition.db.session import create_session_factory, engine_from_settings
 from c1_food_nutrition.schemas.common import DISCLAIMER
 from diacare_shared.health import create_health_router
 
@@ -34,6 +36,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         description=DISCLAIMER,
     )
     app.state.settings = settings
+    # Creating the engine does not connect; the first history request does.
+    app.state.engine = engine_from_settings(settings)
+    app.state.session_factory = create_session_factory(app.state.engine)
 
     register_exception_handlers(app)
     # Middleware added last runs first: RequestContext wraps everything.
@@ -42,6 +47,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(create_health_router(SERVICE_NAME))
     app.include_router(router)
+    app.include_router(history_router)
     return app
 
 

@@ -22,7 +22,7 @@ def test_upgrade_and_downgrade(tmp_path: Path) -> None:
     engine = create_engine(url)
     try:
         tables = set(inspect(engine).get_table_names())
-        assert {"nutrition_source", "food", "food_nutrient"} <= tables
+        assert {"nutrition_source", "food", "food_nutrient", "meal", "meal_item"} <= tables
 
         command.downgrade(config, "base")
         assert set(inspect(engine).get_table_names()) == {"alembic_version"}

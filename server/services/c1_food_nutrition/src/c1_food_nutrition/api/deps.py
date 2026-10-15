@@ -1,6 +1,6 @@
 """FastAPI dependencies: settings, clock, services and request parsing."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -8,6 +8,7 @@ from typing import Annotated
 
 from fastapi import Depends, Form, Request
 from pydantic import ValidationError
+from sqlalchemy.orm import Session
 
 from c1_food_nutrition.config import Settings
 from c1_food_nutrition.core.errors import (
@@ -90,6 +91,15 @@ def get_meal_analysis_service(settings: SettingsDep, clock: ClockDep) -> MealAna
         nutrition_lookup=build_nutrition_lookup(settings),
         clock=clock,
     )
+
+
+def get_session(request: Request) -> Iterator[Session]:
+    """One database session per request; the endpoint commits what it wants to keep."""
+    with request.app.state.session_factory() as session:
+        yield session
+
+
+SessionDep = Annotated[Session, Depends(get_session)]
 
 
 def require_multipart_form(request: Request) -> None:

@@ -1,6 +1,6 @@
 """Repository tests on in-memory SQLite. Every row here is a labelled TEST FIXTURE."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -17,6 +17,7 @@ from c1_food_nutrition.db.repositories.food_repository import FoodRepository
 from c1_food_nutrition.db.repositories.nutrition_repository import NutritionRepository
 from c1_food_nutrition.db.session import create_db_engine, create_session_factory
 from c1_food_nutrition.schemas.nutrition import NutritionSourceCode
+from c1_food_nutrition.services.nutrition import CompositionTableError
 
 
 @pytest.fixture
@@ -70,12 +71,53 @@ def test_negative_amount_rejected_by_database(session: Session) -> None:
         foods.add_food(source, source_food_id="F", name="F", nutrients_per_100g={"fat_g": -1.0})
 
 
-@pytest.mark.parametrize("importer_type", [MriSriLankaImporter, UsdaFdcImporter])
-def test_importer_stubs_are_not_implemented(
-    importer_type: type[NutritionImporter], tmp_path: Path
+def test_importers_read_only_their_own_source(
+    session: Session, make_table: Callable[..., Path]
 ) -> None:
-    with pytest.raises(NotImplementedError):
-        list(importer_type().parse(tmp_path))
+    table = make_table()
+    foods = FoodRepository(session)
+    assert MriSriLankaImporter().import_into(foods, table) == 3
+    assert UsdaFdcImporter().import_into(foods, table) == 1
+    session.commit()
+
+    sl = foods.get_food("MRI_SL_FCDB", "SL_37")
+    assert sl is not None
+    assert {n.nutrient for n in sl.nutrients} == {  # fibre was blank, so it is not stored
+        "energy_kcal",
+        "carbohydrate_g",
+        "protein_g",
+        "fat_g",
+        "sodium_mg",
+    }
+    zero = NutritionRepository(session).get_profile_per_100g("MRI_SL_FCDB", "SL_99")
+    assert zero is not None
+    assert zero.energy_kcal == 0.0  # a real zero stays zero
+    assert foods.get_food("MRI_SL_FCDB", "BD_1") is None  # regional table is not allowed
+    assert foods.get_food("USDA_FDC", "SL_9") is None
+
+
+def test_importing_twice_updates_instead_of_duplicating(
+    session: Session, make_table: Callable[..., Path]
+) -> None:
+    foods = FoodRepository(session)
+    table = make_table()
+    MriSriLankaImporter().import_into(foods, table)
+    table.write_text(table.read_text().replace(",100,20,2,3,", ",111,20,2,3,"))
+    MriSriLankaImporter().import_into(foods, table)
+    session.commit()
+
+    assert len(foods.search("Fixture", limit=50)) == 3
+    profile = NutritionRepository(session).get_profile_per_100g("MRI_SL_FCDB", "SL_9")
+    assert profile is not None
+    assert profile.energy_kcal == 111.0
+
+
+def test_importer_rejects_a_corrupted_header(
+    session: Session, make_table: Callable[..., Path]
+) -> None:
+    bad = make_table(header="food_id,food_100me,source,energy_kcal", rows=())
+    with pytest.raises(CompositionTableError):
+        MriSriLankaImporter().import_into(FoodRepository(session), bad)
 
 
 def test_import_into_persists_parsed_foods(session: Session, tmp_path: Path) -> None:

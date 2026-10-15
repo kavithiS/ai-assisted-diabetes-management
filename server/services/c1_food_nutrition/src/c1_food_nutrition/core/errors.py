@@ -70,3 +70,15 @@ class InvalidMetadataError(AppError):
     """One or more metadata form fields are invalid."""
 
     code = ErrorCode.INVALID_METADATA
+
+
+class NotFoundError(AppError):
+    """The requested resource does not exist."""
+
+    code = ErrorCode.NOT_FOUND
+
+
+class InvalidRequestError(AppError):
+    """The request is well-formed but a value in it is not acceptable."""
+
+    code = ErrorCode.VALIDATION_ERROR

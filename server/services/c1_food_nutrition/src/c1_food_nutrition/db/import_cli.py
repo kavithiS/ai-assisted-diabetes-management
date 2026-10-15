@@ -2,9 +2,10 @@
 
 Usage::
 
-    uv run python scripts/import_nutrition.py --source mri_sl --path data/external/<file>
+    uv run python -m c1_food_nutrition.db.import_cli \
+        --source mri_sl --path data/c1/c1_foods_combined.csv
 
-Both importers are stubs in Phase 0 and raise ``NotImplementedError``.
+Re-running an import updates the stored foods instead of duplicating them.
 """
 
 import argparse
@@ -19,6 +20,7 @@ from c1_food_nutrition.db.importers.mri_sri_lanka import MriSriLankaImporter
 from c1_food_nutrition.db.importers.usda_fdc import UsdaFdcImporter
 from c1_food_nutrition.db.repositories.food_repository import FoodRepository
 from c1_food_nutrition.db.session import create_session_factory, engine_from_settings
+from c1_food_nutrition.services.nutrition import CompositionTableError
 
 IMPORTERS: dict[str, type[NutritionImporter]] = {
     "mri_sl": MriSriLankaImporter,
@@ -43,10 +45,8 @@ def main(argv: list[str] | None = None) -> int:
     with session_factory() as session:
         try:
             count = importer.import_into(FoodRepository(session), args.path)
-        except NotImplementedError as exc:
-            logger.error(
-                "importer not available", extra={"source": args.source, "reason": str(exc)}
-            )
+        except (CompositionTableError, OSError) as exc:
+            logger.error("import failed", extra={"source": args.source, "reason": str(exc)})
             return 2
         session.commit()
     logger.info("import finished", extra={"source": args.source, "foods": count})

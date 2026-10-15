@@ -2,7 +2,7 @@
 
 import csv
 import math
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Protocol
 
@@ -181,6 +181,11 @@ class CompositionTableLookup:
 
     def __len__(self) -> int:
         return len(self._entries)
+
+    def items(self) -> Iterator[tuple[str, NutrientProfile, NutritionSourceRef, str]]:
+        """Every loaded entry as ``(food_id, per-100 g profile, source, name)``."""
+        for food_id, (profile, ref, name) in self._entries.items():
+            yield food_id, profile, ref, name
 
     def food_name(self, food_code: str) -> str | None:
         """Name of the table entry, or ``None`` if the code is unknown."""

@@ -40,6 +40,9 @@ _CODE_BY_HTTP_STATUS: Mapping[int, ErrorCode] = {
 #: Name of the upload field of /meals/analyze; validation errors on it mean "no image".
 _IMAGE_FIELD = "image"
 
+#: Form-field errors on this path are metadata problems; JSON-body errors elsewhere are not.
+_ANALYZE_PATH = "/meals/analyze"
+
 
 def build_error_response(
     status_code: int,
@@ -85,7 +88,11 @@ async def validation_error_handler(request: Request, exc: Exception) -> JSONResp
 
     if any(_field_name(e) == _IMAGE_FIELD for e in errors):
         code, message = ErrorCode.IMAGE_REQUIRED, "An image file is required in the 'image' field."
-    elif errors and all(e.get("loc", ("",))[0] == "body" for e in errors):
+    elif (
+        errors
+        and request.url.path.endswith(_ANALYZE_PATH)
+        and all(e.get("loc", ("",))[0] == "body" for e in errors)
+    ):
         code, message = ErrorCode.INVALID_METADATA, "One or more form fields are invalid."
     else:
         code, message = ErrorCode.VALIDATION_ERROR, "The request is invalid."

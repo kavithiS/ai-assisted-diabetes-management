@@ -42,12 +42,13 @@ class NutritionImporter(ABC):
     def import_into(self, repository: FoodRepository, path: Path) -> int:
         """Parse ``path`` and store every food; returns the number of foods stored.
 
+        Foods already stored are updated, so running an import twice is safe.
         The caller owns the transaction (commit/rollback).
         """
         source = repository.get_or_create_source(self.source_code.value, self.source_name)
         count = 0
         for food in self.parse(path):
-            repository.add_food(
+            repository.upsert_food(
                 source,
                 source_food_id=food.source_food_id,
                 name=food.name,

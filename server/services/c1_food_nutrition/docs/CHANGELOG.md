@@ -1,6 +1,23 @@
 # C1 changelog
 
-Newest first. One entry per piece of work. Numbers come from the files named beside them. Entries before 2026-10-15 were written afterwards from the git log (repo work, commit hash given) and from `CONTEXT.md` section 4 and `_curation\CLEANING_NOTES.md` (work outside git); those not backed by a commit or a file are marked [UNVERIFIED].
+Newest first.
+
+## 2026-10-16: Flutter meal history, food search and today's summary screens
+
+- New Flutter feature `lib/features/meal_history/`: `MealHistoryApi` (calls GET /v1/foods, POST/GET/DELETE /v1/meals, GET /v1/meals/summary), models (`FoodResult`, `MealOut`, `MealItemOut`, `DailySummary`, `MealCreate`, `MealItemIn`), four screens (`MealHistoryScreen`, `MealDetailScreen`, `AddFoodScreen`, `TodaySummaryScreen`), shared `NutrientTable` widget.
+- Alembic migration `c3e5a1b7d2f4` applied: `meal` and `meal_item` tables created in the database.
+- MRI Sri Lanka (241 rows) and USDA (232 rows) imported from `data/c1/c1_foods_combined.csv` via `db.import_cli`.
+- Navigation updated in `main.dart`: "Meals" and "Today" tabs added after "Meal Scan".
+- Tests: 6 model-parse tests, 4 `MealHistoryScreen` widget tests, 4 `TodaySummaryScreen` widget tests. All 34 Flutter tests pass. `flutter analyze` clean.
+- Not done: gateway routes for the new endpoints, `AddFoodScreen` widget tests (add/search flow needs an integration test against the server), `MealDetailScreen` widget tests (delete confirmation needs a fuller stub). One entry per piece of work. Numbers come from the files named beside them. Entries before 2026-10-15 were written afterwards from the git log (repo work, commit hash given) and from `CONTEXT.md` section 4 and `_curation\CLEANING_NOTES.md` (work outside git); those not backed by a commit or a file are marked [UNVERIFIED].
+
+## 2026-10-16: Meal history, food search and table importers (backend)
+
+- New tables `meal` and `meal_item` (migration `c3e5a1b7d2f4`, after `78ab001a889d`). A meal item stores the nutrients of the logged portion (a snapshot), so later changes to the food table never rewrite history. Unknown nutrients are `null`, never 0. No image, no patient identifier and no model confidence is stored or returned. Demo data only (ethical clearance rule).
+- New endpoints (`api/history.py`): `GET /v1/foods?q=`, `POST /v1/meals` (201), `GET /v1/meals?limit=&offset=`, `GET /v1/meals/summary?day=&utc_offset_minutes=`, `GET` and `DELETE /v1/meals/{id}`. Items are either a stored `food_id` (nutrients scaled from the per-100 g values) or a free entry (`name` and optional `nutrients`, for example from a scan result). A total is `null` when any item's value for that nutrient is unknown.
+- The `MriSriLankaImporter` and `UsdaFdcImporter` stubs now read their rows from `data/c1/c1_foods_combined.csv` through `CompositionTableLookup`, so the same checks apply (`food_100me` header rejected, blank is unknown, only allowed sources). Importing twice updates instead of duplicating. CLI: `uv run python -m c1_food_nutrition.db.import_cli --source mri_sl --path data/c1/c1_foods_combined.csv`.
+- `db/session.py`: SQLite engines allow use from worker threads; in-memory SQLite uses one shared connection (tests). `INVALID_METADATA` is now used only for form errors on `/meals/analyze`; JSON body errors elsewhere are `VALIDATION_ERROR`.
+- Not yet run by the owner at the time of writing: ruff and ruff format passed on a copy; mypy and pytest are for the owner to run. Not done: Flutter screens, gateway routes for the new endpoints, `c1` schema.
 
 ## 2026-10-16: Nutrition values from the combined table (opt-in)
 
