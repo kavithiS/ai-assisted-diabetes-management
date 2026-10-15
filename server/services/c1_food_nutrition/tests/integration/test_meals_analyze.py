@@ -386,3 +386,96 @@ def test_captured_at_window_uses_configured_skew(
         422,
         "INVALID_METADATA",
     )
+
+
+# ----------------------------------------------------- trained recogniser (random-weight fixture)
+
+
+def test_trained_recognizer_is_used_and_the_rest_stays_flagged_mock(
+    make_client: ClientFactory, make_bundle: Callable[..., Any], jpeg_bytes: bytes
+) -> None:
+    client = make_client(recognizer="torch", model_path=str(make_bundle(threshold=0.0)))
+
+    response = post_meal(client, ("meal.jpg", jpeg_bytes, "image/jpeg"))
+
+    assert response.status_code == 200, response.text
+    result = MealAnalysisResponse.model_validate(response.json())
+    assert {item.label for item in result.items} == {"kiribath", "lunu_miris", "hoppers"}
+    assert {item.food_code for item in result.items} == {"SL_9", None, "SL_37"}
+    assert result.meta.model_name == "mobilenet_v3_large-multilabel"
+    assert result.meta.model_version == "fixture-random-weights"
+    # Portion estimation and nutrition lookup are still mock, and the response says so.
+    assert result.meta.is_mock is True
+    assert result.meta.warnings == [
+        "PARTLY MOCK RESPONSE: synthetic placeholders are used for portion estimation "
+        "and nutrition lookup; they are not real data."
+    ]
+    # No nutrient value is invented for a real food: unknown stays null.
+    assert all(item.nutrition_source is None for item in result.items)
+    assert result.totals.energy_kcal is None
+
+
+def test_no_food_above_threshold_gives_an_empty_list_and_a_warning(
+    make_client: ClientFactory, make_bundle: Callable[..., Any], jpeg_bytes: bytes
+) -> None:
+    client = make_client(recognizer="torch", model_path=str(make_bundle(threshold=1.0)))
+
+    response = post_meal(client, ("meal.jpg", jpeg_bytes, "image/jpeg"))
+
+    assert response.status_code == 200, response.text
+    result = MealAnalysisResponse.model_validate(response.json())
+    assert result.items == []
+    assert "No food was recognised in the image." in result.meta.warnings
+
+
+# ------------------------------------------------------------------ composition table (fixture)
+
+
+def test_table_lookup_with_the_mock_recognizer_leaves_nutrients_unknown(
+    make_client: ClientFactory, make_table: Callable[..., Any], jpeg_bytes: bytes
+) -> None:
+    client = make_client(nutrition_table_path=str(make_table()))
+
+    response = post_meal(client, ("meal.jpg", jpeg_bytes, "image/jpeg"))
+
+    result = MealAnalysisResponse.model_validate(response.json())
+    assert all(item.nutrition_source is None for item in result.items)
+    assert result.totals.energy_kcal is None
+    assert (
+        "No nutrition data for 'mock_item_a': its nutrients, and the meal totals, "
+        "are unknown (null)." in result.meta.warnings
+    )
+
+
+def test_table_values_reach_the_response_for_matched_foods(
+    make_client: ClientFactory,
+    make_bundle: Callable[..., Any],
+    make_table: Callable[..., Any],
+    jpeg_bytes: bytes,
+) -> None:
+    client = make_client(
+        recognizer="torch",
+        model_path=str(make_bundle(classes=("kiribath", "hoppers", "lunu_miris"))),
+        nutrition_table_path=str(make_table()),
+    )
+
+    response = post_meal(client, ("meal.jpg", jpeg_bytes, "image/jpeg"))
+
+    assert response.status_code == 200, response.text
+    result = MealAnalysisResponse.model_validate(response.json())
+    items = {item.label: item for item in result.items}
+    # Fixture values for SL_9 / SL_37, scaled to the mock 100 g portion.
+    assert items["kiribath"].nutrition.carbohydrate_g == pytest.approx(20.0)
+    assert items["kiribath"].nutrition.sugars_g is None
+    assert items["kiribath"].nutrition_source is not None
+    assert items["kiribath"].nutrition_source.source_food_id == "SL_9"
+    assert items["hoppers"].nutrition.energy_kcal == pytest.approx(150.0)
+    assert items["hoppers"].nutrition.dietary_fiber_g is None  # blank in the table
+    assert items["lunu_miris"].nutrition.energy_kcal is None  # no honest match
+    assert result.totals.energy_kcal is None  # one unknown makes the total unknown
+    assert result.meta.warnings == [
+        "PARTLY MOCK RESPONSE: synthetic placeholders are used for portion estimation; "
+        "they are not real data.",
+        "No nutrition data for 'lunu_miris': its nutrients, and the meal totals, "
+        "are unknown (null).",
+    ]

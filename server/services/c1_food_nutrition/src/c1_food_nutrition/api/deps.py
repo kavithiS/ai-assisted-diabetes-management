@@ -2,6 +2,8 @@
 
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from functools import lru_cache
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, Form, Request
@@ -13,6 +15,7 @@ from c1_food_nutrition.core.errors import (
     InvalidMetadataError,
     UnsupportedMediaTypeError,
 )
+from c1_food_nutrition.ml.interfaces import FoodRecognizer
 from c1_food_nutrition.ml.mock import MockFoodRecognizer, MockPortionEstimator
 from c1_food_nutrition.schemas.meal_analysis import (
     CAPTURED_AT_DESCRIPTION,
@@ -22,7 +25,11 @@ from c1_food_nutrition.schemas.meal_analysis import (
     MetadataValidationContext,
 )
 from c1_food_nutrition.services.image_validation import ImageValidator, normalize_media_type
-from c1_food_nutrition.services.nutrition import PlaceholderNutritionLookup
+from c1_food_nutrition.services.nutrition import (
+    CompositionTableLookup,
+    NutritionLookup,
+    PlaceholderNutritionLookup,
+)
 from c1_food_nutrition.services.pipeline import MealAnalysisService, utc_now
 
 
@@ -41,17 +48,46 @@ SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 ClockDep = Annotated[Callable[[], datetime], Depends(get_clock)]
 
 
+@lru_cache(maxsize=2)
+def _load_trained_recognizer(path: Path, device: str) -> FoodRecognizer:
+    """Load the model bundle once per process, not once per request."""
+    from c1_food_nutrition.ml.torch_recognizer import TorchFoodRecognizer
+
+    return TorchFoodRecognizer(path, device=device)
+
+
+def build_recognizer(settings: Settings) -> FoodRecognizer:
+    """The recogniser selected by ``RECOGNIZER``: the mock, or the trained model."""
+    if settings.recognizer == "torch" and settings.model_path is not None:
+        return _load_trained_recognizer(settings.model_path, settings.model_device)
+    return MockFoodRecognizer()
+
+
+@lru_cache(maxsize=2)
+def _load_composition_table(path: Path) -> NutritionLookup:
+    """Read the composition table once per process, not once per request."""
+    return CompositionTableLookup.from_csv(path)
+
+
+def build_nutrition_lookup(settings: Settings) -> NutritionLookup:
+    """The table in ``NUTRITION_TABLE_PATH``, or the mock lookup when it is not set."""
+    if settings.nutrition_table_path is not None:
+        return _load_composition_table(settings.nutrition_table_path)
+    return PlaceholderNutritionLookup()
+
+
 def get_meal_analysis_service(settings: SettingsDep, clock: ClockDep) -> MealAnalysisService:
     """Build the analysis service.
 
-    Phase 0 wires MOCK recogniser, portion estimator and nutrition lookup; responses are
-    therefore flagged ``meta.is_mock = true``.
+    Portion estimation is still MOCK, so every response is flagged ``meta.is_mock = true``.
+    The recogniser is the mock unless ``RECOGNIZER=torch``, and the nutrition lookup is the
+    mock unless ``NUTRITION_TABLE_PATH`` is set.
     """
     return MealAnalysisService(
         image_validator=ImageValidator.from_settings(settings),
-        recognizer=MockFoodRecognizer(),
+        recognizer=build_recognizer(settings),
         portion_estimator=MockPortionEstimator(),
-        nutrition_lookup=PlaceholderNutritionLookup(),
+        nutrition_lookup=build_nutrition_lookup(settings),
         clock=clock,
     )
 

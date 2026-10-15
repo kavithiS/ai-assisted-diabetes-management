@@ -4,8 +4,9 @@ image -> validation/decoding -> recognition -> portion estimation -> composition
 -> nutrition calculation -> ``MealAnalysisResponse``.
 """
 
+import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -30,6 +31,10 @@ logger = logging.getLogger(__name__)
 MOCK_WARNING = (
     "MOCK RESPONSE: food items, portions and nutrient values are synthetic placeholders, "
     "not real recognition or nutrition data."
+)
+NO_FOOD_WARNING = "No food was recognised in the image."
+NO_NUTRITION_WARNING = (
+    "No nutrition data for '{label}': its nutrients, and the meal totals, are unknown (null)."
 )
 
 
@@ -57,13 +62,34 @@ class MealAnalysisService:
         self._clock = clock
 
     @property
+    def mock_parts(self) -> list[str]:
+        """Names of the pipeline stages that produce synthetic output."""
+        stages = (
+            ("food recognition", self._recognizer.is_mock),
+            ("portion estimation", self._portion_estimator.is_mock),
+            ("nutrition lookup", self._nutrition_lookup.is_mock),
+        )
+        return [name for name, is_mock in stages if is_mock]
+
+    @property
     def is_mock(self) -> bool:
         """True if any pipeline stage produces synthetic output."""
-        return (
-            self._recognizer.is_mock
-            or self._portion_estimator.is_mock
-            or self._nutrition_lookup.is_mock
-        )
+        return bool(self.mock_parts)
+
+    def _warnings(self, item_count: int, extra: Sequence[str] = ()) -> list[str]:
+        """Warnings: which stages are synthetic, an empty result, then per-food notes."""
+        parts = self.mock_parts
+        warnings: list[str] = []
+        if len(parts) == 3:
+            warnings.append(MOCK_WARNING)
+        elif parts:
+            warnings.append(
+                f"PARTLY MOCK RESPONSE: synthetic placeholders are used for {' and '.join(parts)}; "
+                "they are not real data."
+            )
+        if item_count == 0:
+            warnings.append(NO_FOOD_WARNING)
+        return [*warnings, *extra]
 
     async def analyze(
         self,
@@ -78,16 +104,23 @@ class MealAnalysisService:
             AppError: subclasses for invalid uploads (see ``image_validation``).
         """
         validated = await self._image_validator.validate(image, declared_content_type)
-        # NOTE: recognition is synchronous; real models should run in a worker thread.
-        recognized = self._recognizer.recognize(validated.pixels)
+        # Recognition is synchronous and can take a while: keep it off the event loop.
+        recognized = await asyncio.to_thread(self._recognizer.recognize, validated.pixels)
 
         items: list[FoodItem] = []
+        notes: list[str] = []
         for index, food in enumerate(recognized, start=1):
             estimate = self._portion_estimator.estimate(
                 validated.pixels, food, metadata.reference_object
             )
             lookup = self._nutrition_lookup.per_100g(food.food_code) if food.food_code else None
             nutrition = scale_profile(lookup[0], estimate.grams) if lookup else NutrientProfile()
+            if food.match_note and food.match_note not in notes:
+                notes.append(food.match_note)
+            if lookup is None and not self._nutrition_lookup.is_mock:
+                missing = NO_NUTRITION_WARNING.format(label=food.label)
+                if missing not in notes:
+                    notes.append(missing)
             items.append(
                 FoodItem(
                     item_id=f"item-{index}",
@@ -124,7 +157,7 @@ class MealAnalysisService:
                 model_version=self._recognizer.model_version,
                 generated_at=self._clock(),
                 request_id=get_request_id(),
-                warnings=[MOCK_WARNING] if is_mock else [],
+                warnings=self._warnings(len(items), notes),
             ),
             metadata=metadata,
             image=ImageInfo(

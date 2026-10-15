@@ -90,7 +90,11 @@ async def test_non_mock_pipeline(jpeg_bytes: bytes) -> None:
     )
 
     assert result.meta.is_mock is False
-    assert result.meta.warnings == []
+    # The unmatched food gets a warning that its nutrients (and the totals) are unknown.
+    assert result.meta.warnings == [
+        "No nutrition data for 'fixture_unmatched': its nutrients, and the meal totals, "
+        "are unknown (null)."
+    ]
     assert result.meta.generated_at == NOW
     known, unmatched = result.items
     assert known.nutrition.energy_kcal == pytest.approx(100.0)
@@ -101,3 +105,52 @@ async def test_non_mock_pipeline(jpeg_bytes: bytes) -> None:
     assert result.totals.energy_kcal is None
     # reference_object is passed through to the portion estimator.
     assert portion.reference_objects == ["card", "card"]
+
+
+class MockPortion(FakePortion):
+    is_mock = True
+
+
+class NoFoodRecognizer(FakeRecognizer):
+    def recognize(self, image: BgrImage) -> list[RecognizedFood]:
+        return []
+
+
+def make_service(recognizer: FakeRecognizer, portion: FakePortion) -> MealAnalysisService:
+    return MealAnalysisService(
+        image_validator=ImageValidator(
+            allowed_types={"image/jpeg"}, max_bytes=1_000_000, chunk_bytes=1024
+        ),
+        recognizer=recognizer,
+        portion_estimator=portion,
+        nutrition_lookup=FakeLookup(),
+        clock=lambda: NOW,
+    )
+
+
+async def test_partly_mock_pipeline_names_the_mock_stage(jpeg_bytes: bytes) -> None:
+    service = make_service(FakeRecognizer(), MockPortion())
+    result = await service.analyze(
+        image=BytesReader(jpeg_bytes),
+        declared_content_type="image/jpeg",
+        metadata=MealAnalysisMetadata(),
+    )
+    assert result.meta.is_mock is True
+    assert result.meta.warnings == [
+        "PARTLY MOCK RESPONSE: synthetic placeholders are used for portion estimation; "
+        "they are not real data.",
+        "No nutrition data for 'fixture_unmatched': its nutrients, and the meal totals, "
+        "are unknown (null).",
+    ]
+    assert service.mock_parts == ["portion estimation"]
+
+
+async def test_no_food_recognised_adds_a_warning(jpeg_bytes: bytes) -> None:
+    service = make_service(NoFoodRecognizer(), FakePortion())
+    result = await service.analyze(
+        image=BytesReader(jpeg_bytes),
+        declared_content_type="image/jpeg",
+        metadata=MealAnalysisMetadata(),
+    )
+    assert result.items == []
+    assert result.meta.warnings == ["No food was recognised in the image."]

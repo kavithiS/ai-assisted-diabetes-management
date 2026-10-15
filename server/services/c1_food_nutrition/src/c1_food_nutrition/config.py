@@ -1,9 +1,10 @@
 """Application configuration loaded from environment variables (and an optional ``.env``)."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import Field, NonNegativeInt, PositiveInt, field_validator
+from pydantic import Field, NonNegativeInt, PositiveInt, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 #: Image media types the service can detect from file content and decode with OpenCV.
@@ -58,6 +59,32 @@ class Settings(BaseSettings):
         default=200,
         description="Maximum length of the experimental reference_object field.",
     )
+
+    recognizer: Literal["mock", "torch"] = Field(
+        default="mock",
+        description="Food recogniser: 'mock' (synthetic) or 'torch' (trained model).",
+    )
+    model_path: Path | None = Field(
+        default=None,
+        description="Model bundle file; required when RECOGNIZER=torch. Never committed to git.",
+    )
+    nutrition_table_path: Path | None = Field(
+        default=None,
+        description=(
+            "Combined food-composition CSV (data/c1/c1_foods_combined.csv). Without it the "
+            "nutrition lookup is the mock. Never committed to git."
+        ),
+    )
+    model_device: Literal["cpu", "cuda"] = Field(
+        default="cpu", description="Device the trained model runs on."
+    )
+
+    @model_validator(mode="after")
+    def _check_recognizer(self) -> "Settings":
+        """A trained recogniser needs a model file."""
+        if self.recognizer == "torch" and self.model_path is None:
+            raise ValueError("MODEL_PATH is required when RECOGNIZER=torch")
+        return self
 
     @field_validator("allowed_image_types", mode="before")
     @classmethod

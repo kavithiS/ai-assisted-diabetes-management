@@ -32,6 +32,8 @@ class RecognizedFood:
     confidence: float
     food_code: str | None = None
     region: Region | None = None
+    #: Set when ``food_code`` is only a close or partial match for ``label``.
+    match_note: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

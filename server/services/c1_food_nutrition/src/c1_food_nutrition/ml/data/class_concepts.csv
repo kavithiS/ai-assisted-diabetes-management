@@ -1,0 +1,151 @@
+class,concept_id,food_id,match,note
+almond,other_nuts,,,
+apple,other_fruits,,,
+asmi,sweets_traditional,,none,no match in the allowed tables (only a regional-table sweet exists)
+banana,banana,,,
+basmati_rice,rice_cooked,SL_1,exact,"Rice, Basmati, Boiled"
+basmati_rice_cooked,rice_cooked,SL_1,exact,"Rice, Basmati, Boiled"
+bean_curry,curry_dish,SL_70,close,Beans Curry; the photos may show other beans
+beans,beans_green,,,
+beef,beef,,,
+beetroot_curry,curry_dish,SL_71,exact,Beetroot Curry
+beguni,snacks_savoury,,,
+biriyani,rice_dish,,,
+bitter_gourd_curry,curry_dish,SL_84,exact,Bittergourd Curry
+boiled_egg,egg,SL_165,exact,"Egg, Boiled"
+bottle_gourd,gourds,,,
+bread,bread,,,
+brinjal_dish,brinjal,,none,"no cooked brinjal dish; only raw eggplant (USDA) and Brinjal Curry (SL_72, a different dish)"
+burger,fast_food,,,
+buttermilk,curd_yoghurt,,,
+cabbage,cabbage_family,,,
+capsicum_curry,curry_dish,,,
+carrot,root_veg,,,
+carrot_raw,root_veg,,,
+carrot_white_curry,curry_dish,,,
+cashew_curry,curry_dish,SL_208,exact,Cashew Curry
+cauliflower,cabbage_family,,,
+cauliflower_curry,curry_dish,,,
+chicken,chicken,,,
+chicken_bun,bread,SL_11,partial,plain Bun; the filling is not included
+chickpea_curry,chickpea,,,
+chocolate_muffin,biscuit_cake,,,
+chomchom,sweets_traditional,,,
+coca_cola,soft_drinks,SL_233,exact,Coca Cola
+croquette_chop,short_eats,,,
+cucumber,tomato_cucumber,,,
+cutlet,short_eats,,none,no match in the allowed tables
+dates,other_fruits,,,
+dhal_curry,curry_dish,,none,"owner to choose: SL_54 Thick, SL_55 Watery or SL_56 Spinach (values differ a lot)"
+dhal_vadai,vadai,,,
+doughnut,biscuit_cake,,,
+dried_halmasso,dried_fish,,,
+egg,egg,,,
+egg_bun,bread,SL_11,partial,plain Bun; the filling is not included
+fanta,soft_drinks,,,
+fish,fish_generic,,,
+fish_ambul_thiyal,fish_generic,,,
+fish_bun,bread,SL_11,partial,plain Bun; the filling is not included
+fish_curry,curry_dish,,none,"owner to choose: for example SL_146 Chili Fish Curry or SL_147 Fish, White Curry"
+fried_bitter_gourd,gourds,,,
+fried_brinjal,brinjal,,,
+fried_potato,potato,SL_48,partial,Tempered Potato
+fried_pumpkin,pumpkin,,,
+fried_snake_gourd,gourds,,,
+fried_sprat,mackerel_sardine,,,
+fried_vegetable,vegetables_mixed,,,
+gotukola_mallum,leafy_local,SL_66,partial,"generic Mallum, not gotukola specifically"
+grapes,other_fruits,,,
+green_pea,vegetables_mixed,,,
+greenbeans_raw,beans_green,,,
+greenbeans_tempered,beans_green,,,
+greenbeans_white_curry,curry_dish,,,
+grilled_fish,fish_generic,,,
+guava,guava,,,
+halapa,sweets_traditional,,,
+hoppers,hoppers,SL_37,exact,Hoppers
+hotdog,fast_food,,,
+iced_coffee,tea_coffee,,,
+jam_bun,bread,,,
+jilapi,sweets_traditional,,,
+juice,fruit_juice,,,
+khichuri,rice_dish,,,
+kimbula_bun,bread,SL_11,partial,plain Bun; the filling is not included
+kiribath,kiribath,SL_9,exact,"Milk Rice, White"
+kokis,sweets_traditional,,none,no match in the allowed tables
+konda_kewum,sweets_traditional,,none,no match in the allowed tables
+kottu,roti,SL_31,partial,Chicken Kottu Roti; other kottu types differ
+lavariya,sweets_traditional,,,
+leafy_greens,leafy_local,,,
+lemon,citrus,,,
+lunu_miris,sambol,,none,no lunu miris row; Coconut Sambol is a different recipe
+lunu_sambol,sambol,,,
+mallum,leafy_local,SL_66,exact,Mallum
+mango,mango,,,
+mango_curry,curry_dish,,,
+mashed_potato,potato,,,
+meat_curry,curry_dish,,none,owner to choose: for example SL_158 Chicken Curry or SL_174 Beef Curry
+milk,milk,,,
+milkshake,milk,,none,no match in the allowed tables
+mun_kewum,sweets_traditional,,none,no match in the allowed tables
+noodles,noodles,,none,owner to choose: SL_33 Boiled Noodles; SL_32 Fried Noodles has the same numbers as Carrot Curry (SL_74) and looks like a copy error
+okra,okra,,,
+omelet,egg,,,
+orange,citrus,,,
+pancake,biscuit_cake,,,
+papaya,papaya,,,
+pappadam,snacks_savoury,,none,no match in the allowed tables
+pastry,short_eats,SL_16,exact,Pastry
+patty,short_eats,,none,no match in the allowed tables
+payesh,sweets_traditional,,,
+pea_curry,curry_dish,,,
+peyaju,snacks_savoury,,,
+pickle,salad,,,
+pineapple,pineapple,,,
+pittu,pittu,SL_42,exact,Pittu
+piyaju,snacks_savoury,,,
+pizza,fast_food,SL_24,partial,Cheese Pizza - Pizza Hut; other toppings differ
+poached_egg,egg,,,
+pointed_gourd,gourds,,,
+pol_sambol,sambol,SL_202,exact,Coconut Sambol
+polos_curry,curry_dish,,,
+potato,potato,,,
+potato_chop,short_eats,,,
+potato_milk_curry,curry_dish,SL_47,close,"Potato Curry, White"
+puffed_rice,rice_flakes,,,
+pumpkin_curry,curry_dish,,,
+pumpkin_raw,pumpkin,,,
+pumpkin_red_curry,curry_dish,,,
+pumpkin_white_curry,curry_dish,,,
+puri,roti,,,
+red_amaranth,leafy_local,,,
+red_rice_cooked,rice_cooked,SL_3,close,"Rice, Red Kekulu, Boiled"
+rice,rice_cooked,,,
+roll,short_eats,SL_15,partial,Chinese Rolls; fried rolls with other fillings differ
+roti,roti,SL_29,partial,Coconut Roti; other rotis differ
+ruti,roti,,,
+salad,salad,,,
+samba_rice_cooked,rice_cooked,SL_4,close,"Rice, Samba, Boiled"
+sambol_bun,bread,,,
+samosa,short_eats,,,
+sandwich,fast_food,,,
+sausage_bun,bread,,,
+shrimp_curry,curry_dish,,none,no match (the Prawn Curry row was excluded for inconsistent values)
+soya_curry,curry_dish,SL_57,exact,Soya Curry
+sponge_cake,biscuit_cake,,,
+sponge_gourd,gourds,,,
+string_hoppers,string_hoppers,SL_35,partial,"String Hoppers, White; a red variant exists (SL_36)"
+submarine,fast_food,,none,no match in the allowed tables
+sweets,sweets_traditional,,,
+taro,yams_taro,,,
+tea,tea_coffee,,,
+tomato,tomato_cucumber,,,
+uludu_vadai,vadai,,,
+vegetable,vegetables_mixed,,,
+vegetable_bun,bread,,,
+vegetable_roll,short_eats,,,
+vegetable_salad,salad,SL_69,exact,Vegetable Salad
+vorta,vegetables_mixed,,,
+watalappam,ice_cream_dessert,,none,no match in the allowed tables
+watermelon,melon,,,
+white_rice,rice_cooked,SL_6,partial,"Rice, White Nadu, Boiled; other white rice varieties give nearly the same values"

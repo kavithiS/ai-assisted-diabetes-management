@@ -39,3 +39,22 @@ def test_unsupported_or_empty_types_rejected(make_settings: SettingsFactory, val
 def test_sizes_must_be_positive(make_settings: SettingsFactory, field: str) -> None:
     with pytest.raises(ValidationError):
         make_settings(**{field: 0})
+
+
+def test_recognizer_defaults_to_mock(make_settings: SettingsFactory) -> None:
+    settings = make_settings()
+    assert settings.recognizer == "mock"
+    assert settings.model_path is None
+    assert settings.model_device == "cpu"
+    assert settings.nutrition_table_path is None
+
+
+def test_torch_recognizer_needs_a_model_path(make_settings: SettingsFactory) -> None:
+    with pytest.raises(ValidationError, match="MODEL_PATH"):
+        make_settings(recognizer="torch")
+    assert make_settings(recognizer="torch", model_path="model.pt").recognizer == "torch"
+
+
+def test_recognizer_must_be_known(make_settings: SettingsFactory) -> None:
+    with pytest.raises(ValidationError):
+        make_settings(recognizer="gpt")

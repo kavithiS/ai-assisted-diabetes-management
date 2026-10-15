@@ -97,7 +97,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     p.add_argument("--epochs", type=int, default=15)
     p.add_argument("--bs", type=int, default=32)
     p.add_argument("--lr", type=float, default=5e-4)
-    p.add_argument("--size", type=int, default=224)
+    # 256 = the stored image size; it beat 224 on 5 of 5 seeds (docs/EXPERIMENTS.md, 2026-10-15)
+    p.add_argument("--size", type=int, default=256)
     p.add_argument("--workers", type=int, default=4, help="use 0 on multiprocessing errors")
     p.add_argument("--seed", type=int, default=0)
     return p.parse_args(argv)
@@ -196,6 +197,10 @@ def run(a: argparse.Namespace) -> dict[str, Any]:
         "arch": a.arch,
         "epochs": a.epochs,
         "min_scenes": a.min_scenes,
+        "size": a.size,
+        "batch_size": a.bs,
+        "lr": a.lr,
+        "tag": a.tag or None,
         "extra_datasets": list(a.also),
         "n_classes": len(classes),
         "n_images": {s: len(v) for s, v in split.items()},

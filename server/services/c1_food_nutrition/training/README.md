@@ -52,10 +52,41 @@ python -m c1_training.cleaning
 python -m c1_training.preprocess
 ```
 
+Stage 2 uses 256 px input by default (since 2026-10-15; earlier runs used 224, pass `--size 224` to repeat them).
+
 Weights and reports go to `%C1_DATA_DIR%\_curation\training\runs` unless you pass `--out-dir`.
 **A run with the same name overwrites the earlier one.** For quick tests use
 `--out-dir <another folder>` or `--tag test`. Add `--workers 0` if you see a multiprocessing
 error.
+
+## Relabel images
+
+`python -m c1_training.relabel --changes <decisions.csv>` (dry run) or `... --apply` (backs up the manifest first). The CSV has the columns `image`, `old_labels`, `new_labels`, `reason`. Used on 2026-10-15 for the relish photos (`_curation\label_review\lunu_relabel.csv`). Afterwards re-run the leak audit and the baselines.
+
+## Use a trained model in the service
+
+1. **Export** a finished run to a model bundle (one file with the weights, class names, input size and a threshold chosen on the validation photos; it needs no OpenCV):
+   ```
+   python -m c1_training.export --run stage2_mobilenet_v3_large_imagenet_seed2_rl256
+   ```
+   The bundle (`<run>_bundle.pt`, about 17 MB) goes next to the run. It is a weight file: never commit it.
+2. **One-time server environment**, outside the repo so the project's own environment and `uv.lock` stay as CI has them (CPU-only PyTorch, about 200 MB [estimate]):
+   ```
+   cd /d D:\ai-assisted-diabetes-management
+   set "UV_PROJECT_ENVIRONMENT=D:\RESEARCH PROJECT\c1_server_env"
+   uv sync --frozen
+   uv pip install --python "D:\RESEARCH PROJECT\c1_server_env\Scripts\python.exe" torch torchvision --index-url https://download.pytorch.org/whl/cpu
+   ```
+3. **Start the service** with the trained model:
+   ```
+   set RECOGNIZER=torch
+   set "NUTRITION_TABLE_PATH=D:\ai-assisted-diabetes-management\data\c1\c1_foods_combined.csv"
+   set "MODEL_PATH=D:\RESEARCH PROJECT\Foods datasets for training\Images Datasets\_curation\training\runs\stage2_mobilenet_v3_large_imagenet_seed2_rl256_bundle.pt"
+   "D:\RESEARCH PROJECT\c1_server_env\Scripts\python.exe" -m uvicorn c1_food_nutrition.main:app --port 8001
+   ```
+   Without `RECOGNIZER=torch` the service uses the mock recogniser; without `NUTRITION_TABLE_PATH` it uses the mock nutrition lookup (values then stay unknown for real foods). `MODEL_DEVICE=cuda` is possible only with a CUDA build of PyTorch.
+
+PyTorch is not in `uv.lock`. Making it an official optional dependency of the service changes the shared lock file and needs a team PR.
 
 ## Tests
 
@@ -65,12 +96,17 @@ Repo checks (no PyTorch needed):
 uv run pytest server/services/c1_food_nutrition/training
 ```
 
-All tests, including the PyTorch smoke test, in the training environment (from
-`server\services\c1_food_nutrition`, after the "Every session" lines):
+All tests, including the ones that need PyTorch, in the server environment (from the repo
+root; takes about a minute):
 
 ```
-python -m pytest training/tests -p no:cacheprovider
+"D:\RESEARCH PROJECT\c1_server_env\Scripts\python.exe" -m pytest -p no:cacheprovider
 ```
+
+The training tests alone also run in the training environment (from
+`server\services\c1_food_nutrition`, after the "Every session" lines):
+`python -m pytest training/tests -p no:cacheprovider`. The server tests need OpenCV, which that
+environment does not have.
 
 ## Differences from the old scripts in `_curation\scripts` and `_curation\training`
 

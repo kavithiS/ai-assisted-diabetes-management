@@ -17,6 +17,12 @@ ManifestWriter = Callable[[Path, Sequence[dict[str, str]]], Path]
 PatternFactory = Callable[..., NDArray[np.uint8]]
 
 
+def test_stage2_default_input_size_is_256() -> None:
+    from c1_training import stage2
+
+    assert stage2.parse_args([]).size == 256
+
+
 def test_build_model_and_load_backbone(tmp_path: Path) -> None:
     torch = pytest.importorskip("torch")
     pytest.importorskip("torchvision")
@@ -83,6 +89,7 @@ def test_stage2_one_epoch(
     assert report["run"] == "stage2_mobilenet_v3_large_imagenet_seed0_smoke"
     assert report["n_classes"] == 2
     assert report["n_images"] == {"train": 6, "valid": 2, "test": 2}
+    assert (report["size"], report["batch_size"], report["tag"]) == (32, 4, "smoke")
     assert 0.0 <= report["test_mAP"] <= 1.0
     saved = json.loads((tmp_path / "runs" / f"{report['run']}_report.json").read_text())
     assert saved["n_classes"] == 2
