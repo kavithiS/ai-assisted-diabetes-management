@@ -4,6 +4,8 @@ import 'core/theme.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/foot_monitor/foot_monitor_screen.dart';
 import 'features/glucose/glucose_screen.dart';
+import 'features/meal_history/meal_history_screen.dart';
+import 'features/meal_history/today_summary_screen.dart';
 import 'features/meal_scan/meal_scan_screen.dart';
 import 'features/risk_profile/risk_profile_screen.dart';
 
@@ -36,6 +38,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static const List<Widget> _screens = [
     MealScanScreen(),
+    MealHistoryScreen(),
+    TodaySummaryScreen(),
     GlucoseScreen(),
     RiskProfileScreen(),
     FootMonitorScreen(),
@@ -44,6 +48,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static const List<NavigationDestination> _destinations = [
     NavigationDestination(icon: Icon(Icons.camera_alt_outlined), label: 'Meal Scan'),
+    NavigationDestination(icon: Icon(Icons.history), label: 'Meals'),
+    NavigationDestination(icon: Icon(Icons.today_outlined), label: 'Today'),
     NavigationDestination(icon: Icon(Icons.show_chart), label: 'Glucose'),
     NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Risk Profile'),
     NavigationDestination(icon: Icon(Icons.healing), label: 'Foot Monitor'),
