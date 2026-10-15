@@ -9,9 +9,16 @@ Reference for C2, C3 and C4. The live, authoritative schema is the OpenAPI docum
 `/api/v1/openapi.json`. The request rules are recorded in
 [ADR 0004](../adr/0004-meal-analyze-request-contract.md).
 
-> **Phase 0: MOCK.** `meta.is_mock` is `true`, and items, portions and nutrients are
-> synthetic placeholders. Consumers must check `meta.is_mock` and must not treat mock
-> values as nutrition data.
+> **Still MOCK (2026-10-16).** `meta.is_mock` is `true`. By default the items are also
+> synthetic. With `RECOGNIZER=torch` and `MODEL_PATH` set (see `training/README.md`) the
+> **items come from a trained model**, and with `NUTRITION_TABLE_PATH` set the **nutrient
+> values come from the Sri Lankan FCDB or USDA** (`nutrition_source`, per 100 g scaled to the
+> portion). Portions are still a fixed 100 g placeholder; `meta.warnings` says which parts
+> are mock, notes close or partial table matches, and names foods with no table entry
+> (their nutrients, and the totals, are `null`). `carbohydrate_g` from the table is
+> *available* carbohydrate (fibre excluded); `sugars_g` is always `null`. Consumers must check
+> `meta.is_mock` and must not treat mock values as nutrition data. An empty `items` list
+> comes with the warning `No food was recognised in the image.`
 
 ## Request: `multipart/form-data`
 

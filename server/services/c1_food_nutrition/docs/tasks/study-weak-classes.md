@@ -1,5 +1,7 @@
 # Study the weakest classes
 
+**Status (2026-10-15): done once.** Result: 25 epochs did not help; input 256 px gave +0.009 test mAP (5 seeds, better on every seed, suggestive); the weak classes are limited by data and labels. See `CONTEXT.md` section 10 and `EXPERIMENTS.md`. What is left is in `OPEN_ITEMS.md` section C.
+
 **Goal:** find out why some foods score low and choose what to try next (longer training, a bigger model, more photos).
 
 **Weakest classes on the cleaned split, ImageNet start (2026-10-15)**, AP with test positives in brackets, from `runs/stage2_mobilenet_v3_large_imagenet_seed{0,1,2}_report.json`:
@@ -27,7 +29,8 @@ With 1 to 5 test positives, one photo changes the AP a lot. Treat a class as wea
 2. Count the train scenes and photos for each weak class (from `processed_manifest.csv`: rows with `role == keep`, `suggested_split == train`, the class in `classes`; scenes = distinct `group_id`).
 3. Look at the test photos of the weak class. Is the food small on a mixed plate? Is it a side dish next to rice? Is the label itself consistent across datasets?
 4. Choose one change and run it as in `run-stage2-experiment.md`:
-   - more epochs (`--epochs 25`): cheap, try first;
+   - more epochs (`--epochs 25`): tried, no effect;
+   - a larger input (`--size 256`, the stored size): tried, small gain;
    - `--arch efficientnet_v2_s`: slower, not run yet;
    - more photos for thin classes: needs a new secondary dataset, which needs a licence check and owner approval (ADR 0002).
 5. Compare per-class AP across three seeds, not one.

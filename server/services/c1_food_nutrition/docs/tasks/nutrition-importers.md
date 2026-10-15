@@ -2,6 +2,8 @@
 
 **Goal:** the MRI Sri Lanka and USDA importers load real composition data into the `c1` database, so nutrition lookups stop being placeholders.
 
+**Update (2026-10-16):** the service now reads nutrient values straight from the combined CSV (`CompositionTableLookup`, `NUTRITION_TABLE_PATH`), Sri Lankan and USDA rows only; see `CHANGELOG.md`. The importers below are still stubs and the database is not used for nutrition. Decide whether they are still wanted.
+
 **State (2026-10-15):** both are stubs that raise `NotImplementedError`:
 `db/importers/mri_sri_lanka.py` (`MriSriLankaImporter`) and `db/importers/usda_fdc.py` (`UsdaFdcImporter`). Both extend `NutritionImporter` in `db/importers/base.py`, which yields `ImportedFood` records (per 100 g; only nutrients the source reports). Run with `db/import_cli.py` (`--source mri_sl|usda_fdc --path <file>`). The lookup used by the API is `PlaceholderNutritionLookup` in `services/nutrition.py`.
 

@@ -7,7 +7,7 @@
 | Port | 8001 |
 | Postgres schema | `c1` |
 | Health | `GET /health` |
-| Meal analysis | `POST /v1/meals/analyze` (returns a **mock** response, `meta.is_mock: true`) |
+| Meal analysis | `POST /v1/meals/analyze` (default: a **mock** response, `meta.is_mock: true`; with `RECOGNIZER=torch` the foods come from a trained model, and with `NUTRITION_TABLE_PATH` set the nutrient values come from the composition table; portions are still mock, so `is_mock` stays `true`) |
 | Gateway prefix | `/api/v1/meals/*` |
 | API docs | `GET /docs` |
 

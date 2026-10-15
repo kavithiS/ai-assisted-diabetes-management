@@ -2,6 +2,51 @@
 
 Newest first. One entry per piece of work. Numbers come from the files named beside them. Entries before 2026-10-15 were written afterwards from the git log (repo work, commit hash given) and from `CONTEXT.md` section 4 and `_curation\CLEANING_NOTES.md` (work outside git); those not backed by a commit or a file are marked [UNVERIFIED].
 
+## 2026-10-16: Nutrition values from the combined table (opt-in)
+
+- New `CompositionTableLookup` (`services/nutrition.py`), enabled by `NUTRITION_TABLE_PATH` (the file `data/c1/c1_foods_combined.csv`, not committed). It loads only the Sri Lankan FCDB (`MRI_SL_FCDB`) and USDA (`USDA_FDC`) rows (473 of 2,716) and skips the 2,243 regional rows, because `AGENTS.md` and the contract enum allow only those two sources (A1 is still open). Header check (a `food_100me` header is rejected), blank cell is `null`, bad or negative numbers fail with file and row. Contract fields: energy, carbohydrate (available carbohydrate), fibre, protein, fat, sodium; sugars always unknown.
+- Matching is per class, not per broad concept (the concept `curry_dish` would have given every curry the values of Sweet Potato Curry). `ml/data/class_concepts.csv` got the columns `food_id`, `match`, `note`; I reviewed the 48 classes of the shipped model against the table: 15 exact, 4 close, 12 partial (31 get values), 17 none. `food_code` is now the matched table entry (or `null`). A model class with no reviewed entry cannot be loaded. List without values in `docs/NUTRITION_MATCHES.md`.
+- Responses: close and partial matches add a note to `meta.warnings`; a food with no entry adds a warning that its nutrients and the meal totals are unknown. `RecognizedFood` has an optional `match_note`.
+- Checked the chosen rows in the real table: validation status ok, no flags on the nutrients used, energy within 14% of 4P+9F+4C+2fibre, no duplicated values. Found a data error: Fried Noodles (SL_32) has the same six values as Carrot Curry (SL_74); it is not used (OPEN_ITEMS B).
+- Real service over HTTP with the trained model and the real table, 5 dataset photos: kiribath, hoppers and pizza got values (pizza with a partial-match note); the two rice-and-curry plates returned `basmati_rice` and `vegetable_salad` with values and `dhal_curry` and `meat_curry` with `null` and a warning, so their totals were `null`. Still `is_mock: true` because portions are mock (values are per 100 g).
+- Checks: ruff, ruff format, mypy (128 files) clean; pytest 199 passed, 23 skipped in the project environment, 221 passed, 1 skipped in the server environment. `uv.lock` and all shared files unchanged. New tests use made-up fixture rows only; one test checks every matched class against the real table and skips where the table is absent (CI).
+- Not done: the owner's choices for `dhal_curry`, `fish_curry`, `meat_curry`, `noodles`; regional fallback; the database importers; the gateway route; Flutter.
+
+## 2026-10-16: Trained model wired into the service (opt-in); relish labels fixed
+
+Relabelling (owner decisions, 2026-10-15):
+- Owner: the dark relish is lunu sambol / seeni sambol, the red one is lunu miris; the 20 photos I was unsure about are red. New tool `c1_training.relabel` (decision CSV, dry run, backup, 9 tests). Applied `_curation\label_review\lunu_relabel.csv`: 71 rows changed (68 to `lunu_miris`, 3 given both labels), 6 unchanged. Backup `processed_manifest_before_relabel_2026-10-15.csv`. The set became 48 classes (`lunu_sambol`, now only 3 scenes, left); leak audit still 0 of 209 test photos with a copy at 30 or less.
+- Retrained three seeds at 256 px (`--tag rl256`): test mAP 0.929 / 0.918 / 0.909 (mean 0.919, SD 0.010), valid 0.942 / 0.930 / 0.948. Not comparable with the earlier rows. `lunu_miris` is still weak (AP 0.454 / 0.521 / 0.608, 6 test photos).
+
+Service (new code in `src/c1_food_nutrition/ml/`):
+- `torch_recognizer.py` (`TorchFoodRecognizer`, loads a model bundle with `weights_only=True`, CPU by default, lock around the forward pass), `bundle.py` (format, errors, network builder; no OpenCV), `inference_input.py` (image to model input as in training), `labels.py` and `data/class_concepts.csv` (150 classes to concept ids; loading fails on an unmapped class).
+- Settings `RECOGNIZER` (`mock` default, `torch`), `MODEL_PATH` (required for `torch`), `MODEL_DEVICE`. `api/deps.py` loads the model once per process.
+- Pipeline: recognition runs in a worker thread; the mock warning now names which stages are mock (the all-mock text is unchanged); an empty result adds "No food was recognised in the image."
+- `c1_training.export`: Stage 2 run to model bundle; the threshold (0.85) is chosen on the validation photos only. Bundle: `runs/stage2_mobilenet_v3_large_imagenet_seed2_rl256_bundle.pt`, 17.3 MB, seed 2 chosen for the best validation mAP (0.948).
+- README and API doc updated; `training/README.md` has the export and server setup steps.
+
+Checks:
+- Project environment: ruff, ruff format, mypy (127 files) clean; pytest 183 passed, 20 skipped (PyTorch tests skip). `uv.lock` and all shared files unchanged.
+- Server environment (`D:\RESEARCH PROJECT\c1_server_env`, CPU PyTorch 2.14.1, torchvision 0.29.1, built outside the repo from the frozen lock, about 200 MB download): pytest 202 passed, 1 skipped (scikit-learn not installed). Training environment: 53 passed, 1 skipped.
+- A train, export and load round trip test, and tests with random-weight bundles for loading, thresholds, concept ids, bad bundles and the HTTP endpoint.
+- Real data: the service recogniser reproduces the training report exactly on the 209 test photos (mAP 0.9090); on full-size originals mAP 0.9047. Real service over HTTP with a public-dataset photo: 200 with items; no image 422, text file named .jpg 415, corrupt JPEG 422, bad meal type 422, 11 MB file 413, `/health` 200. See `EXPERIMENTS.md`.
+- Not checked: `MODEL_DEVICE=cuda`, the gateway route, Flutter, concurrent requests, the PNG path with a real food photo.
+
+## 2026-10-15: 256 px default; lunu_sambol labels reviewed
+
+- Owner decision: Stage 2 default input size is now 256 px (`--size`, was 224). New test checks the default. Checks: ruff, ruff format, mypy clean; pytest 157 passed, 6 skipped; 42 of 42 in the training environment. Earlier reports and the baseline numbers in `CONTEXT.md` remain 224 px unless tagged `s256`.
+- Owner identified the two flagged photos: one is lunu sambol / seeni sambol, the other lunu miris. Contact sheets of all `lunu_sambol` (77) and `lunu_miris` (11) photos in `_curation\label_review\` show that `lunu_sambol` mixes a red relish (lunu miris) and a dark brown one (seeni sambol). No labels changed. Owner chose to sort by colour; a proposal file for the 77 photos was written to `_curation\label_review\lunu_proposal.csv` (48 red, 6 dark brown, 3 both, 20 unsure) and waits for the owner's check.
+
+## 2026-10-15: Weak classes studied
+
+- Looked at the seven weakest classes (data counts, datasets, test positives, photos). Most are side dishes on mixed plates (100% of their photos have several foods); `lunu_miris` has 7 training photos; test positives are 2 to 8 per class, so per-class scores are noisy.
+- Two training changes, `--tag` keeping the baseline files: 25 epochs (3 seeds) made no difference (+0.000, std error 0.011); input 256 px (5 seeds, plus baseline seeds 3 and 4 for pairing) gave +0.009 test mAP (std error 0.004), better on all 5 seeds, mean AP of the seven weak classes 0.668 to 0.715. Suggestive, not proven; the weak classes remain weak.
+- Photos reviewed: `lunu_sambol` is a red relish on kiribath and one test photo shows none; `lunu_sambol` and `lunu_miris` look alike (confusion not checked); a flipped pittu copy sits in train. Logged in `OPEN_ITEMS.md`.
+- Stage 2 reports now record `size`, `batch_size`, `lr` and `tag` (the 10 runs of this study predate that; the size is taken from the command). Checks: ruff, ruff format, mypy clean; pytest 156 passed, 6 skipped; 41 of 41 in the training environment.
+- Default settings unchanged. No data or labels were changed.
+- Owner decision: `lunu_sambol` and `lunu_miris` are two different foods. Confusion check (seed 0 checkpoints, 224 and 256 px): the model never scores one on the other's photos. Its five `lunu_sambol` false alarms are hoppers and kiribath test photos; two of them seem to show the relish without the label (logged in `OPEN_ITEMS.md` B for the owner to check).
+- EfficientNetV2-S, with the owner's approval of the download (82.7 MB): at batch 32 it filled the 6 GB card and ran at about 210 s per epoch, so that run was stopped. At batch 16 (3 seeds) test mAP 0.925 / 0.875 / 0.909, mean 0.903, against 0.914 for MobileNetV3 at batch 16 (paired −0.010, std error 0.010). Better on the seven weak classes (0.770 against 0.685), worse on the other 42 (0.929 against 0.958). MobileNetV3-Large stays.
+
 ## 2026-10-15: Cleaning and training code moved into the repo
 
 - New package `src/c1_training/` (typed, mypy strict): `paths` (`C1_DATA_DIR` / `--data-dir`), `manifest`, `metrics` (numpy AP, mAP, micro-F1), `fingerprint`, `leak`, `leak_audit`, `leak_fix`, `cleaning`, `preprocess`, `model`, `stage1`, `stage2`, `check_setup`. Pillow and PyTorch are imported inside functions; neither is a service dependency, and `uv.lock` is unchanged. The C1 `pyproject.toml` now builds both packages.

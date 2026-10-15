@@ -2,7 +2,9 @@
 
 **Goal:** `POST /v1/meals/analyze` returns foods recognised by the trained model instead of the mock, and each recognised class maps to a nutrition row.
 
-**State (2026-10-15):** not started. `api/deps.py` (`get_meal_analysis_service`) builds `MealAnalysisService` with `MockFoodRecognizer`, `MockPortionEstimator` and `PlaceholderNutritionLookup`, so every response has `is_mock: true`.
+**State (2026-10-16): done, opt-in** (`RECOGNIZER=torch`; see `CHANGELOG.md`). Steps 1 to 6 below were carried out; what is left is in `OPEN_ITEMS.md` section D. The text below is the original plan.
+
+**Earlier state (2026-10-15):** not started. `api/deps.py` (`get_meal_analysis_service`) builds `MealAnalysisService` with `MockFoodRecognizer`, `MockPortionEstimator` and `PlaceholderNutritionLookup`, so every response has `is_mock: true`.
 
 ## What the code expects
 
@@ -20,7 +22,7 @@
 
 ## Steps
 
-1. Inference preprocessing must match training: RGB (convert from BGR), resize to 224 × 224, ImageNet mean and standard deviation (as `vtf` in `stage2_finetune_srilankan.py`). Keep it in `ml/`.
+1. Inference preprocessing must match training: RGB (convert from BGR), resize to a square of the **size the chosen run was trained with** (224 px for the baseline files, 256 px for the `_s256` files; newer reports record `size`), ImageNet mean and standard deviation (the evaluation transform in `c1_training/stage2.py`). Keep it in `ml/`.
 2. Implement a recogniser class in `ml/` that loads the checkpoint (`arch`, `state`, `classes`), runs a sigmoid per class and returns every class above the threshold.
 3. Class to nutrition mapping: `_curation\class_map.csv` has concept ids, and the nutrition table links concepts to foods through `food_concepts.csv` and `food_metadata.csv` [UNVERIFIED: columns and locations not re-checked]. Write the mapping into a versioned file in the C1 folder.
 4. Add a test that **every** model class maps to a nutrition row. A class with no mapping is a bug.
