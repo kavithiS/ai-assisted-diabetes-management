@@ -1,16 +1,15 @@
 # configs/
 
-> **TODO(c1):** copied from the old `c1_kavithi` branch. Paths in this file predate the
-> monorepo move: the service now serves `/v1/meals/analyze` (the gateway exposes it as
-> `/api/v1/meals/analyze`), `/docs` and `/openapi.json`. Docker is no longer used (ADR 0003),
-> and C1 uses secondary datasets only (ADR 0002).
+YAML configuration for ML work, read by `src/c1_food_nutrition/ml/data/registry.py`.
 
-YAML configuration for ML work. Every MLflow run must log the exact config files it used.
+C1 uses secondary datasets only (ADR 0002). The training scripts do not read these files yet:
+they take command-line arguments and record the settings they used in each run's JSON report
+(see `docs/CONTEXT.md` section 9). MLflow is not used.
 
-| Folder   | Purpose                                                     | Status (Phase 0)            |
+| Folder   | Purpose                                                     | Status (2026-10-15)         |
 |----------|-------------------------------------------------------------|-----------------------------|
-| `data/`  | Dataset source definitions, selected by `kind`              | Candidate sources only      |
-| `model/` | Backbone configs (EfficientNetV2, MobileNetV3 via timm)      | Empty, added in Phase 1     |
-| `train/` | Seeds, hyperparameters, augmentation                         | Empty, added in Phase 1     |
+| `data/`  | Dataset source definitions, selected by `kind`              | `food101.yaml` only (candidate; loading not implemented) |
+| `model/` | Backbone settings (MobileNetV3-Large, EfficientNetV2-S, torchvision) | Not created          |
+| `train/` | Seeds, hyperparameters, augmentation                         | Not created                 |
 
 No dataset sizes, class counts or results are recorded here until they have been measured.

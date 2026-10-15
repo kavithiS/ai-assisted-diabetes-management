@@ -6,5 +6,6 @@ Follow these two files for every task in this folder:
 
 @AGENTS.md
 @SKILL.md
+@docs/CONTEXT.md
 
 The root `CLAUDE.md` and `docs/SETUP_PROMPT.md` still apply. If they disagree with these files, follow the priority order in section 1 of AGENTS.md and tell the user about the conflict.

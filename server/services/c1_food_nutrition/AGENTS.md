@@ -11,6 +11,7 @@ Read these before starting any task:
 1. The root `CLAUDE.md` (shared team rules).
 2. `docs/SETUP_PROMPT.md`, especially the C1 subsection of section 1a.
 3. `SKILL.md` in this folder (technical reference).
+4. `docs/CONTEXT.md` (current state, what is done and what is next) and `docs/OPEN_ITEMS.md`.
 
 If any of these disagree, the priority order is: (1) the user's explicit instruction, (2) the TAF, (3) decisions in `docs/adr/` and `docs/SETUP_PROMPT.md`, (4) this file and `SKILL.md`, (5) general best practice.
 

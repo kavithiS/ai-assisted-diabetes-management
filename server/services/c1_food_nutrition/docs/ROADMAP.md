@@ -1,12 +1,20 @@
 # C1 Roadmap
 
-> **TODO(c1):** copied from the old `c1_kavithi` branch. Paths in this file predate the
-> monorepo move: the service now serves `/v1/meals/analyze` (the gateway exposes it as
-> `/api/v1/meals/analyze`), `/docs` and `/openapi.json`. Docker is no longer used (ADR 0003),
-> and C1 uses secondary datasets only (ADR 0002).
+> The service serves `/v1/meals/analyze` (the gateway exposes it as `/api/v1/meals/analyze`),
+> `/docs` and `/openapi.json`. Docker is not used (ADR 0003). C1 uses secondary datasets only
+> (ADR 0002). For the day-to-day state, read `CONTEXT.md` first; this page is the phase plan.
 
-Status as of 2026-10-03. Phase 0 (scaffolding) is done. **Phase 1 has not started.**
-Do the items below in order.
+Plan written 2026-10-03; **status updated 2026-10-15.** Phase 0 (scaffolding) is done.
+Phase 1 has started on the model side (item d); the importers (a, b) and portion
+estimation (e) have not.
+
+| Item | Status 2026-10-15 |
+|---|---|
+| a. USDA importer | Not started (stub). Playbook: `tasks/nutrition-importers.md` |
+| b. MRI importer | Not started (stub). A repaired Sri Lankan table now exists (`data/c1/c1_foods_combined.csv`); see `CONTEXT.md` section 8 |
+| c. Source of every nutrition row | As below |
+| d. Model pipeline | Training runs outside the repo: Stage 1 on Food-101 and Stage 2 on the Sri Lankan sets (results in `EXPERIMENTS.md`). Not yet in the repo or behind `FoodRecognizer` |
+| e. Portion estimation | Not started. Playbook: `tasks/portion-estimation.md` |
 
 ## Phase 1
 
@@ -44,12 +52,13 @@ Do the items below in order.
 
 ### d. Model pipeline: Food-101 baseline
 
-- Add PyTorch, timm, Albumentations and MLflow (ADR 0003 deferred these to Phase 1; the
-  PyTorch CPU/CUDA install source is still to be decided).
-- Train a Food-101 baseline behind the `FoodRecognizer` protocol, with fixed seeds, the
-  config logged to MLflow, and data versioned with DVC.
-- **The training dataset decision is still open (ADR 0001):** team-collected Sri Lankan
-  images vs. public data. Food-101 is a baseline only.
+- As built (2026-10-15): PyTorch and torchvision (CUDA 12.6 wheels) in a separate training
+  environment, not a service dependency. timm, Albumentations and MLflow are not used; each
+  run writes a JSON report instead. DVC is not set up.
+- Data: secondary datasets only (ADR 0002). Food-101 for Stage 1 (reconstructed split), the
+  public Sri Lankan sets for Stage 2 (multi-label, split by scene group, leak-audited).
+- Still to do: move the training code into `training/` (`tasks/move-training-into-repo.md`),
+  then put the model behind `FoodRecognizer` (`tasks/wire-recognizer.md`).
 - Report only measured results, never estimated ones.
 
 ### e. Portion estimation

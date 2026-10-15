@@ -9,7 +9,7 @@ How Component 1 (Food Recognition & Nutritional Analysis) is built. Read `AGENTS
 ```
 Meal image (+ meal type, capture time, optional reference card)
   → 1. Validate & preprocess      (Pillow/OpenCV)
-  → 2. Recognise foods            (multi-label CNN, PyTorch + timm)
+  → 2. Recognise foods            (multi-label CNN, PyTorch + torchvision)
   → 3. Estimate portions          (reference-card calibration → grams)
   → 4. Look up nutrition          (Sri Lankan composition data → USDA fallback)
   → 5. Calculate per-food and meal totals
@@ -26,10 +26,10 @@ Each step is a separate module, so each can be built and tested on its own and r
 |---|---|
 | API | FastAPI, Pydantic v2, Uvicorn, `python-multipart` (file uploads) |
 | Images | Pillow (decode and validate), OpenCV (card detection, segmentation), Albumentations (training augmentation) |
-| Deep learning | PyTorch, torchvision, `timm` (EfficientNetV2 as primary, MobileNetV3 as the lightweight comparison) |
+| Deep learning | PyTorch and torchvision (training only, not a service dependency yet). MobileNetV3-Large is the baseline; EfficientNetV2-S is available in the training code but not run yet. `timm` is not used |
 | Database | PostgreSQL 16 (`c1` schema), SQLAlchemy 2, Alembic, `psycopg[binary]` |
-| Experiments | MLflow (local, SQLite backend) |
-| Data versioning | DVC (data lives in `data/c1/`) |
+| Experiments | A JSON report per run in `runs/` and one row per run in `docs/EXPERIMENTS.md`. MLflow is not set up |
+| Data versioning | Planned: DVC. Not set up; image data lives outside git (see `docs/DATA.md`) |
 | Quality | Ruff, mypy, pytest, FastAPI `TestClient` |
 
 Add packages with `uv add --package c1-food-nutrition <name>`. Use only the libraries a phase needs.
@@ -38,27 +38,30 @@ Add packages with `uv add --package c1-food-nutrition <name>`. Use only the libr
 
 ## 3. Folder layout
 
+As it is on 2026-10-15:
+
 ```
 server/services/c1_food_nutrition/
 ├── src/c1_food_nutrition/
 │   ├── main.py              # FastAPI app, /health, router include
-│   ├── config.py            # settings (env vars), size limits, model path
-│   ├── schemas.py           # Pydantic models = the meal_nutrition contract
-│   ├── api/routes.py        # /v1/meals/* endpoints (thin: validate → call service)
+│   ├── config.py            # settings (env vars), size limits
+│   ├── api/                 # routes.py (thin), deps.py (wires the services), errors, middleware
+│   ├── core/                # request context, error types, logging
+│   ├── schemas/             # package: common, meal_analysis, nutrition (the response contract)
 │   ├── services/
 │   │   ├── image_validation.py
-│   │   ├── recognition.py   # wraps ml/; mock until the model is ready
-│   │   ├── portion.py       # reference card → grams
-│   │   ├── nutrition.py     # lookup + scaling + totals
-│   │   └── pipeline.py      # runs steps 1–6 in order
-│   ├── ml/                  # model definition, loading, inference (no training here)
-│   └── db/                  # SQLAlchemy models, importer, repository
-├── training/                # training & evaluation scripts (write to MLflow)
+│   │   ├── nutrition.py     # lookup protocol, scaling, totals (placeholder lookup for now)
+│   │   └── pipeline.py      # runs the steps in order
+│   ├── ml/                  # interfaces.py (FoodRecognizer, PortionEstimator), mock.py, preprocessing.py, data/
+│   └── db/                  # SQLAlchemy models, Alembic migrations, importers (stubs), repositories
+├── training/                # training and data scripts (see docs/CONTEXT.md section 9)
 ├── notebooks/               # exploration only; nothing the API depends on
-├── tests/                   # unit/ and integration/ tests, plus fixtures/
-├── docs/                    # C1's own notes and design docs
+├── tests/                   # unit/ and integration/ tests, conftest.py
+├── docs/                    # CONTEXT, OPEN_ITEMS, DATA, GLOSSARY, EXPERIMENTS, CHANGELOG, tasks/, adr/, api/
 ├── AGENTS.md  SKILL.md  CLAUDE.md  README.md  pyproject.toml
 ```
+
+There is no `recognition.py` or `portion.py` yet: the recogniser and portion estimator are the mocks in `ml/mock.py`, selected in `api/deps.py`.
 
 Keep routes thin: the route validates input and calls `pipeline.py`, and all the logic lives in `services/`.
 
@@ -125,6 +128,8 @@ Use one error body shape everywhere, for example `{"detail": "<message>", "code"
 }
 ```
 
+**Note (2026-10-15):** the JSON above is the draft from before the code was written. The code (`schemas/`) uses different names: `nutrition_source` values `MRI_SL_FCDB`, `USDA_FDC`, `MOCK`, and portion methods `mock`, `reference_object`, `model`. Which set is intended is open (`docs/OPEN_ITEMS.md` section E); a change needs C2 and C3 to approve.
+
 **Rules for the response:**
 - A nutrient that is unknown is `null`, never `0`. Totals skip nulls and add a warning saying which nutrient is incomplete.
 - `nutrition_source` is `SL_FCDB` (Sri Lankan food composition data) or `USDA_FDC`.
@@ -150,25 +155,27 @@ Use one error body shape everywhere, for example `{"detail": "<message>", "code"
 
 | Dataset | Role | Notes |
 |---|---|---|
-| Food-101 | Primary, for the baseline | 101 classes, 101,000 images. Use the **official split**: 750 train and 250 test images per class. Take the validation set out of the train split |
+| Food-101 | Stage 1 pre-training | 101 classes, 101,000 images. The official split lists were missing, so a **reconstructed 75/25 split by scene group** is used (train 75,658, test 25,237 after cleaning). Do not compare its scores with published Food-101 numbers. Stage 1 has no validation split yet (`docs/OPEN_ITEMS.md`) |
 | UEC-FOOD-256, VIREO Food-172 | Optional | Check each licence and record it in an ADR before use |
-| Public Sri Lankan food sets (Kaggle, Roboflow) | For Sri Lankan dishes and multi-label training | Check the licence and class list. Report how small they are |
+| Public Sri Lankan food sets (food_detect, shorteats, sl_meal, Kaggle-26) | Stage 2, multi-label | Small: 49 classes and 2,113 images after the 2026-10-15 leak fix. Licences partly unverified. Details in `docs/DATA.md` |
 | Nutrition5k | Possible | **Not confirmed yet.** Agree with the supervisors before using it |
 
-### Approach
-1. **Baseline:** EfficientNetV2 with ImageNet weights, fine-tuned single-label on Food-101. Train the head first, then unfreeze the backbone.
-2. **Multi-label:** a sigmoid output per class with BCE loss, trained on the plates that contain several foods. Per-class thresholds are chosen on the validation set, never on the test set.
-3. **Comparison:** MobileNetV3 with the same data and splits, to compare speed against accuracy.
+### Approach (as built)
+1. **Stage 1 (optional):** MobileNetV3-Large (torchvision, ImageNet weights) trained single-label on Food-101.
+2. **Stage 2:** multi-label on the Sri Lankan sets: a sigmoid output per class, BCE loss with per-class positive weights, best epoch by validation mAP. Starts from ImageNet weights, or from Stage 1 with `--stage1`. Per-class thresholds, when added, are chosen on the validation set, never on the test set.
+3. **Comparison:** on the cleaned 49-class split the Food-101 start did not beat the ImageNet start (test mAP 0.898 against 0.916, 3 seeds each; `docs/EXPERIMENTS.md`). EfficientNetV2-S is available (`--arch efficientnet_v2_s`) but not run yet.
 4. **Label mapping:** every model class maps to a row in the nutrition table (section 8). A class with no mapping is a bug, so write a test for it.
 
 ### Rules for experiments
-- Fix the random seeds and log the config, dataset version, metrics and model file to MLflow for every run.
+- Fix the random seeds. Each run writes a JSON report (config, split sizes, metrics, per-class AP) next to its weights in `runs/`; add one row per run to `docs/EXPERIMENTS.md`. MLflow is not used.
+- Split by scene group, never by file, and run the leak audit after any data change (`docs/tasks/leak-audit-and-fix.md`).
+- Compare runs only when classes, split and settings match; report the mean and spread over three seeds.
 - Report on the test split only once a model is final.
 - **Metrics:**
   - single-label: top-1 and top-5 accuracy, and macro F1
   - multi-label: mAP, and micro and macro F1
   - Always include a confusion matrix or the classes the model confuses most.
-- Weights go in `data/c1/models/` or MLflow artifacts, never in Git.
+- Weights go in `runs/` outside the repo (or `data/c1/models/`), never in Git.
 
 ---
 
@@ -190,7 +197,7 @@ Use one error body shape everywhere, for example `{"detail": "<message>", "code"
 ## 8. Nutrition knowledge base
 
 ### Sources, in priority order
-1. **Sri Lankan food composition data.** Confirm the publisher before citing it (the peer-reviewed paper is Opatha et al., 2025). The current CSV export is corrupted: **the importer must reject a header of `food_100me`**.
+1. **Sri Lankan food composition data.** Confirm the publisher before citing it (the peer-reviewed paper is Opatha et al., 2025). The original CSV export is corrupted (every "na" became "100"): **the importer must reject a header of `food_100me`**. A repaired table exists: `data/c1/c1_foods_combined.csv` (gitignored; 2,716 foods per 100 g, of which 241 Sri Lankan; B12 and vitamin D blanked; no sugars column). It also holds 2,475 foods from 8 regional tables, which may be used only after supervisor sign-off (`docs/OPEN_ITEMS.md` A1). See `docs/CONTEXT.md` section 8.
 2. **USDA FoodData Central** as fallback. Use `sri_lankan_food_converted.csv` (363 rows, mapped to the 36-column template), with `..._all_nutrients.csv` and `..._food_metadata.csv` for extra detail.
 
 ### Tables in the `c1` schema (planned)
