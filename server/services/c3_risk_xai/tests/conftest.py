@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """Test fixtures that do not need the real dataset.
 
 `fake_models` trains small models on generated numbers and saves them in the

@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """PP1 demo interface - a CLIENT of the C3 API, not part of the server.
 
 It sends the patient profile to POST /api/v1/risk/assess through the gateway and shows

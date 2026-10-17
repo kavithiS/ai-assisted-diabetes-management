@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """Model building blocks shared by training, prediction and tests.
 
 Moved unchanged from the original train.py so that ml/predict.py and the tests

@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """FUNCTION 1 - Multi-factor diabetes risk prediction.
 
 INPUT      a patient record (dict of risk factors)

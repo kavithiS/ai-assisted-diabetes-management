@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """Synthetic patient records from a Gaussian copula fitted on REAL training rows.
 
 How it works, per class (so the label relationship is kept):

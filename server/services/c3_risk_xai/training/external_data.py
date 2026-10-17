@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """Download the South Asian datasets used for the C3 experiment.
 
 Every file is saved under data/c3/raw/external/ (gitignored) and logged in

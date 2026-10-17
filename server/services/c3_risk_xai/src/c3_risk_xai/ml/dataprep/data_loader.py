@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """Step 1 of the pipeline: load the harmonised South Asian data and check it.
 
 Run it on its own to inspect the data:

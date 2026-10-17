@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """FUNCTION 2 - Explainable risk analysis with SHAP and LIME.
 
 INPUT      a patient record + the trained model chosen by Function 1

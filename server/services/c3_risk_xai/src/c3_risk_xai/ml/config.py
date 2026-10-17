@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """Loads config.yaml once so every script reads the same settings."""
 
 from pathlib import Path

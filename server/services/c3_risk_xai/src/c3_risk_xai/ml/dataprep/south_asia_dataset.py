@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """Build the C3 South Asian dataset from two real Bangladesh sources.
 
 Sources (both real, both CC BY 4.0):

@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """Automated tests. Run from the repository root:  uv run pytest server/services/c3_risk_xai -v
 
 These prove the functions behave correctly, which is PP1 testing evidence.

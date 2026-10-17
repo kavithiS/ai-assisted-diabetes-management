@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """South Asian experiment: real vs real + synthetic vs synthetic only.
 
 Design (so the numbers are defensible):

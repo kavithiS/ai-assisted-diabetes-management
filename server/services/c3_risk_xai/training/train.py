@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """Step 3: train, compare, calibrate and save the risk models.
 
 For each feature set (without / with glucose) and each of three models:

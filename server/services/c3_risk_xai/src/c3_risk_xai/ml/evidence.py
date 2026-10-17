@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """Step 5: build the PP1 evidence pack - figures and explanation-quality numbers.
 
 Everything is computed from the saved models and the REAL test split:

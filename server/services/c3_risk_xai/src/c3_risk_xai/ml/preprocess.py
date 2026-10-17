@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# Older ML code, not fully typed yet. Remove these two lines once it is (docs/ci_pr_note.md).
 """Step 2: split the data without leaking test information.
 
 Leakage rule: every statistic learned from data (imputation medians, synthetic
