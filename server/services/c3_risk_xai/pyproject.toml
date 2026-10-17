@@ -17,6 +17,10 @@ dependencies = [
     "matplotlib==3.9.2",
     "joblib==1.4.2",
     "pyyaml>=6.0.2",
+    # Imported directly (synthetic.py, schemas.py), so declared here rather than relying on
+    # scikit-learn / FastAPI to bring them in. Lower bounds only: nothing is downgraded.
+    "scipy>=1.11",
+    "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
