@@ -45,11 +45,15 @@ void main() {
     await pickPhotoAndMealType(tester);
     await tester.tap(find.text('Review Photo'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Analyse meal'));
+    await tester.tap(find.text('Analyze Meal'));
     await tester.pumpAndSettle();
   }
 
+  // After showFoodReview we are on the recognition step.
+  // openPortions advances: recognition → foods → portions.
   Future<void> openPortions(WidgetTester tester) async {
+    await tester.tap(find.text('Confirm Detected Foods'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Confirm Foods'));
     await tester.pumpAndSettle();
     expect(find.text('Confirm Portions'), findsOneWidget);
@@ -66,20 +70,11 @@ void main() {
       (tester) async {
     useTallView(tester);
     await tester.pumpWidget(screenWith((_) async => http.Response('', 500)));
-    expect(
-        tester
-            .widget<FilledButton>(
-                find.widgetWithText(FilledButton, 'Review Photo'))
-            .onPressed,
-        isNull);
+    // 'Review Photo' is hidden until both a photo and a meal type are selected.
+    expect(find.widgetWithText(FilledButton, 'Review Photo'), findsNothing);
     await tester.tap(find.text('Upload Image'));
     await tester.pumpAndSettle();
-    expect(
-        tester
-            .widget<FilledButton>(
-                find.widgetWithText(FilledButton, 'Review Photo'))
-            .onPressed,
-        isNull);
+    expect(find.widgetWithText(FilledButton, 'Review Photo'), findsNothing);
     await tester.tap(find.text('Dinner'));
     await tester.pumpAndSettle();
     expect(
@@ -102,13 +97,12 @@ void main() {
     expect(find.text('Scan Meal'), findsOneWidget);
   });
 
-  testWidgets(
-      'recognition shows foods without confidence and unknown nutrients stay unknown',
+  testWidgets('recognition shows foods without confidence values',
       (tester) async {
     useTallView(tester);
     await showFoodReview(tester,
         (_) async => http.Response(jsonEncode(mockAnalysisJson()), 200));
-    expect(find.text('Meal Review'), findsOneWidget);
+    expect(find.text('Detected Foods'), findsOneWidget);
     expect(find.text('Test Food A'), findsOneWidget);
     expect(find.text('Test Food B'), findsOneWidget);
     expect(find.textContaining('Demo data'), findsOneWidget);
@@ -126,74 +120,57 @@ void main() {
           reason: 'found "$hidden"');
     }
     await openNutrition(tester);
-    expect(find.text('300 kcal'), findsOneWidget);
-    expect(find.text('Not available'), findsWidgets);
+    expect(find.text('300 kcal', findRichText: true), findsOneWidget);
   });
 
   testWidgets('removing a food updates nutrition totals', (tester) async {
     useTallView(tester);
     await showFoodReview(tester,
         (_) async => http.Response(jsonEncode(mockAnalysisJson()), 200));
-    await tester.tap(find.byTooltip('Remove Test Food A'));
+    await tester.tap(find.text('Confirm Detected Foods'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.close).first);
     await tester.pumpAndSettle();
     expect(find.text('Test Food A'), findsNothing);
-    await openNutrition(tester);
-    expect(find.text('100 kcal'), findsOneWidget);
-    expect(find.text('Not available'), findsOneWidget);
-  });
-
-  testWidgets('editing portions rescales nutrients and rejects invalid grams',
-      (tester) async {
-    useTallView(tester);
-    await showFoodReview(tester,
-        (_) async => http.Response(jsonEncode(mockAnalysisJson()), 200));
-    await openPortions(tester);
-    await tester.enterText(find.byType(TextField).first, '300');
-    await tester.tap(find.text('Set').first);
+    await tester.tap(find.text('Confirm Foods'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Continue to Nutrition'));
     await tester.pumpAndSettle();
-    expect(find.text('500 kcal'), findsOneWidget);
-    expect(find.text('Not available'), findsWidgets);
+    expect(find.text('100 kcal', findRichText: true), findsOneWidget);
   });
 
-  testWidgets('portion amount validation reports invalid values',
-      (tester) async {
+  testWidgets('chip-based portions rescale nutrients', (tester) async {
     useTallView(tester);
     await showFoodReview(tester,
         (_) async => http.Response(jsonEncode(mockAnalysisJson()), 200));
     await openPortions(tester);
-    await tester.enterText(find.byType(TextField).first, '0');
-    await tester.tap(find.text('Set').first);
+    // Test Food A is 150 g; Larger chip = 225 g (1.5×)
+    await tester.tap(find.text('Larger (225 g)'));
     await tester.pumpAndSettle();
-    expect(find.text('Enter an amount above 0 g.'), findsOneWidget);
-    await tester.enterText(find.byType(TextField).first, '5000');
-    await tester.tap(find.text('Set').first);
+    await tester.tap(find.text('Continue to Nutrition'));
     await tester.pumpAndSettle();
-    expect(find.text('Enter an amount up to 2000 g.'), findsOneWidget);
-    expect(find.text('Estimate: 150 g'), findsOneWidget);
+    // 200 kcal × 1.5 + 100 kcal = 400 kcal
+    expect(find.text('400 kcal', findRichText: true), findsOneWidget);
   });
 
-  testWidgets('food editor can remove and re-add a nutrient field',
+  testWidgets('food editor shows category chips and saves a name change',
       (tester) async {
     useTallView(tester);
     await showFoodReview(tester,
         (_) async => http.Response(jsonEncode(mockAnalysisJson()), 200));
-    await tester.tap(find.byTooltip('Edit Test Food A'));
+    await tester.tap(find.text('Confirm Detected Foods'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.edit_outlined).first);
     await tester.pumpAndSettle();
     expect(find.text('Edit Food'), findsOneWidget);
-    await tester.tap(find.byTooltip('Remove Dietary fibre (g)'));
+    await tester.tap(find.text('Rice'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add nutrient'));
-    await tester.pumpAndSettle();
-    expect(find.text('Dietary fibre (g)'), findsOneWidget);
     await tester.tap(find.text('Save Changes'));
     await tester.pumpAndSettle();
-    expect(find.text('Meal Review'), findsOneWidget);
+    expect(find.text('Confirm Detected Foods'), findsOneWidget);
   });
 
-  testWidgets(
-      'glycemic measures and recommendations show unavailable when absent',
+  testWidgets('glycemic profile and recommendation screens are reachable',
       (tester) async {
     useTallView(tester);
     await showFoodReview(tester,
@@ -204,15 +181,13 @@ void main() {
     await tester.tap(find.text('Continue to Glycemic Profile'));
     await tester.pumpAndSettle();
     expect(find.text('Glycemic Profile'), findsOneWidget);
-    expect(find.text('Glycemic load'), findsOneWidget);
-    expect(find.text('Not available'), findsWidgets);
+    expect(find.text('GLYCEMIC LOAD'), findsOneWidget);
     await tester.tap(find.text('Continue to Meal Summary'));
     await tester.pumpAndSettle();
-    expect(find.text('Meal Summary'), findsOneWidget);
+    expect(find.text('Meal Analysis Complete'), findsOneWidget);
     await tester.tap(find.text('View Portion Recommendation'));
     await tester.pumpAndSettle();
     expect(find.text('Portion Recommendation'), findsOneWidget);
-    expect(find.text('Profile-based portion suggestion'), findsOneWidget);
   });
 
   testWidgets('meal summary saves foods through meal history API',
@@ -250,7 +225,7 @@ void main() {
     await pickPhotoAndMealType(tester);
     await tester.tap(find.text('Review Photo'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Analyse meal'));
+    await tester.tap(find.text('Analyze Meal'));
     await tester.pumpAndSettle();
     await openNutrition(tester);
     await tester.tap(find.text('View Nutrition Details'));
@@ -262,12 +237,96 @@ void main() {
     await tester.tap(find.text('Save Meal'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Meal Saved'), findsOneWidget);
-    expect(find.text('Meal saved to your demo meal history.'), findsOneWidget);
+    expect(find.textContaining('Meal Saved'), findsOneWidget);
+    expect(find.text('Meal saved to your history.'), findsOneWidget);
     expect(savedBody['meal_type'], 'lunch');
+    expect(savedBody['eaten_at'] as String, matches(RegExp(r'[+-]\d\d:\d\d$')),
+        reason: 'the server rejects times without a UTC offset');
     expect(savedBody['items'], hasLength(2));
     expect(savedBody.toString(), isNot(contains('confidence')));
     expect(savedBody.toString(), isNot(contains('image')));
+  });
+
+  /// Like the trained model's answer: real table values, one food with no table entry.
+  Map<String, dynamic> realAnalysisWithUnknownFood() {
+    final json = mockAnalysisJson();
+    final items = json['items'] as List<dynamic>;
+    (items[0] as Map<String, dynamic>)
+      ..['label'] = 'white_rice'
+      ..['nutrition_source'] = {'source': 'MRI_SL_FCDB', 'source_food_id': 'SL_6'};
+    (items[1] as Map<String, dynamic>)
+      ..['label'] = 'brinjal_dish'
+      ..['nutrition'] = {
+        for (final k in [
+          'energy_kcal', 'carbohydrate_g', 'sugars_g', 'dietary_fiber_g',
+          'protein_g', 'fat_g', 'sodium_mg'
+        ])
+          k: null,
+      }
+      ..['nutrition_source'] = null;
+    json['totals'] = {
+      for (final k in (json['totals'] as Map<String, dynamic>).keys) k: null,
+    };
+    return json;
+  }
+
+  testWidgets('a food without nutrition data gives "Not available", never 0',
+      (tester) async {
+    useTallView(tester);
+    await showFoodReview(tester,
+        (_) async => http.Response(jsonEncode(realAnalysisWithUnknownFood()), 200));
+    expect(find.text('AI matched 2 Sri Lankan dishes'), findsOneWidget);
+    expect(find.text('White rice'), findsOneWidget);
+    expect(find.text('Brinjal dish'), findsOneWidget);
+    expect(find.textContaining('Demo data'), findsNothing);
+    expect(find.textContaining('Portions are not measured'), findsOneWidget);
+
+    await openNutrition(tester);
+    expect(find.textContaining('No nutrition data for Brinjal dish'), findsOneWidget);
+    expect(find.text('Not available', findRichText: true), findsNWidgets(4));
+    expect(find.text('0 g'), findsNothing);
+    expect(find.textContaining('0 kcal', findRichText: true), findsNothing);
+  });
+
+  testWidgets('removing the unknown food shows the totals of the rest',
+      (tester) async {
+    useTallView(tester);
+    await showFoodReview(tester,
+        (_) async => http.Response(jsonEncode(realAnalysisWithUnknownFood()), 200));
+    await tester.tap(find.text('Confirm Detected Foods'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.close).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm Foods'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue to Nutrition'));
+    await tester.pumpAndSettle();
+    expect(find.text('200 kcal', findRichText: true), findsOneWidget);
+    expect(find.textContaining('No nutrition data'), findsNothing);
+  });
+
+  testWidgets('no invented glycemic values, recommendations or confidence',
+      (tester) async {
+    useTallView(tester);
+    await showFoodReview(tester,
+        (_) async => http.Response(jsonEncode(mockAnalysisJson()), 200));
+    await openNutrition(tester);
+    expect(find.text('Moderate'), findsNothing);
+    await tester.tap(find.text('View Nutrition Details'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue to Glycemic Profile'));
+    await tester.pumpAndSettle();
+    expect(find.text('18.6'), findsNothing);
+    expect(find.text('Medium'), findsNothing);
+    await tester.tap(find.text('Continue to Meal Summary'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('18.6'), findsNothing);
+    expect(find.textContaining('Confidence'), findsNothing);
+    await tester.tap(find.text('View Portion Recommendation'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('cup rice'), findsNothing);
+    expect(find.text('Portion recommendations are not available yet.'),
+        findsOneWidget);
   });
 
   testWidgets('API errors return to scan with a friendly message',
@@ -286,7 +345,7 @@ void main() {
     await pickPhotoAndMealType(tester);
     await tester.tap(find.text('Review Photo'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Analyse meal'));
+    await tester.tap(find.text('Analyze Meal'));
     await tester.pumpAndSettle();
     expect(find.text('The photo could not be read. Please take a new photo.'),
         findsOneWidget);

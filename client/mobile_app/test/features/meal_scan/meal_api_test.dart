@@ -109,4 +109,38 @@ void main() {
     expect(total.energyKcal, 150);
     expect(total.sugarsG, isNull);
   });
+
+  test('default analyzeTimeout is at least 60 seconds', () {
+    expect(MealApi().analyzeTimeout.inSeconds, greaterThanOrEqualTo(60));
+  });
+
+  test('a network error gives code NETWORK with a user message', () async {
+    final api = apiWith((_) async => throw http.ClientException('Connection refused'));
+
+    await expectLater(
+      api.analyze(imageBytes: tinyPng, mealType: MealType.snack),
+      throwsA(isA<MealApiException>()
+          .having((e) => e.code, 'code', 'NETWORK')
+          .having((e) => e.message, 'message', isNotEmpty)),
+    );
+  });
+
+  test('a timeout gives code TIMEOUT with a message telling the user to retry', () async {
+    final api = MealApi(
+      apiClient: ApiClient(baseUrl: 'http://gateway.test:8000'),
+      httpClient: MockClient((_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        return http.Response(jsonEncode(mockAnalysisJson()), 200);
+      }),
+      // Very short timeout so the test does not take 60 s.
+      analyzeTimeout: const Duration(milliseconds: 1),
+    );
+
+    await expectLater(
+      api.analyze(imageBytes: tinyPng, mealType: MealType.lunch),
+      throwsA(isA<MealApiException>()
+          .having((e) => e.code, 'code', 'TIMEOUT')
+          .having((e) => e.message, 'message', isNotEmpty)),
+    );
+  });
 }
