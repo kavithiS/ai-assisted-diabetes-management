@@ -6,7 +6,13 @@ void main() {
   testWidgets('home screen shows the five placeholder tabs', (tester) async {
     await tester.pumpWidget(const DiaCareApp());
 
-    for (final label in ['Meal Scan', 'Glucose', 'Risk Profile', 'Foot Monitor', 'Dashboard']) {
+    for (final label in [
+      'Meal Scan',
+      'Glucose',
+      'Risk Profile',
+      'Foot Monitor',
+      'Dashboard'
+    ]) {
       expect(find.text(label), findsWidgets);
     }
     expect(find.text('Meal Scan — placeholder (C1)'), findsOneWidget);
@@ -14,6 +20,6 @@ void main() {
     await tester.tap(find.text('Glucose'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Glucose — placeholder (C2)'), findsOneWidget);
+    expect(find.text('Current pre-meal glucose (mg/dL)'), findsOneWidget);
   });
 }

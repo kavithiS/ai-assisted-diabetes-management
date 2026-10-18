@@ -1,6 +1,12 @@
+"""Write C2 train/validation/test files from the fixed participant split.
+
+Participants are never shuffled or reassigned here. Each sample's `split` column comes from
+the manifest (cgmacros_participant_split.json) used by prepare_dataset.py.
+"""
+
+import argparse
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 # Dataset locations
@@ -8,64 +14,73 @@ DESKTOP = Path.home() / "Desktop"
 INPUT_FILE = DESKTOP / "CGMacros_C2_processed" / "cgmacros_meal_samples_clean.csv"
 OUTPUT_DIR = DESKTOP / "CGMacros_C2_processed" / "splits"
 
-RANDOM_SEED = 42
+SPLIT_NAMES = ("train", "validation", "test")
+
+
+def partition_by_split(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Group samples by their manifest split, refusing unassigned or mixed participants."""
+    for column in ("participant_id", "split"):
+        if column not in df.columns:
+            raise ValueError(
+                f"Dataset must contain {column}. Re-run prepare_dataset.py to label each "
+                "sample with its split from the participant manifest."
+            )
+        if df[column].isna().any():
+            raise ValueError(f"Some rows have a missing {column}.")
+
+    invalid = sorted(set(df["split"]) - set(SPLIT_NAMES))
+    if invalid:
+        unassigned = sorted(df.loc[~df["split"].isin(SPLIT_NAMES), "participant_id"].unique())
+        raise ValueError(
+            f"Invalid split labels {invalid} for participants {unassigned}. "
+            "Add them to the participant manifest explicitly."
+        )
+
+    splits_per_participant = df.groupby("participant_id")["split"].nunique()
+    mixed = sorted(splits_per_participant[splits_per_participant > 1].index)
+    if mixed:
+        raise ValueError(f"Participants appear in more than one split: {mixed}")
+
+    return {name: df.loc[df["split"] == name].copy() for name in SPLIT_NAMES}
 
 
 def main() -> None:
-    if not INPUT_FILE.exists():
-        raise FileNotFoundError(f"Dataset not found: {INPUT_FILE}")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input-file", type=Path, default=INPUT_FILE)
+    parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
+    parser.add_argument("--overwrite", action="store_true")
+    args = parser.parse_args()
 
-    df = pd.read_csv(INPUT_FILE)
+    if not args.input_file.exists():
+        raise FileNotFoundError(f"Dataset not found: {args.input_file}")
 
-    if "participant_id" not in df.columns:
-        raise ValueError("Dataset must contain participant_id.")
+    df = pd.read_csv(args.input_file, dtype={"participant_id": str})
+    splits = partition_by_split(df)
 
-    if df["participant_id"].isna().any():
-        raise ValueError("Some rows have a missing participant_id.")
+    outputs = {name: args.output_dir / f"cgmacros_{name}.csv" for name in SPLIT_NAMES}
+    existing = [
+        str(outputs[name])
+        for name in SPLIT_NAMES
+        if not splits[name].empty and outputs[name].exists()
+    ]
+    if existing and not args.overwrite:
+        raise FileExistsError(f"Refusing to overwrite {existing}. Use --overwrite to replace them.")
 
-    participants = np.array(sorted(df["participant_id"].unique()))
-    rng = np.random.default_rng(RANDOM_SEED)
-    rng.shuffle(participants)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 45 participants -> 31 training, 7 validation, 7 test
-    train_end = int(round(len(participants) * 0.70))
-    validation_end = train_end + int(round(len(participants) * 0.15))
-
-    train_ids = participants[:train_end]
-    validation_ids = participants[train_end:validation_end]
-    test_ids = participants[validation_end:]
-
-    splits = {
-        "train": train_ids,
-        "validation": validation_ids,
-        "test": test_ids,
-    }
-
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    used_ids: set[str] = set()
-
-    for split_name, participant_ids in splits.items():
-        participant_set = set(participant_ids.tolist())
-
-        if used_ids.intersection(participant_set):
-            raise ValueError("A participant appears in more than one split.")
-
-        used_ids.update(participant_set)
-
-        split_df = df[df["participant_id"].isin(participant_set)].copy()
-        output_file = OUTPUT_DIR / f"cgmacros_{split_name}.csv"
-        split_df.to_csv(output_file, index=False)
-
+    for split_name, split_df in splits.items():
         print(f"\n{split_name.upper()}")
-        print(f"Participants: {len(participant_set)}")
+        print(f"Participants: {split_df['participant_id'].nunique()}")
         print(f"Meal samples: {len(split_df)}")
-        print(f"Saved to: {output_file}")
 
-    if used_ids != set(participants.tolist()):
-        raise ValueError("Some participants were not assigned to a split.")
+        if split_df.empty:
+            print("No samples in this input; file not written.")
+            continue
 
-    print("\nParticipant-level split completed successfully.")
+        split_df.to_csv(outputs[split_name], index=False)
+        print(f"Saved to: {outputs[split_name]}")
+
+    print("\nParticipant-level split taken from the fixed manifest.")
     print("No participant is shared between the three splits.")
 
 
