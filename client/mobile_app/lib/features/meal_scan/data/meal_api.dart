@@ -6,18 +6,23 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 import '../../../core/api_client.dart';
+import '../../auth/data/auth_http_client.dart';
 import 'meal_analysis.dart';
 
 /// Calls C1 through the gateway: `POST /api/v1/meals/analyze`.
 class MealApi {
-  MealApi({ApiClient? apiClient, http.Client? httpClient})
+  MealApi({ApiClient? apiClient, http.Client? httpClient, Duration? analyzeTimeout})
       : _apiClient = apiClient ?? ApiClient(),
-        _http = httpClient ?? http.Client();
+        _http = httpClient ?? AuthHttpClient(),
+        analyzeTimeout = analyzeTimeout ?? _defaultAnalyzeTimeout;
 
   final ApiClient _apiClient;
   final http.Client _http;
 
-  static const Duration timeout = Duration(seconds: 30);
+  /// Timeout for the meal-analysis request (upload + inference).
+  /// Longer than general requests because the model may need to warm up.
+  static const Duration _defaultAnalyzeTimeout = Duration(seconds: 60);
+  final Duration analyzeTimeout;
 
   Future<MealAnalysis> analyze({
     required Uint8List imageBytes,
@@ -44,13 +49,17 @@ class MealApi {
 
     final http.Response response;
     try {
-      response = await http.Response.fromStream(await _http.send(request).timeout(timeout));
+      response = await http.Response.fromStream(
+          await _http.send(request).timeout(analyzeTimeout));
     } on TimeoutException {
-      throw const MealApiException('TIMEOUT', 'The server took too long. Please try again.');
+      throw const MealApiException(
+        'TIMEOUT',
+        'The server is taking too long. Make sure the server is running and try again.',
+      );
     } on http.ClientException {
       throw const MealApiException(
         'NETWORK',
-        'Could not reach the server. Check your connection and try again.',
+        'Cannot reach the server. Make sure the server is running on your PC and try again.',
       );
     }
 
@@ -93,6 +102,8 @@ class MealApi {
 const String _genericMessage =
     'Something went wrong while analysing your meal. Please try again.';
 
+const String _sessionEndedMessage = 'Your session has ended. Please log in again.';
+
 class MealApiException implements Exception {
   const MealApiException(this.code, this.message);
 
@@ -126,6 +137,8 @@ class MealApiException implements Exception {
         return 'The photo could not be read. Please take a new photo.';
       case 'INVALID_METADATA':
         return 'Some meal details were not accepted. Check the meal type and try again.';
+      case 'UNAUTHORIZED':
+        return _sessionEndedMessage;
       default:
         return _genericMessage;
     }

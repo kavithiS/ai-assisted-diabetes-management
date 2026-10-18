@@ -5,6 +5,7 @@
 library;
 
 import '../../meal_scan/data/meal_analysis.dart';
+import '../../meal_scan/data/meal_api.dart' show MealApi;
 
 export '../../meal_scan/data/meal_analysis.dart' show MealType, NutrientProfile;
 
@@ -170,7 +171,8 @@ class MealCreate {
   final List<MealItemIn> items;
 
   Map<String, dynamic> toJson() => {
-        if (eatenAt != null) 'eaten_at': eatenAt!.toIso8601String(),
+        // The server only accepts times with a UTC offset; a local DateTime has none in ISO form.
+        if (eatenAt != null) 'eaten_at': MealApi.toRfc3339(eatenAt!),
         if (mealType != null) 'meal_type': mealType!.apiValue,
         if (note != null) 'note': note,
         'items': [for (final i in items) i.toJson()],

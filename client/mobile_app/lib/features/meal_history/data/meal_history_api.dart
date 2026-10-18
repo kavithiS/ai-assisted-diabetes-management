@@ -4,13 +4,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../../core/api_client.dart';
+import '../../auth/data/auth_http_client.dart';
 import 'meal_history_models.dart';
 
 /// Calls C1 through the gateway for meal history and food search.
 class MealHistoryApi {
   MealHistoryApi({ApiClient? apiClient, http.Client? httpClient})
       : _apiClient = apiClient ?? ApiClient(),
-        _http = httpClient ?? http.Client();
+        _http = httpClient ?? AuthHttpClient();
 
   final ApiClient _apiClient;
   final http.Client _http;
@@ -100,6 +101,7 @@ class MealHistoryException implements Exception {
   final int statusCode;
 
   String get userMessage {
+    if (statusCode == 401) return 'Your session has ended. Please log in again.';
     if (statusCode == 404) return 'Meal not found.';
     if (statusCode >= 500) return 'Server error. Please try again later.';
     return 'Something went wrong ($code). Please try again.';
