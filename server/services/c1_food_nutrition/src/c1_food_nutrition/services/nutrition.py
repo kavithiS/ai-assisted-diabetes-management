@@ -109,6 +109,7 @@ REQUIRED_COLUMNS = (
 ALLOWED_SOURCES: dict[str, NutritionSourceCode] = {
     "Sri Lankan Food Composition Database": NutritionSourceCode.MRI_SL_FCDB,
     "USDA FoodData Central, Foundation Foods": NutritionSourceCode.USDA_FDC,
+    "USDA FoodData Central, SR Legacy": NutritionSourceCode.USDA_FDC,
 }
 
 #: Contract field -> table column. ``sugars_g`` has no column, so it is always unknown.

@@ -1,6 +1,6 @@
 # C1 open items
 
-**Last updated:** 2026-10-15. Remove an item when it is closed and log it in `CHANGELOG.md`. Add new ones here.
+**Last updated:** 2026-10-18. Remove an item when it is closed and log it in `CHANGELOG.md`. Add new ones here.
 
 ## A. Decisions needed from someone else
 
@@ -26,7 +26,7 @@
 - About 20 mirror pairs in Kaggle-26 were not detected, so some folders keep 51 or 52 images instead of 50.
 - Kaggle-26 scene groups (`#gNN`) do not match real scenes: the same cup, cutlet or pizza appears in several groups, so copies cross splits. The leak audit found 19 of its 176 test photos with a train copy at ≤ 30.
 - Short-eats has labels only in its train annotation file.
-- Few photos per class: only 23 classes have 30 or more scenes and 5 have 50 or more. 33 of the 118 food concepts have no images. The TAF targets (50+ categories, 10,000+ images) are not met by the Sri Lankan sets.
+- Few photos per class: only 23 classes have 30 or more scenes and 5 have 50 or more. 33 of the 118 food concepts have no images. More distinct Sri Lankan photos would help the weak classes most.
 - The nutrition table has **no sugars column**: `sugars_g` is always `null` in responses.
 - **Data errors in the Sri Lankan table, for the publisher:** `SL_32` Fried Noodles has exactly the same six values as `SL_74` Carrot Curry (so it is never matched); `SL_13` Sandwich Bread equals `SL_14` White Bread; `SL_114` and `SL_116` also share values. Zeros in the table may mean "not measured".
 - FoodBD `gl_reported` is unreliable and must not be used.
@@ -34,6 +34,8 @@
 
 ## C. Experiments
 
+- **Extra datasets (2026-10-18):** veg_cooking, pust and FoodBD added as train-only photos did not improve the 48-class test mAP (see `EXPERIMENTS.md`); the model is unchanged. The owner treats FoodBD's licence as fine, but nothing trained with it is in use. The Food-101 start at 256 px (A3 experiment 5, about 1 to 1.5 h of GPU) is **not run yet**: waiting for the owner's answer.
+- **Seed averaging (2026-10-18):** averaging the 3 seed models gave test mAP 0.936 against 0.919 for single models, and also better valid mAP. To use it the service must load three bundles (about three times the inference time) and the threshold from validation is 0.65, not 0.85. Training a final model on train plus valid (A6) needs the epochs and the threshold fixed beforehand, because no validation photos remain. Waiting for the owner's decision.
 - The Food-101 start did not beat the ImageNet start (0.898 against 0.916 test mAP, 3 seeds each). Decide whether two-stage training stays in the plan, or try it differently (for example a lower learning rate or a frozen backbone for the first epochs in Stage 2); ask the supervisors how to report it.
 - The leak fix was checked only on the `--min-scenes 5` set; audit the `--min-scenes 1` set too before using it.
 - `pumpkin_curry`, `fanta` and `iced_coffee` dropped out of the `--min-scenes 5` set after the leak fix (under 5 train scenes). They need more distinct photos to come back.
@@ -49,11 +51,12 @@
 - Stage 1 has no validation split: it still keeps the epoch with the best **test** top-1.
 - Once the owner is happy with the repo version, remove or archive the old scripts in `_curation\training\` and `_curation\scripts\` (outside git).
 - Database importers (USDA, MRI) are implemented and populated (2026-10-16): 241 MRI SL + 232 USDA rows in the database. The analyze endpoint still reads nutrition from the CSV, not the database: decide whether to switch it to a database-backed lookup.
-- **Owner to choose four matches** in `ml/data/class_concepts.csv` (one `food_id` each; set `match` to exact/close/partial): `dhal_curry` (SL_54 thick, SL_55 watery, SL_56 spinach), `fish_curry` (for example SL_146 Chili Fish Curry, SL_147 Fish, White Curry), `meat_curry` (for example SL_158 Chicken Curry, SL_174 Beef Curry), `noodles` (SL_33 Boiled Noodles; never SL_32). Until then any plate with one of them has unknown totals. Also review the 12 `partial` and 4 `close` matches (`docs/NUTRITION_MATCHES.md`).
+- **Nutrition matches (2026-10-18):** the owner chose `dhal_curry` SL_54, `fish_curry` SL_146, `meat_curry` SL_158, `noodles` SL_33, and three USDA SR Legacy rows: `milkshake` US_170884, `submarine` US_170309, `patty` US_167660 (`docs/NUTRITION_MATCHES.md`). 38 of the 48 model foods now get values; 10 stay unknown (`asmi`, `brinjal_dish`, `cutlet`, `kokis`, `konda_kewum`, `lunu_miris`, `mun_kewum`, `pappadam`, `shrimp_curry`, `watalappam`). Still to review: the other `partial` and `close` matches. The running service must be restarted to read the new map and table.
+- **USDA Foundation rows are thin:** of the 232 rows in the combined table, 158 have no `energy_kcal` and 107 no `carbohydrate_g` (Foundation Foods store energy under the Atwater ids, which the table builder did not read). Any food matched to such a row would show unknown energy. Decide whether to rebuild those rows from the USDA download (energy from the Atwater ids, carbohydrate by difference minus fibre).
 - **Contract wording (C2, C3):** the schema text for `carbohydrate_g` says "Total carbohydrate", but the table value is **available carbohydrate (fibre excluded)**. Tell C2 and C3, and fix the wording through a contract PR.
 - Totals are `null` as soon as one food on the plate is unknown (existing rule). Decide with C2, C3 and the app whether partial totals with a warning would be better.
 - Nutrient values are per 100 g because the portion estimator is still a fixed 100 g mock.
-- **Trained model in the service: done, opt-in (2026-10-16).** Still open: (1) PyTorch is not in `uv.lock` (the server environment `D:\RESEARCH PROJECT\c1_server_env` was built by hand); making it an official optional dependency changes the shared lock and needs a team PR; (2) the model loads on the first request (3.7 s in the check): load at startup instead; (3) false alarms (for example `mallum` and `white_rice` on a string-hoppers close-up at threshold 0.85): consider per-class thresholds chosen on the validation set; (4) a real nutrition lookup (importers) so nutrients stop being `null`; (5) `MODEL_DEVICE=cuda` is untested; (6) the CI never runs the PyTorch tests (they skip), so they only run in the server environment; (7) `.env.example` (shared) does not list `RECOGNIZER`, `MODEL_PATH`, `MODEL_DEVICE`.
+- **Trained model in the service: done, opt-in (2026-10-16).** Still open: (1) PyTorch is not in `uv.lock` (the server environment `D:\RESEARCH PROJECT\c1_server_env` was built by hand); making it an official optional dependency changes the shared lock and needs a team PR; (2) ~~the model loads on the first request~~ done 2026-10-17 (loads at startup; start with `scripts/start_c1.ps1`); (3) false alarms (for example `mallum` and `white_rice` on a string-hoppers close-up at threshold 0.85): consider per-class thresholds chosen on the validation set; (4) a real nutrition lookup (importers) so nutrients stop being `null`; (5) `MODEL_DEVICE=cuda` is untested; (6) the CI never runs the PyTorch tests (they skip), so they only run in the server environment; (7) `.env.example` (shared) does not list `RECOGNIZER`, `MODEL_PATH`, `MODEL_DEVICE`.
 - Portion estimation (reference card), replacing the mock estimator.
 - Optional: emulator or device integration tests for the Meal Scan screen.
 - `AGENTS.md` mentions DVC; it is not set up.

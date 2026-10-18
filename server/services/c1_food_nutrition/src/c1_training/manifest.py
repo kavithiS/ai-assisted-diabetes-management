@@ -45,15 +45,25 @@ def items_from_rows(
     root: Path,
     datasets: Iterable[str],
     min_train_scenes: int = 1,
+    train_only: Iterable[str] = (),
 ) -> tuple[list[Item], list[str]]:
     """Build items from manifest rows.
 
     Only rows with ``role == keep`` and at least one class are used. Classes with fewer than
     ``min_train_scenes`` distinct train scene groups are dropped, and so are images left
-    with no class. Splits come from ``suggested_split`` (split by scene group).
+    with no class. Splits come from ``suggested_split`` (split by scene group). Datasets in
+    ``train_only`` contribute their train rows only.
     """
     wanted = set(datasets)
-    kept = [r for r in rows if r["dataset"] in wanted and r["role"] == "keep" and r["classes"]]
+    only_train = set(train_only)
+    kept = [
+        r
+        for r in rows
+        if r["dataset"] in wanted
+        and r["role"] == "keep"
+        and r["classes"]
+        and (r["dataset"] not in only_train or r["suggested_split"] == "train")
+    ]
     scenes: dict[str, set[str]] = collections.defaultdict(set)
     for r in kept:
         if r["suggested_split"] == "train":
@@ -79,11 +89,38 @@ def items_from_rows(
 
 
 def load_manifest(
-    manifest: Path, root: Path, datasets: Iterable[str], min_train_scenes: int = 1
+    manifest: Path,
+    root: Path,
+    datasets: Iterable[str],
+    min_train_scenes: int = 1,
+    train_only: Iterable[str] = (),
 ) -> tuple[list[Item], list[str]]:
     """Read ``manifest`` and return ``(items, classes)``; see :func:`items_from_rows`."""
     _, rows = read_rows(manifest)
-    return items_from_rows(rows, root, datasets, min_train_scenes)
+    return items_from_rows(rows, root, datasets, min_train_scenes, train_only)
+
+
+def split_items(
+    rows: Iterable[Mapping[str, str]],
+    root: Path,
+    datasets: Iterable[str],
+    classes: Sequence[str],
+    split: str,
+) -> list[Item]:
+    """``keep`` rows of ``datasets`` in ``split``, labels limited to ``classes``.
+
+    Images left with no label are skipped. Used to score a model on another dataset's split.
+    """
+    wanted, known = set(datasets), set(classes)
+    items: list[Item] = []
+    for r in rows:
+        if r["dataset"] not in wanted or r["role"] != "keep" or r["suggested_split"] != split:
+            continue
+        labels = tuple(c for c in r["classes"].split("|") if c in known)
+        if labels:
+            rel = r.get("processed_rel_path") or r["rel_path"]
+            items.append(Item(root / rel, split, labels, r["group_id"], r["dataset"]))
+    return items
 
 
 def split_counts(items: Iterable[Item]) -> dict[str, int]:

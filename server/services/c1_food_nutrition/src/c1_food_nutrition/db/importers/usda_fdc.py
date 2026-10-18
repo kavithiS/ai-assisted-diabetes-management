@@ -5,7 +5,7 @@ from c1_food_nutrition.schemas.nutrition import NutritionSourceCode
 
 
 class UsdaFdcImporter(CompositionTableImporter):
-    """Reads the ``USDA FoodData Central, Foundation Foods`` rows."""
+    """Reads the USDA FoodData Central rows (Foundation Foods and SR Legacy)."""
 
     source_code = NutritionSourceCode.USDA_FDC
     source_name = "USDA FoodData Central"

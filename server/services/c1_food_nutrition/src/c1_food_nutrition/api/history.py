@@ -5,7 +5,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Path, Query, Response, status
 
-from c1_food_nutrition.api.deps import SessionDep
+from c1_food_nutrition.api.deps import PatientIdDep, SessionDep
 from c1_food_nutrition.schemas.common import ErrorResponse
 from c1_food_nutrition.schemas.meal_history import (
     DailySummary,
@@ -41,9 +41,9 @@ def search_foods(
     status_code=status.HTTP_201_CREATED,
     responses={422: {"model": ErrorResponse, "description": "VALIDATION_ERROR."}},
 )
-def log_meal(session: SessionDep, body: MealCreate) -> MealOut:
+def log_meal(session: SessionDep, patient_id: PatientIdDep, body: MealCreate) -> MealOut:
     """Store a meal made of stored foods (``food_id``) and/or free entries (``name``)."""
-    meal = MealHistoryService(session).log_meal(body)
+    meal = MealHistoryService(session).log_meal(patient_id, body)
     session.commit()
     return meal
 
@@ -51,29 +51,31 @@ def log_meal(session: SessionDep, body: MealCreate) -> MealOut:
 @router.get("/meals", summary="List logged meals, newest first")
 def list_meals(
     session: SessionDep,
+    patient_id: PatientIdDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> MealList:
     """Logged meals with their items and totals."""
-    return MealHistoryService(session).list_meals(limit=limit, offset=offset)
+    return MealHistoryService(session).list_meals(patient_id, limit=limit, offset=offset)
 
 
 @router.get("/meals/summary", summary="Intake summary for one day")
 def daily_summary(
     session: SessionDep,
+    patient_id: PatientIdDep,
     day: Annotated[date, Query(description="Calendar day in the client's time zone.")],
     utc_offset_minutes: Annotated[
         int, Query(ge=-840, le=840, description="Client offset from UTC, e.g. 330 for Sri Lanka.")
     ] = 0,
 ) -> DailySummary:
     """Totals for one day. A total is ``null`` when any logged value for it is unknown."""
-    return MealHistoryService(session).daily_summary(day, utc_offset_minutes)
+    return MealHistoryService(session).daily_summary(patient_id, day, utc_offset_minutes)
 
 
 @router.get("/meals/{meal_id:int}", summary="One logged meal", responses=_NOT_FOUND)
-def get_meal(session: SessionDep, meal_id: MealId) -> MealOut:
+def get_meal(session: SessionDep, patient_id: PatientIdDep, meal_id: MealId) -> MealOut:
     """A logged meal with its items."""
-    return MealHistoryService(session).get_meal(meal_id)
+    return MealHistoryService(session).get_meal(patient_id, meal_id)
 
 
 @router.delete(
@@ -82,8 +84,8 @@ def get_meal(session: SessionDep, meal_id: MealId) -> MealOut:
     status_code=status.HTTP_204_NO_CONTENT,
     responses=_NOT_FOUND,
 )
-def delete_meal(session: SessionDep, meal_id: MealId) -> Response:
+def delete_meal(session: SessionDep, patient_id: PatientIdDep, meal_id: MealId) -> Response:
     """Remove a meal and its items."""
-    MealHistoryService(session).delete_meal(meal_id)
+    MealHistoryService(session).delete_meal(patient_id, meal_id)
     session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

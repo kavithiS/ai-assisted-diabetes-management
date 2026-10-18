@@ -94,3 +94,54 @@ def test_stage2_one_epoch(
     saved = json.loads((tmp_path / "runs" / f"{report['run']}_report.json").read_text())
     assert saved["n_classes"] == 2
     assert (tmp_path / "runs" / f"{report['run']}.pt").exists()
+
+
+def test_stage2_extras_train_only_one_epoch(
+    row: RowFactory,
+    write_manifest: ManifestWriter,
+    pattern: PatternFactory,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pytest.importorskip("torch")
+    pytest.importorskip("torchvision")
+    image_module = pytest.importorskip("PIL.Image")
+    from c1_training import stage2
+
+    rows: list[dict[str, str]] = []
+    layout = [
+        ("food_detect", "train", 6, "rice|dhal"),
+        ("food_detect", "valid", 2, "rice|dhal"),
+        ("food_detect", "test", 2, "rice|dhal"),
+        ("pust", "train", 4, "rice|egg"),
+        ("pust", "valid", 2, "egg"),
+        ("pust", "test", 2, "egg"),
+    ]
+    for dataset, split, n, labels in layout:
+        folder = tmp_path / "_processed" / dataset
+        folder.mkdir(parents=True, exist_ok=True)
+        for k in range(n):
+            name = f"{dataset}_{split}{k}"
+            rel = f"_processed/{dataset}/{name}.jpg"
+            image_module.fromarray(pattern(len(rows), 40, 40)).save(tmp_path / rel)
+            chosen = labels if k % 2 else labels.split("|")[0]
+            rows.append(row(name, split=split, classes=chosen, processed=rel, dataset=dataset))
+    (tmp_path / "_curation").mkdir()
+    write_manifest(tmp_path / "_curation" / "processed_manifest.csv", rows)
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "")
+
+    args = stage2.parse_args(
+        ["--data-dir", str(tmp_path), "--out-dir", str(tmp_path / "runs"), "--tag", "x"]
+        + ["--no-pretrained", "--epochs", "1", "--bs", "4", "--size", "32", "--workers", "0"]
+        + ["--also", "pust", "--extras-train-only"]
+    )
+    report = stage2.run(args)
+
+    assert report["n_classes"] == 3  # dhal, egg, rice
+    assert report["n_images"] == {"train": 10, "valid": 2, "test": 2}  # pust valid/test left out
+    assert report["base"]["n_classes"] == 2
+    assert report["base"]["n_images"] == {"valid": 2, "test": 2}
+    assert 0.0 <= report["base"]["test_mAP"] <= 1.0
+    assert report["new"]["classes"] == ["egg"]
+    assert report["new"]["n_test_images"] == 2
+    assert 0.0 <= report["new"]["test_mAP"] <= 1.0

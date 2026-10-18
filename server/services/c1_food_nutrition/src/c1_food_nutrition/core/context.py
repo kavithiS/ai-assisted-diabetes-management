@@ -1,11 +1,8 @@
-"""Per-request context shared across layers (e.g. for log correlation)."""
+"""Per-request context shared across layers (e.g. for log correlation).
 
-from contextvars import ContextVar
+The variable lives in ``diacare_shared`` so the shared error handler sees the same request id.
+"""
 
-#: Correlation ID of the request being handled, or ``None`` outside a request.
-request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
+from diacare_shared.request_context import get_request_id, request_id_var
 
-
-def get_request_id() -> str | None:
-    """Return the current request's correlation ID, if any."""
-    return request_id_var.get()
+__all__ = ["get_request_id", "request_id_var"]

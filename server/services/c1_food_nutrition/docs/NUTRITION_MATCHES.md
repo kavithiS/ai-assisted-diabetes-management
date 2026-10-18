@@ -4,7 +4,7 @@
 
 Each class the model can name is matched to one entry of the composition table. **exact** = the same dish; **close** = the same dish, a variety may differ; **partial** = the nearest entry, noticeably different (the response carries a note); **none** = no honest match, the nutrients stay unknown (`null`). A food is never given the values of a broad concept. To change a match, edit the CSV (`food_id`, `match`, `note`) and run the tests.
 
-The owner still has to review the `partial`, `close` and `none` rows, and choose the four marked *owner to choose*.
+The owner chose the seven rows marked "owner choice 2026-10-18". The other `partial`, `close` and `none` rows are still to be reviewed. No honest match exists for `asmi`, `brinjal_dish`, `cutlet`, `kokis`, `konda_kewum`, `lunu_miris`, `mun_kewum`, `pappadam`, `shrimp_curry` and `watalappam` (USDA offers only a raw cutlet, doughnuts, puffed rice cakes, unfried papad, shrimp without gravy, flan and plain eggplant); the owner declined the papad, shrimp and flan proposals and chose to keep brinjal null.
 
 | Class | Match | Table entry | Note |
 |---|---|---|---|
@@ -42,19 +42,21 @@ The owner still has to review the `partial`, `close` and `none` rows, and choose
 | asmi | none | — | no match in the allowed tables (only a regional-table sweet exists) |
 | brinjal_dish | none | — | no cooked brinjal dish; only raw eggplant (USDA) and Brinjal Curry (SL_72, a different dish) |
 | cutlet | none | — | no match in the allowed tables |
-| dhal_curry | none | — | owner to choose: SL_54 Thick, SL_55 Watery or SL_56 Spinach (values differ a lot) |
-| fish_curry | none | — | owner to choose: for example SL_146 Chili Fish Curry or SL_147 Fish, White Curry |
+| dhal_curry | exact | SL_54 Dhal Curry, Thick | owner choice 2026-10-18; the watery (SL_55) and spinach (SL_56) versions differ a lot |
+| fish_curry | close | SL_146 Chili Fish Curry | owner choice 2026-10-18; white or dry fish curries differ |
 | kokis | none | — | no match in the allowed tables |
 | konda_kewum | none | — | no match in the allowed tables |
 | lunu_miris | none | — | no lunu miris row; Coconut Sambol is a different recipe |
-| meat_curry | none | — | owner to choose: for example SL_158 Chicken Curry or SL_174 Beef Curry |
-| milkshake | none | — | no match in the allowed tables |
+| meat_curry | close | SL_158 Chicken Curry | owner choice 2026-10-18; beef and other meat curries differ |
+| milkshake | close | US_170884 Milk shakes, thick vanilla (USDA SR Legacy) | owner choice 2026-10-18; other flavours differ |
 | mun_kewum | none | — | no match in the allowed tables |
-| noodles | none | — | owner to choose: SL_33 Boiled Noodles; SL_32 Fried Noodles has the same numbers as Carrot Curry (SL_74) and looks like a copy error |
+| noodles | partial | SL_33 Boiled Noodles | owner choice 2026-10-18; fried noodles have more fat. SL_32 Fried Noodles is never used (same numbers as Carrot Curry, SL_74) |
 | pappadam | none | — | no match in the allowed tables |
-| patty | none | — | no match in the allowed tables |
+| patty | partial | US_167660 Beef empanada (USDA SR Legacy) | owner choice 2026-10-18; a Sri Lankan patty differs |
 | shrimp_curry | none | — | no match (the Prawn Curry row was excluded for inconsistent values) |
-| submarine | none | — | no match in the allowed tables |
+| submarine | partial | US_170309 Submarine sandwich, oven roasted chicken (USDA SR Legacy) | owner choice 2026-10-18; other fillings differ |
 | watalappam | none | — | no match in the allowed tables |
 
-48 classes reviewed: 15 exact, 4 close, 12 partial, 17 none.
+48 classes reviewed: 16 exact, 7 close, 15 partial, 10 none.
+
+The three USDA rows (`US_170884`, `US_170309`, `US_167660`) come from USDA SR Legacy (read from the local FoodData Central download, per 100 g). Available carbohydrate is the USDA "by difference" total minus fibre, as for the Foundation rows; there is no sugars value. They are in `data/c1/c1_foods_combined.csv` with source `USDA FoodData Central, SR Legacy` (backup `c1_foods_combined.before_srlegacy_2026-10-18.csv`, both outside git).

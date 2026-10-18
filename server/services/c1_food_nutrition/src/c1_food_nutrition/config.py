@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
     database_url: str = "sqlite:///./c1_local.db"
+    internal_token: str | None = Field(
+        default=None,
+        description=(
+            "Secret the gateway sends in X-Internal-Token (ADR 0005). Without it every "
+            "patient-scoped endpoint answers 401."
+        ),
+    )
 
     allowed_image_types: Annotated[frozenset[str], NoDecode] = Field(
         default=SUPPORTED_IMAGE_TYPES,

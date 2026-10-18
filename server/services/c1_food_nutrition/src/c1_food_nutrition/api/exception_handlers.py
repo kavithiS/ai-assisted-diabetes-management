@@ -12,6 +12,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from c1_food_nutrition.core.context import get_request_id
 from c1_food_nutrition.core.errors import AppError, ErrorCode
 from c1_food_nutrition.schemas.common import ErrorBody, ErrorDetail, ErrorResponse
+from diacare_shared.errors import AppError as SharedAppError
+from diacare_shared.errors import app_error_handler as shared_app_error_handler
 
 logger = logging.getLogger(__name__)
 
@@ -118,5 +120,7 @@ async def http_exception_handler(request: Request, exc: Exception) -> JSONRespon
 def register_exception_handlers(app: FastAPI) -> None:
     """Install all error handlers on ``app``."""
     app.add_exception_handler(AppError, app_error_handler)
+    # Errors raised by shared helpers (for example the internal-token check).
+    app.add_exception_handler(SharedAppError, shared_app_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)

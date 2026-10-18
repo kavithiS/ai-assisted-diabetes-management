@@ -1,13 +1,14 @@
-"""Meal-history ORM models (demo data only: no patient data, no images, no model confidence).
+"""Meal-history ORM models (demo data only: no images, no model confidence).
 
 Each ``MealItem`` stores a snapshot of the nutrients for the portion that was logged, so a
 later change to the food table never rewrites history. A nutrient the source does not report
 is NULL, never 0.
 """
 
+import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, String
+from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, String, Uuid, desc
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from c1_food_nutrition.db.base import Base
@@ -24,9 +25,12 @@ class Meal(Base):
         CheckConstraint(
             f"meal_type IS NULL OR meal_type IN ({_MEAL_TYPES_SQL})", name="meal_type_known"
         ),
+        Index("ix_meal_patient_eaten", "patient_id", desc("eaten_at")),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # Logical reference to the gateway's core.app_user (no foreign key across schemas, ADR 0006).
+    patient_id: Mapped[uuid.UUID] = mapped_column(Uuid)
     eaten_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     meal_type: Mapped[str | None] = mapped_column(String(16))
     note: Mapped[str | None] = mapped_column(String(255))

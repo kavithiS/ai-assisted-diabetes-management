@@ -29,4 +29,6 @@ build-backend = "hatchling.build"
 packages = ["src/c1_food_nutrition", "src/c1_training"]
 
 [dependency-groups]
-dev = []
+dev = [
+    "playwright>=1.64.0",
+]

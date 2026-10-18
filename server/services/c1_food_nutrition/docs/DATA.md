@@ -36,6 +36,8 @@ Source links are in `_curation/README.md`.
 
 The clean manifest columns plus `processed_rel_path`, `orig_w`, `orig_h`, `orig_mode`, `proc_w`, `proc_h`, `proc_note`, `proc_error`. Key columns: `image_id`, `dataset`, `rel_path`, `role` (use `keep` only), `role_original`, `clean_note`, `group_id`, `group_size`, `split_provided`, `suggested_split` (train / valid / test), `classes` (clean class names, several joined with `|`), `concept_ids`, `licence`, `source_url`. Food-101 has its own `food101_manifest.csv` and `food101_split/{classes,train,test}.txt`.
 
+Extra datasets in training (2026-10-18): `--also pust foodbd veg_cooking` with `--extras-train-only` adds their train photos only, so valid and test stay the Sri Lankan photos. The owner treats FoodBD's licence as fine (not verified by the project); no FoodBD-trained model is in use. Leak audit with their train photos added: 0 copies of the 471 valid/test photos (`EXPERIMENTS.md`).
+
 ## Rules for using the data
 
 1. Split by `group_id`. Use rows with `role == keep`. Flip images during training instead of using stored mirror copies.
@@ -51,6 +53,7 @@ From `_curation/`: `scripts/build_curation.py` then `scripts/make_class_map.py`,
 
 - Use **`c1_foods_combined.csv`**: 2,716 foods per 100 g, 36 columns (241 Sri Lankan, 2,475 related). Lookup: find the food's concept in `food_concepts.csv` (118 concepts), then take the lowest `lookup_priority_in_concept` in `food_metadata.csv`.
 - `carbohydrate_g` is **available** carbohydrate (fibre excluded); `fibre_g` is dietary fibre only; `vitamin_a_ug` is RAE only.
+- **USDA SR Legacy rows (2026-10-18):** three rows were added from the local FoodData Central download (`US_170884` milk shake, `US_170309` chicken submarine, `US_167660` beef empanada; source `USDA FoodData Central, SR Legacy`; carbohydrate = by difference minus fibre; no sugars). Backup of the table before the change: `c1_foods_combined.before_srlegacy_2026-10-18.csv` (not in git). The 232 Foundation rows are thin: 158 have no energy and 107 no carbohydrate (`OPEN_ITEMS.md`).
 - Blanked: vitamin B12 and vitamin D in the Sri Lankan table (see `OPEN_ITEMS.md` A2). 77 foods are listed in `excluded_foods.csv`. Every changed value is in `value_flags.csv`.
 - The export has no blank cells, so a 0 in a vitamin column may mean "not measured".
 - There is no sugars column.

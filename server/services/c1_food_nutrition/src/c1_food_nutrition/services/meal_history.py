@@ -1,5 +1,6 @@
 """Meal history logic: build meals from requests and turn stored rows into responses."""
 
+import uuid
 from datetime import UTC, date, datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
@@ -82,7 +83,7 @@ class MealHistoryService:
     def _clock(self) -> datetime:
         return self._now or datetime.now(UTC)
 
-    def log_meal(self, request: MealCreate) -> MealOut:
+    def log_meal(self, patient_id: uuid.UUID, request: MealCreate) -> MealOut:
         """Store a meal. Nutrients of a stored food are scaled from its per-100 g values."""
         items: list[MealItem] = []
         for index, entry in enumerate(request.items):
@@ -114,6 +115,7 @@ class MealHistoryService:
             )
         now = self._clock()
         meal = Meal(
+            patient_id=patient_id,
             eaten_at=as_utc(request.eaten_at or now),
             meal_type=request.meal_type.value if request.meal_type else None,
             note=request.note,
@@ -121,31 +123,43 @@ class MealHistoryService:
         )
         return meal_to_out(self._meals.add(meal, items))
 
-    def get_meal(self, meal_id: int) -> MealOut:
-        """One meal, or ``NotFoundError``."""
-        meal = self._meals.get(meal_id)
+    def get_meal(self, patient_id: uuid.UUID, meal_id: int) -> MealOut:
+        """One of the patient's meals, or ``NotFoundError`` (also for another patient's meal)."""
+        meal = self._meals.get(patient_id, meal_id)
         if meal is None:
             raise NotFoundError(f"No meal with id {meal_id}.")
         return meal_to_out(meal)
 
-    def list_meals(self, *, limit: int, offset: int) -> MealList:
-        """Newest meals first."""
+    def list_meals(self, patient_id: uuid.UUID, *, limit: int, offset: int) -> MealList:
+        """The patient's newest meals first."""
         return MealList(
-            meals=[meal_to_out(m) for m in self._meals.list_recent(limit=limit, offset=offset)]
+            meals=[
+                meal_to_out(m)
+                for m in self._meals.list_recent(patient_id, limit=limit, offset=offset)
+            ]
         )
 
-    def delete_meal(self, meal_id: int) -> None:
-        """Delete a meal, or raise ``NotFoundError``."""
-        meal = self._meals.get(meal_id)
+    def delete_meal(self, patient_id: uuid.UUID, meal_id: int) -> None:
+        """Delete one of the patient's meals, or raise ``NotFoundError``."""
+        meal = self._meals.get(patient_id, meal_id)
         if meal is None:
             raise NotFoundError(f"No meal with id {meal_id}.")
         self._meals.delete(meal)
 
-    def daily_summary(self, day: date, utc_offset_minutes: int = 0) -> DailySummary:
+    def delete_patient(self, patient_id: uuid.UUID) -> int:
+        """Delete everything stored for one patient; returns the number of meals removed."""
+        return self._meals.delete_all_for(patient_id)
+
+    def daily_summary(
+        self, patient_id: uuid.UUID, day: date, utc_offset_minutes: int = 0
+    ) -> DailySummary:
         """Meals and totals for ``day`` in the client's time zone (``utc_offset_minutes``)."""
         zone = timezone(timedelta(minutes=utc_offset_minutes))
         start = datetime(day.year, day.month, day.day, tzinfo=zone).astimezone(UTC)
-        meals = [meal_to_out(m) for m in self._meals.between(start, start + timedelta(days=1))]
+        meals = [
+            meal_to_out(m)
+            for m in self._meals.between(patient_id, start, start + timedelta(days=1))
+        ]
         return DailySummary(
             day=day,
             meal_count=len(meals),

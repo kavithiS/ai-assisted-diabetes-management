@@ -1,6 +1,6 @@
 # C1 context: start here
 
-**Last updated:** 2026-10-15 · **Owner:** Thilakarathne K.S (IT23295742) · **Branch:** `c1-kavithi`
+**Last updated:** 2026-10-18 · **Owner:** Thilakarathne K.S (IT23295742) · **Branch:** `c1-kavithi`
 
 Read this file first in every new session, then `../AGENTS.md` (rules), then `OPEN_ITEMS.md`. Numbers come from report files and the source is named beside them. Anything marked **[UNVERIFIED]** was not re-checked when this was written. If a fact here disagrees with the code or a report file, trust the file and fix this page.
 
@@ -35,14 +35,16 @@ Component 1 of DiaCare AI (J26-IT-352), a research prototype for Sri Lankan diab
 | Stage 1 (Food-101 pretraining) | Done: 82.8% top-1 |
 | Leak audit and fix | **Done 2026-10-15.** 9% of test images had a train copy; two fix passes dropped 102 train copies; 0 test images left with a copy at ≤ 30. Set was 49 classes, **48 after the relish relabelling** (below) |
 | Relish labels (`lunu_sambol` / `lunu_miris`) | **Relabelled 2026-10-15** by the owner's decision: 71 of 77 `lunu_sambol` photos became `lunu_miris` (red relish; the 20 unsure ones too) or got both labels; 6 dark (seeni sambol) photos stay `lunu_sambol`, which has too few scenes and left the 5-scene training set. Backup `_curation\processed_manifest_before_relabel_2026-10-15.csv`; decisions `_curation\label_review\lunu_relabel.csv`. Seeni sambol needs more photos |
-| Stage 2 baseline (ImageNet start, 3 seeds) | **Re-run 2026-10-15 on the cleaned 49-class split**: test mAP 0.916 mean. The old 52-class numbers (0.942) were on the leaky split |
-| Weak classes (lunu_sambol, fish_curry, lunu_miris, ...) | **Studied 2026-10-15; not fixed.** Input 256 px gave a small, consistent gain (+0.009 test mAP, better on all 5 seeds); 25 epochs gave none; EfficientNetV2-S was not better overall. The main limits are the data and labels (section 10): the `lunu_sambol` class mixes lunu miris and seeni sambol (owner to relabel). **Stage 2 default input is now 256 px** (MobileNetV3-Large) |
-| Stage 2 with Food-101 start, same 49 classes, 3 seeds | **Done 2026-10-15**: test mAP 0.898 mean, against 0.916 for the ImageNet start. No sign that the Food-101 start helps at this setting |
+| Stage 2 baseline (ImageNet start, 3 seeds, relish-48, 256 px) | **Done.** Test mAP 0.919 mean (SD 0.010), deployed seed 2: 0.909. 48 classes, 1,642 train / 262 valid / 209 test |
+| Weak classes | **Studied 2026-10-15; data limits remain.** 256 px is now default; 25 epochs and EfficientNetV2-S did not help. Weakest: `lunu_miris` (0.53 AP), `fish_curry` (0.64), `vegetable_salad` (0.68). Need more distinct photos |
+| Extra datasets (veg_cooking, pust, FoodBD) | **Tested 2026-10-18; not adopted.** None passed the keep rule. Model unchanged |
+| Test-time options (flip, per-class thresholds, seed averaging) | **Tested 2026-10-18.** Flip and per-class thresholds did not help. Seed averaging improved test mAP to 0.936 but is not deployed yet (needs owner decision) |
+| Food-101 pretraining comparison | **Done 2026-10-15**: test mAP 0.898 against 0.916 for ImageNet start. Not adopted |
 | Training code in the repo | **Done 2026-10-15**: package `src/c1_training/` (typed), tests in `training/tests/`, how-to in `training/README.md`. PyTorch is not a service dependency. Checked against the old scripts on the real data. `build_curation.py`, `make_class_map.py`, `process_food101.py` not moved yet |
 | Trained model wired into the API | **Done 2026-10-16, opt-in** (`RECOGNIZER=torch`, `MODEL_PATH`); default is still the mock. End-to-end checked over HTTP with real photos. Portions and nutrition are still mock, so `is_mock` stays `true` (section 5) |
-| Real nutrition values | **Done 2026-10-16, opt-in** (`NUTRITION_TABLE_PATH`): values come from `data/c1/c1_foods_combined.csv`, Sri Lankan FCDB and USDA rows only, matched per class (31 of the model's 48 foods get values, 17 stay unknown). Regional tables are not used (A1). The owner must choose the match for `dhal_curry`, `fish_curry`, `meat_curry`, `noodles`; until then a plate with any of them has unknown totals |
+| Real nutrition values | **Done 2026-10-16, opt-in** (`NUTRITION_TABLE_PATH`): values come from `data/c1/c1_foods_combined.csv`, Sri Lankan FCDB and USDA rows only, matched per class (**38 of the model's 48 foods get values since 2026-10-18, 10 stay unknown**). Regional tables are not used (A1). The owner chose `dhal_curry` SL_54, `fish_curry` SL_146, `meat_curry` SL_158, `noodles` SL_33, and USDA SR Legacy rows for `milkshake`, `submarine`, `patty` (`docs/NUTRITION_MATCHES.md`). Database: 476 foods (241 Sri Lankan, 235 USDA) |
 | Portion estimation | Not started (playbook in `docs/tasks/`). Portions are still a fixed 100 g mock, so values are per 100 g |
-| Docs: task playbooks, experiment log, changelog | Done 2026-10-15 (`docs/tasks/`, `EXPERIMENTS.md`, `CHANGELOG.md`) |
+| Docs: task playbooks, experiment log, changelog, next steps | Done. `docs/tasks/`, `EXPERIMENTS.md`, `CHANGELOG.md`, `NEXT_STEPS.md` all current as of 2026-10-18 |
 
 ## 4. Timeline
 
@@ -53,12 +55,17 @@ Component 1 of DiaCare AI (J26-IT-352), a research prototype for Sri Lankan diab
 - 2026-10-14: Windows GPU training set up; Stage 1 full run; Stage 2 baselines; first Stage 2 runs with the Food-101 start (78 classes).
 - Meal Scan screen merged (PR #3), then portion editing (`71c2e01`).
 - 2026-10-15: these docs written; Python 3.11 training environment built (`.venv311`) and checked with both quick tests.
+- 2026-10-15: leak audit and fix (two passes); fair Food-101 comparison; weak-class study; training code moved to repo; relish relabelling.
+- 2026-10-16: trained model wired into the service (opt-in); real nutrition from the combined table; meal history and food search (backend + Flutter); database importers.
+- 2026-10-17: startup model loading; longer timeouts; `start_c1.ps1` script; photo resize; end-to-end check.
+- 2026-10-18: owner's nutrition matches (7 classes); USDA SR Legacy rows; extra-dataset experiments (12 runs, none adopted); test-time options (seed averaging helps but not deployed). All docs updated.
 
 ## 5. Backend (`server/services/c1_food_nutrition/`)
 
 - Port 8001. `GET /health`; `POST /v1/meals/analyze` (the gateway exposes `/api/v1/meals/analyze`). Recognition is the **mock** (`ml/mock.py`) unless `RECOGNIZER=torch` and `MODEL_PATH` point to a model bundle (`ml/torch_recognizer.py`, made by `python -m c1_training.export`; see `training/README.md`). Portion estimation and the nutrition lookup are still mock, so responses carry `is_mock: true` and a warning that names the mock stages. Real foods get `null` nutrients, never invented ones. The model runs in a worker thread; `ml/inference_input.py` prepares the image as in training (short side 256 px, then a square of the bundle's size, ImageNet normalisation). Class to concept ids are in `ml/data/class_concepts.csv` (150 classes, from the curation class map); loading fails if a model class is unmapped. An empty result gives the warning "No food was recognised in the image."
 - `services/` has `image_validation`, `nutrition`, `pipeline`; `schemas/` is a package; DB layer and Alembic migration `20261003_78ab001a889d` in `db/`; 11 test files in `tests/`.
 - Nutrition: with `NUTRITION_TABLE_PATH` set (the combined CSV), `services/nutrition.py` (`CompositionTableLookup`) reads only the Sri Lankan FCDB (`MRI_SL_FCDB`) and USDA (`USDA_FDC`) rows and skips the 2,243 regional rows; the header must have the required columns (a `food_100me` header is rejected); a blank cell is `null`. The key is the table's `food_id`: the recogniser's `food_code` is the matched entry (for example `SL_9`), or `null` when the class has no honest match (`ml/data/class_concepts.csv`, columns `food_id`, `match` = exact / close / partial / none, `note`; list in `docs/NUTRITION_MATCHES.md`). Close and partial matches add a note to `meta.warnings`; a food with no entry adds "No nutrition data for '<label>': its nutrients, and the meal totals, are unknown (null)." Without the setting the lookup is the mock.
+- Identity (2026-10-18, ADR 0005 and 0006): every meal belongs to a patient (`meal.patient_id`). C1 trusts `X-Patient-Id` only when `X-Internal-Token` equals `INTERNAL_TOKEN`; the gateway sets both. Calling C1 directly without them gives 401. For local use without a login screen, the gateway runs with `AUTH_REQUIRED=false` and a fixed demo patient.
 - Rules: an unknown nutrient is `null`, never `0`; `recognition_score` is never shown to patients; the request contract is ADR 0004 (the `reference_object` format is still open with C4).
 
 ## 6. Flutter app (`client/mobile_app/lib/features/meal_scan/`)
@@ -73,7 +80,7 @@ Component 1 of DiaCare AI (J26-IT-352), a research prototype for Sri Lankan diab
 - 2026-10-15 leak fix (`_curation\training\leak_fix.py`), two passes, both approved by the owner. Pass 1: 65 train rows set to `leak_dropped` (near-copies of a valid/test photo, fingerprint distance ≤ 30; 62 Kaggle-26, 3 sl_meal). Pass 2: 37 more (distance ≤ 48 **and** same labels; 35 Kaggle-26, 2 food_detect). Manifest now: 6,780 `keep`, 138 `leak_dropped`. Backups: `_curation\processed_manifest_before_leakfix_2026-10-15.csv` (before pass 1) and `..._before_leakfix48_2026-10-15.csv` (before pass 2). Only the `--min-scenes 5` set was checked.
 - Food-101: 100,895 kept; 95 near-duplicates, 6 exact and 4 cross-class duplicates removed. Official split lists are missing, so a **reconstructed 75/25 split by scene group** is used: train 75,658, test 25,237.
 - Sri Lankan training set (food_detect, shorteats, sl_meal, kaggle_sl26; 88 clean classes if veg_cooking is added): `--min-scenes 1` keeps **78 classes**, 2,320 images (train 1,807, valid 287, test 226). `--min-scenes 5` kept **52 classes**, 2,286 images (1,785 / 278 / 223) before the 2026-10-15 leak fix; after both passes, **49 classes**, 2,113 images (train 1,642 / valid 262 / test 209): `pumpkin_curry` (pass 1), `fanta` and `iced_coffee` (pass 2) fell under 5 train scenes. The `--min-scenes 1` counts after the fix are [UNVERIFIED]. **After the relish relabelling (2026-10-15): 48 classes**, same 2,113 images (1,642 / 262 / 209): `lunu_sambol` left the set; `lunu_miris` now has 73 train images from 29 scenes, 3 valid and 6 test.
-- Thin data: only 23 classes have 30+ scenes and 5 have 50+. Kaggle-26 is mostly mirror copies (about 298 distinct scenes in 2,600 files).
+- Thin data: only 23 classes have 30+ scenes and 5 have 50+. Kaggle-26 is mostly mirror copies (about 298 distinct scenes in 2,600 files). More distinct Sri Lankan photos would help the weak classes most.
 
 ## 8. Nutrition data
 
@@ -160,14 +167,22 @@ Caveats: the test set is small (209 images; the weakest classes have only 1 to 5
 
 **After relabelling, `lunu_miris` is still weak:** AP 0.454 / 0.521 / 0.608 over the three seeds (6 test positives; it now mixes red relish on kiribath with the side relish on rice plates). Weakest classes over the three seeds (mean AP, test positives): submarine 0.09 (1), lunu_miris 0.53 (6), fish_curry 0.64 (5), vegetable_salad 0.68 (3), fried_potato 0.77 (3). The other 47 classes average 0.93 on the AP of the three seeds.
 
+**2026-10-18: extra datasets and test-time options.** veg_cooking, pust, FoodBD (train photos only) and all three together did not improve the 48-class test mAP over 3 seeds (0.918, 0.919, 0.930 with SD 0.042, 0.921; baseline 0.919, SD 0.010; paired differences within about one standard error); the current model stays. Flip augmentation and per-class thresholds did not help. **Averaging the three seed models did**: valid mAP 0.951 against 0.940, test mAP 0.936 against 0.919, better on all 3 seeds. It is not in the service yet. Sources and numbers: `EXPERIMENTS.md`.
+
 ## 11. Next steps, in order
 
-1. ~~**Python 3.11 env.**~~ Done 2026-10-15 (see section 10).
-2. ~~**Leak audit.**~~ Done 2026-10-15: two fix passes, baselines re-run (see section 10).
-3. ~~**Fair comparison.**~~ Done 2026-10-15: Food-101 start 0.898 against ImageNet start 0.916 (see section 10).
-4. ~~Study the weakest classes.~~ Done 2026-10-15 (section 10). EfficientNetV2-S tried (not better); 256 px is now the default; the relish labels were fixed. Still open: more or better-labelled photos for `lunu_miris` (two kinds of picture in one class), seeni sambol (needs a class and photos), `vegetable_salad`, `fish_curry`.
-5. ~~Move the scripts into the repo.~~ Done 2026-10-15 (section 9); the three curation scripts are still outside.
-6. ~~Wire the model behind `FoodRecognizer`.~~ Done 2026-10-16 (opt-in; section 5 and 10). Still open: make PyTorch an official optional dependency (shared `uv.lock`, needs a team PR); real nutrition lookup (importers, waits for supervisor answers A1, A2); portion estimation; the `reference_object` format with C4; try the Food-101 start again at 256 px on the 48 classes; a decision on whether `mallum`/`white_rice` false alarms need a higher threshold or per-class thresholds (chosen on validation).
+**Completed steps** (see sections 9 and 10 for details):
+- Python 3.11 env, leak audit and fix, fair Food-101 comparison, weak-class study, move training code to repo, wire model into service, nutrition lookup from real table, extra-dataset experiments, test-time options evaluation.
+
+**Remaining work:**
+
+1. **Decision: seed averaging.** Averaging the 3 seed models gave test mAP 0.936 (against 0.919 single). It needs 3 bundles in the service (about 3× inference time) and a threshold of 0.65 instead of 0.85. The owner decides.
+2. **A6: final model on train+valid.** Once the owner fixes the epochs and threshold, train a final model on train+valid (no validation photos remain, so settings must be locked first). Export with `python -m c1_training.export` and restart the service.
+3. **A7: weak classes needing more photos.** List the classes with low AP and few test photos. The main ones: `lunu_miris` (AP 0.53, 6 test), `fish_curry` (AP 0.64, 5 test), `vegetable_salad` (AP 0.68, 3 test), `fried_potato` (AP 0.77, 3 test). Check licences (ADR 0002) before collecting.
+4. **Portion estimation.** Still a fixed 100 g mock. The reference-card approach is in `docs/tasks/`. Needs the `reference_object` format decided with C4 (OPEN_ITEMS A3).
+5. **10 unmatched nutrition classes.** `asmi`, `brinjal_dish`, `cutlet`, `kokis`, `konda_kewum`, `lunu_miris`, `mun_kewum`, `pappadam`, `shrimp_curry`, `watalappam` still return unknown nutrients. Options: find better table rows, ask supervisors about regional tables (A1), or accept them as unknown.
+6. **Engineering.** PyTorch as official optional dependency (shared `uv.lock`, team PR). `.env.example` missing `RECOGNIZER`, `MODEL_PATH`, `MODEL_DEVICE`. Gateway routes for meal history. CI never runs PyTorch tests. Contract wording fix for `carbohydrate_g`. USDA Foundation rows missing energy (158 of 232).
+7. **Clean-up.** Move remaining curation scripts into `c1_training`. Remove old scripts and backups outside git. Delete `c1_local.db`.
 
 ## 12. Decisions already made
 
@@ -179,7 +194,7 @@ Secondary datasets only (ADR 0002). Split by scene group, never by file. Multi-l
 |---|---|
 | Service code and tests | `server/services/c1_food_nutrition/` |
 | Training and data code; its tests and how-to | `src/c1_training/`; `training/tests/`, `training/README.md` |
-| This page, open items, data card, glossary, changelog, experiment log | `server/services/c1_food_nutrition/docs/` |
+| This page, open items, data card, glossary, changelog, experiment log, next steps | `server/services/c1_food_nutrition/docs/` |
 | Step-by-step playbooks per task | `server/services/c1_food_nutrition/docs/tasks/` |
 | Decisions | `docs/adr/` here (0004) and at the repo root (0001 to 0003) |
 | Flutter feature and tests | `client/mobile_app/lib/features/meal_scan/`, `client/mobile_app/test/features/meal_scan/` |

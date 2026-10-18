@@ -2,6 +2,44 @@
 
 Newest first.
 
+## 2026-10-18: Patient identity, gateway login and gateway fixes (project-wide plan, phases P1 to P5)
+
+Plan: `docs/architecture/BACKEND_ARCHITECTURE.md` and `DECISIONS_AND_GAPS.md` at the repo root (ADR 0005 login, ADR 0006 patient identity). The team approved the login design and the new libraries on 2026-10-18.
+
+C1 changes (all patient-scoped):
+- `meal.patient_id` (UUID, not null) with the index `ix_meal_patient_eaten`; migration `d4a6c2f8b913` (existing meals get the demo patient `00000000-0000-4000-8000-000000000001`; the local database had none). Applied to the local PostgreSQL.
+- Every meal endpoint and `POST /v1/meals/analyze` need the gateway's proof (`X-Internal-Token` equal to `INTERNAL_TOKEN`, and `X-Patient-Id`); otherwise 401. A patient only sees their own meals; another patient's meal is a 404. `/v1/foods` needs neither.
+- `DELETE /internal/v1/patients/{id}` removes one patient's meals (idempotent, 204).
+- New setting `INTERNAL_TOKEN`. Without it every patient endpoint answers 401. `core/context.py` now re-uses the request-id variable of `diacare_shared`, and C1 also handles the shared `AppError`.
+- Tests: `tests/integration/test_patient_scoping.py` (isolation, missing or wrong proof, internal delete), a patient-id migration test, and the test client now sends the gateway's headers by default.
+
+Shared (`server/shared`, needs the other members' review): error envelope, request id and body-size middleware, JSON logs, internal-token check, engine helper (14 tests). C2 to C4 now use the envelope and the middleware.
+
+Gateway (shared area, owner C4 per the team): login, refresh with rotation and reuse detection, logout, `/me`, delete account (asks each service in `DELETE_FANOUT_SERVICES`, today `c1`), rate limit, command-line `create-user`, `core` tables (migration `9b3f0a7c5e21`, applied locally). Shared HTTP client, the bare `/api/v1/meals` path (it returned a 307 before; found and fixed, with a test), the gateway now sets the identity headers and drops the client's, per-route timeouts (analyze 65 s, others 15 s), 502 and 504 in the envelope, 11 MB body limit. New libraries: `pyjwt`, `argon2-cffi` (and their dependencies); `uv.lock` gained only those.
+
+Dev setup: the local `.env` now has `AUTH_REQUIRED=false` and a fixed `DEMO_PATIENT_ID`, so the app (which has no login screen yet) keeps working. **Everyone else needs the new variables from `.env.example`** (`INTERNAL_TOKEN` at least) or C1 answers 401.
+
+Not done: the per-schema database roles and moving C1 into the `c1` schema (`infra/postgres/README.md`; needs a PostgreSQL superuser), the app's login screen (P8), C2 to C4 storage (P7), the meal chain C1 → C2 → C3 (P6), readiness checks and backups (P10).
+
+Checks (2026-10-18): ruff check and ruff format clean; mypy clean (165 files); `uv run pytest` 296 passed, 25 skipped, 0 failed; C1 and shared tests in the PyTorch server environment 213 passed, 0 skipped (the gateway tests do not run there: that environment has no `argon2`). A 21-step run against the real C1, the real gateway (login required) and the local PostgreSQL passed (two patients cannot see each other's meals, forged identity headers are ignored, reused refresh token is refused, the sixth failed login gets 429, deleting an account removes the patient's C1 data); its test accounts and audit rows were deleted afterwards. Not run: the `c1_training` tests in `.venv311` (training code untouched by this work), the Flutter tests, the app on the emulator, `init.sql`.
+## 2026-10-18: Owner's nutrition matches, USDA SR Legacy rows, training options for extra datasets
+
+- `ml/data/class_concepts.csv`: seven classes matched by the owner: `dhal_curry` SL_54 (exact), `fish_curry` SL_146 (close), `meat_curry` SL_158 (close), `noodles` SL_33 (partial; SL_32 never used), `milkshake` US_170884 (close), `submarine` US_170309 (partial), `patty` US_167660 (partial). Now 16 exact, 7 close, 15 partial, 10 none (`NUTRITION_MATCHES.md`). 38 of 48 model foods get nutrient values.
+- `data/c1/c1_foods_combined.csv` (outside git): three USDA SR Legacy rows appended, values read from the local USDA download. `services/nutrition.py` accepts the source `USDA FoodData Central, SR Legacy` (same contract value `USDA_FDC`). Re-ran `db.import_cli --source usda_fdc`: foods 473 → 476, USDA 232 → 235, nutrient rows 2,426 → 2,444 (database query).
+- Tests: `tests/unit/test_class_matches.py` (the seven matches, SR Legacy accepted, each matched food and a plate of all seven have known totals, unmatched classes stay null with the warning); `test_labels.py` no longer expects `dhal_curry` and `meat_curry` to be unmatched.
+- Training code (`c1_training`): `stage2 --extras-train-only` makes the extra datasets (`--also`) add train photos only, selects the best epoch on the Sri Lankan baseline valid photos and reports baseline-class test mAP separately from the new classes (scored on the extras' own test photos). `leak_audit --also` compares extra-dataset train photos with the Sri Lankan valid/test photos. `manifest.load_manifest(train_only=...)` and `split_items`. Tests: `training/tests/test_stage2_subset.py`, two in `test_manifest.py`, one smoke run.
+- Extra image datasets tested (12 runs, 3 seeds each, `--extras-train-only`, same 209 test photos and 48 classes): + veg_cooking 0.918, + pust 0.919, + foodbd 0.930 (SD 0.042), + all three 0.921, against the baseline 0.919 (SD 0.010). Paired test differences -0.001 (SE 0.002), +0.000 (0.004), +0.012 (0.020), +0.003 (0.006); none passes the keep rule, so the model is unchanged. Sources: `runs/stage2_..._seed{0,1,2}_{xveg,xpust,xfoodbd,xall}_report.json`; details in `EXPERIMENTS.md`.
+- Test-time options (`a5_eval.py`, `a5_results.json`): flip augmentation and per-class thresholds do not help; averaging the three seed models raises valid mAP 0.940 → 0.951 and test mAP 0.919 → 0.936 (better on 3 of 3 seeds). Not in the service yet (it loads one bundle).
+- Leak audit with pust, foodbd and veg_cooking train photos added (console output; `leak_audit_extras_2026-10-18.csv`): 0 of 209 test and 0 of 262 valid photos have a training copy at distance ≤ 30; none of the closest training photos at ≤ 48 come from the extra datasets.
+
+## 2026-10-17: Startup model loading, longer timeouts, real-model start script
+
+- `main.py`: the trained recogniser loads at startup (lifespan), about 10 s, so the first request is no longer slow. Test: `tests/unit/test_startup.py`.
+- New `scripts/start_c1.ps1`: starts C1 with `RECOGNIZER=torch`, `MODEL_PATH` (relish-48 seed 2 bundle) and `NUTRITION_TABLE_PATH`, using the hand-built server environment. Plain `uv run uvicorn` still starts the mock recogniser and mock nutrition.
+- App: photo resized to at most 1280 px before upload; analyze timeout 60 s with separate network / timeout messages. Gateway (shared, approved): `/api/v1/foods` route added, request timeout 65 s.
+- End-to-end check through the gateway, 4 test photos (console output): string_hoppers → `mallum`, `string_hoppers`, `white_rice` (two false positives); hoppers → `hoppers`; kiribath → `kiribath`; pittu → nothing above the 0.85 threshold. About 2.5 s per request.
+- Checks: ruff, ruff format, pytest (C1: 212 passed, 24 skipped), flutter test 39 passed.
+
 ## 2026-10-16: Flutter meal history, food search and today's summary screens
 
 - New Flutter feature `lib/features/meal_history/`: `MealHistoryApi` (calls GET /v1/foods, POST/GET/DELETE /v1/meals, GET /v1/meals/summary), models (`FoodResult`, `MealOut`, `MealItemOut`, `DailySummary`, `MealCreate`, `MealItemIn`), four screens (`MealHistoryScreen`, `MealDetailScreen`, `AddFoodScreen`, `TodaySummaryScreen`), shared `NutrientTable` widget.

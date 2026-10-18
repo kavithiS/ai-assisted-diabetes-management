@@ -20,7 +20,7 @@ If any of these disagree, the priority order is: (1) the user's explicit instruc
 ## 1. Workflow for every task
 
 ```
-Understand → Inspect → Plan → Implement → Lint → Test → Run → QA → Fix → Regression → Report
+Understand → Inspect → Plan → Implement → Lint → Test → Run → Playwright check → QA → Fix → Regression → Report
 ```
 
 1. **Understand.** Restate the task in one or two sentences. If anything is unclear, ask (see section 3).
@@ -30,8 +30,9 @@ Understand → Inspect → Plan → Implement → Lint → Test → Run → QA �
 5. **Lint.** `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy server`.
 6. **Test.** `uv run pytest server/services/c1_food_nutrition`, then the full `uv run pytest`.
 7. **Run.** Start the service and call the endpoints (section 2).
-8. **QA, fix, regression.** If anything fails, find the root cause, fix it and re-run everything.
-9. **Report.** Use the completion report format (section 7).
+8. **Playwright check.** Tell the user you are running a Playwright check, run it in the shared Chrome window (section 2a), and report whether the feature works. If it does not, fix it and re-run.
+9. **QA, fix, regression.** If anything fails, find the root cause, fix it and re-run everything.
+10. **Report.** Use the completion report format (section 7).
 
 ### A task is only complete when all of these are true
 
@@ -41,6 +42,7 @@ Understand → Inspect → Plan → Implement → Lint → Test → Run → QA �
 - The changed endpoints work when called for real, not just in tests.
 - Error cases return the right status codes.
 - `GET /health` still works, through C1 directly and through the gateway.
+- The Playwright check for the new or changed feature has been run in the shared Chrome window and passes. If it fails, the feature is not done.
 - No data files, model weights, secrets or `.env` files are staged for commit.
 
 If any item fails: stop, diagnose, fix, re-test. Never mark the task done with a failing check.
@@ -69,6 +71,45 @@ uv run uvicorn c1_food_nutrition.main:app --port 8001 --reload
 - each `meal_type` value, plus an invalid one
 
 **Flutter screens** (`client/mobile_app/lib/features/meal_scan/`) are owned by the client owner (proposed: C4). Only change them when the user asks. Every change goes through a PR they review, and is checked with `flutter analyze`, `flutter test`, and a run on an emulator or device.
+
+---
+
+## 2a. Playwright check (required for every new or changed feature)
+
+Whenever you build or change a feature, backend or frontend, you must tell the user
+you are running a Playwright check, run it, and report whether the feature works.
+If it does not work, find the root cause, fix it and re-run until it passes.
+Never mark the task done on a failing or skipped Playwright check.
+
+**What to check**
+- Backend feature: open `http://localhost:8001/docs` (Swagger UI) or the gateway docs
+  page, call the changed endpoint through the page, and check the status code and
+  response body, including the error cases listed in section 2.
+- Frontend feature: run the Flutter web build (`flutter run -d chrome`) and check the
+  changed screen: it loads, the main action works, and errors show the real message
+  from the error envelope.
+- If a feature cannot be checked in a browser (for example camera or device-only
+  behaviour), say so in the report and state what was checked instead. Do not claim
+  a pass.
+
+**Use the same Chrome window every time**
+- Do not open a new browser or extra tabs for each check.
+- Start one Chrome with remote debugging once:
+  `chrome.exe --remote-debugging-port=9222 --user-data-dir="%TEMP%\diacare-chrome"`
+- Connect Playwright to that running Chrome (connect over CDP to
+  `http://localhost:9222`) and reuse the existing tab with `page.goto(...)`.
+  Never launch a fresh browser.
+- If no Chrome is listening on port 9222, ask the user to start it. Do not silently
+  open a new one.
+- Close only tabs you opened yourself, and leave the user's tabs alone.
+
+**Rules**
+- Use Playwright for Python (Node is not allowed in this project).
+- Adding Playwright is a new dependency: ask the user first, then add it as a dev
+  dependency only, with `uv add --dev --package c1-food-nutrition playwright`.
+- Use generated test images and demo accounts only, never real patient data.
+- Delete any test meals or accounts the check created.
+- Report only what the run produced: which page, which steps, pass or fail.
 
 ---
 
@@ -149,6 +190,7 @@ End every task with this report:
 | pytest (all) | N passed |
 | Service starts | yes / no |
 | Manual API QA | <cases tried and results> |
+| Playwright check | pass / fail / not possible (reason); pages and steps tried |
 
 ### Issues found and fixed
 | Issue | Cause | Fix |

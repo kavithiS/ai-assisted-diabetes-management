@@ -58,10 +58,18 @@ def main(argv: Sequence[str] | None = None) -> None:
     p.add_argument("--data-dir", default=None, help="the 'Images Datasets' folder")
     p.add_argument("--min-scenes", type=int, default=5, help="same class filter as training")
     p.add_argument("--out", type=Path, default=None, help="CSV to write")
+    p.add_argument(
+        "--also",
+        nargs="*",
+        default=[],
+        help="extra datasets whose TRAIN photos are compared with the Sri Lankan valid/test",
+    )
     a = p.parse_args(argv)
 
     paths = data_paths(a.data_dir)
-    items, classes = load_manifest(paths.manifest(), paths.root, SL_SETS, a.min_scenes)
+    items, classes = load_manifest(
+        paths.manifest(), paths.root, list(SL_SETS) + list(a.also), a.min_scenes, a.also
+    )
     print(f"{len(items)} images, {len(classes)} classes (same data as the training runs)")
     fps = [fingerprint(i.path) for i in items]
     rows = audit(items, fps)
@@ -80,6 +88,12 @@ def main(argv: Sequence[str] | None = None) -> None:
             f"\nTEST images with a near-identical training photo (distance <= {NEAR}): "
             f"{near} of {len(test)} ({100 * near / len(test):.0f}%)"
         )
+    if a.also:
+        source = {i.path: i.dataset for i in items}
+        extra = [r for r in rows if source[r.closest_train] in a.also]
+        print(f"\nValid/test images whose closest training photo is from {', '.join(a.also)}:")
+        for t in (*THRESHOLDS, 48):
+            print(f"  distance <= {t}: {sum(r.dist <= t for r in extra)}")
     out = a.out or paths.curation / "training" / "leak_audit.csv"
     write_csv(out, rows)
     print("\nClosest 8 pairs:")

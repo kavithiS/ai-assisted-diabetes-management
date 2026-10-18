@@ -18,6 +18,17 @@ from c1_food_nutrition.main import create_app
 
 ANALYZE_URL = "/v1/meals/analyze"
 
+#: What the gateway would send (ADR 0005). Test values, not secrets.
+TEST_INTERNAL_TOKEN = "test-internal-token"
+TEST_PATIENT_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+OTHER_PATIENT_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+
+
+def gateway_headers(patient_id: str = TEST_PATIENT_ID) -> dict[str, str]:
+    """Headers the gateway adds to every request it forwards."""
+    return {"X-Internal-Token": TEST_INTERNAL_TOKEN, "X-Patient-Id": patient_id}
+
+
 SettingsFactory = Callable[..., Settings]
 ImageFactory = Callable[..., bytes]
 
@@ -35,7 +46,11 @@ def make_settings() -> SettingsFactory:
     """Build Settings isolated from any developer ``.env`` file."""
 
     def factory(**overrides: Any) -> Settings:
-        values: dict[str, Any] = {"environment": "test", "log_level": "WARNING"}
+        values: dict[str, Any] = {
+            "environment": "test",
+            "log_level": "WARNING",
+            "internal_token": TEST_INTERNAL_TOKEN,
+        }
         values.update(overrides)
         return Settings(_env_file=None, **values)
 
@@ -54,6 +69,7 @@ def make_client(make_settings: SettingsFactory) -> Iterator[Callable[..., TestCl
 
     def factory(**overrides: Any) -> TestClient:
         client = TestClient(create_app(make_settings(**overrides)))
+        client.headers.update(gateway_headers())
         clients.append(client)
         return client
 

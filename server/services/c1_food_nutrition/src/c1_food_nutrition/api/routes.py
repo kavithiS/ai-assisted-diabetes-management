@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, UploadFile
 
 from c1_food_nutrition.api.deps import (
     get_meal_analysis_service,
+    get_patient_id,
     parse_meal_metadata,
     require_multipart_form,
 )
@@ -33,7 +34,7 @@ _ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     "/analyze",
     summary="Analyse a meal image (Phase 0: returns a MOCK response)",
     responses=_ERROR_RESPONSES,
-    dependencies=[Depends(require_multipart_form)],
+    dependencies=[Depends(get_patient_id), Depends(require_multipart_form)],
 )
 async def analyze_meal(
     image: Annotated[

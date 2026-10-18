@@ -36,7 +36,7 @@ croquette_chop,short_eats,,,
 cucumber,tomato_cucumber,,,
 cutlet,short_eats,,none,no match in the allowed tables
 dates,other_fruits,,,
-dhal_curry,curry_dish,,none,"owner to choose: SL_54 Thick, SL_55 Watery or SL_56 Spinach (values differ a lot)"
+dhal_curry,curry_dish,SL_54,exact,"Dhal Curry, Thick (owner choice 2026-10-18); the thin and spinach versions differ"
 dhal_vadai,vadai,,,
 doughnut,biscuit_cake,,,
 dried_halmasso,dried_fish,,,
@@ -46,7 +46,7 @@ fanta,soft_drinks,,,
 fish,fish_generic,,,
 fish_ambul_thiyal,fish_generic,,,
 fish_bun,bread,SL_11,partial,plain Bun; the filling is not included
-fish_curry,curry_dish,,none,"owner to choose: for example SL_146 Chili Fish Curry or SL_147 Fish, White Curry"
+fish_curry,curry_dish,SL_146,close,Chili Fish Curry (owner choice 2026-10-18); white or dry fish curries differ
 fried_bitter_gourd,gourds,,,
 fried_brinjal,brinjal,,,
 fried_potato,potato,SL_48,partial,Tempered Potato
@@ -84,11 +84,11 @@ mallum,leafy_local,SL_66,exact,Mallum
 mango,mango,,,
 mango_curry,curry_dish,,,
 mashed_potato,potato,,,
-meat_curry,curry_dish,,none,owner to choose: for example SL_158 Chicken Curry or SL_174 Beef Curry
+meat_curry,curry_dish,SL_158,close,Chicken Curry (owner choice 2026-10-18); beef and other meat curries differ
 milk,milk,,,
-milkshake,milk,,none,no match in the allowed tables
+milkshake,milk,US_170884,close,"USDA SR Legacy, Milk shakes, thick vanilla (owner choice 2026-10-18); other flavours differ"
 mun_kewum,sweets_traditional,,none,no match in the allowed tables
-noodles,noodles,,none,owner to choose: SL_33 Boiled Noodles; SL_32 Fried Noodles has the same numbers as Carrot Curry (SL_74) and looks like a copy error
+noodles,noodles,SL_33,partial,Boiled Noodles (owner choice 2026-10-18); fried noodles have more fat. SL_32 is never used
 okra,okra,,,
 omelet,egg,,,
 orange,citrus,,,
@@ -96,7 +96,7 @@ pancake,biscuit_cake,,,
 papaya,papaya,,,
 pappadam,snacks_savoury,,none,no match in the allowed tables
 pastry,short_eats,SL_16,exact,Pastry
-patty,short_eats,,none,no match in the allowed tables
+patty,short_eats,US_167660,partial,"USDA SR Legacy, beef empanada (owner choice 2026-10-18); a Sri Lankan patty differs"
 payesh,sweets_traditional,,,
 pea_curry,curry_dish,,,
 peyaju,snacks_savoury,,,
@@ -135,7 +135,7 @@ soya_curry,curry_dish,SL_57,exact,Soya Curry
 sponge_cake,biscuit_cake,,,
 sponge_gourd,gourds,,,
 string_hoppers,string_hoppers,SL_35,partial,"String Hoppers, White; a red variant exists (SL_36)"
-submarine,fast_food,,none,no match in the allowed tables
+submarine,fast_food,US_170309,partial,"USDA SR Legacy, submarine sandwich, oven roasted chicken (owner choice 2026-10-18); other fillings differ"
 sweets,sweets_traditional,,,
 taro,yams_taro,,,
 tea,tea_coffee,,,

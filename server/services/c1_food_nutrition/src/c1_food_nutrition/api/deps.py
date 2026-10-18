@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends, Form, Request
 from pydantic import ValidationError
@@ -32,6 +33,7 @@ from c1_food_nutrition.services.nutrition import (
     PlaceholderNutritionLookup,
 )
 from c1_food_nutrition.services.pipeline import MealAnalysisService, utc_now
+from diacare_shared.internal_auth import make_internal_token_dependency, make_patient_id_dependency
 
 
 def get_app_settings(request: Request) -> Settings:
@@ -47,6 +49,18 @@ def get_clock() -> Callable[[], datetime]:
 
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 ClockDep = Annotated[Callable[[], datetime], Depends(get_clock)]
+
+
+def _internal_token(request: Request) -> str | None:
+    settings: Settings = request.app.state.settings
+    return settings.internal_token
+
+
+#: The patient the gateway says is calling. 401 without the gateway's internal token.
+get_patient_id = make_patient_id_dependency(_internal_token)
+PatientIdDep = Annotated[UUID, Depends(get_patient_id)]
+#: For ``/internal/...`` endpoints: only the internal token is checked.
+require_internal_token = make_internal_token_dependency(_internal_token)
 
 
 @lru_cache(maxsize=2)
