@@ -10,8 +10,8 @@
 #   C4  G.P. Welikala      (IT23327580)  -> @C4_GITHUB_USERNAME
 
 # --- C1: Food Recognition & Nutritional Analysis ---
-# /server/services/c1_food_nutrition/  @C1_GITHUB_USERNAME
-# /data/c1/                            @C1_GITHUB_USERNAME
+/server/services/c1_food_nutrition/  @kavithiS
+/data/c1/                            @kavithiS
 
 # --- C2: Glycemic Prediction & Risk Forecasting ---
 # /server/services/c2_glycemic_forecasting/  @C2_GITHUB_USERNAME
