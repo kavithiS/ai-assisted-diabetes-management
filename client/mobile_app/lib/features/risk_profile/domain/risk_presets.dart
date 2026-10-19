@@ -1,8 +1,9 @@
 import 'risk_profile.dart';
 
-/// Three made-up people for the PP1 demo. They are INPUTS only and match the Python
-/// examples in `server/services/c3_risk_xai/src/c3_risk_xai/ml/predict.py`
-/// (EXAMPLE_PATIENT and LOW_RISK_PATIENT), so the app and Python can be compared.
+/// Three made-up people for the PP1 demo. They are INPUTS only. The model answers match
+/// the Python examples in `server/services/c3_risk_xai/src/c3_risk_xai/ml/predict.py`
+/// (EXAMPLE_PATIENT and LOW_RISK_PATIENT); the lifestyle answers only feed the DHS and
+/// the recommendations.
 class RiskPreset {
   const RiskPreset({required this.label, required this.description, required this.profile});
 
@@ -13,7 +14,7 @@ class RiskPreset {
 
 const higherRiskPreset = RiskPreset(
   label: 'Higher-risk example',
-  description: '58-year-old man, high blood pressure, family history, glucose 9.8',
+  description: '58-year-old man, high blood pressure, low activity, borderline cholesterol',
   profile: RiskProfile(
     age: 58,
     sexMale: 1,
@@ -27,12 +28,19 @@ const higherRiskPreset = RiskPreset(
     hypertensive: 1,
     cardiovascularDisease: 0,
     stroke: 0,
+    physicalActivity: 'low',
+    smoker: 0,
+    medicationAdherence: 'good',
+    cholesterolLevel: 'borderline_high',
+    kidneyDisease: 0,
+    liverDisease: 0,
+    weightChangeKg: 2.5,
   ),
 );
 
 const lowerRiskPreset = RiskPreset(
   label: 'Lower-risk example',
-  description: '29-year-old woman, normal blood pressure, glucose 5.4',
+  description: '29-year-old woman, normal blood pressure, active, normal cholesterol',
   profile: RiskProfile(
     age: 29,
     sexMale: 0,
@@ -46,6 +54,13 @@ const lowerRiskPreset = RiskPreset(
     hypertensive: 0,
     cardiovascularDisease: 0,
     stroke: 0,
+    physicalActivity: 'high',
+    smoker: 0,
+    medicationAdherence: 'good',
+    cholesterolLevel: 'normal',
+    kidneyDisease: 0,
+    liverDisease: 0,
+    weightChangeKg: 0,
   ),
 );
 
@@ -66,6 +81,13 @@ const missingBmiPreset = RiskPreset(
     hypertensive: 1,
     cardiovascularDisease: 0,
     stroke: 0,
+    physicalActivity: 'low',
+    smoker: 0,
+    medicationAdherence: 'good',
+    cholesterolLevel: 'borderline_high',
+    kidneyDisease: 0,
+    liverDisease: 0,
+    weightChangeKg: 2.5,
   ),
 );
 

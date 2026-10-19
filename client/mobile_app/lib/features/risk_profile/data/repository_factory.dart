@@ -16,4 +16,5 @@ RiskRepository createRiskRepository(RiskSettings settings) => useMockRiskData
     : RiskApi(
         client: ApiClient(baseUrl: settings.gatewayUrl),
         researcherMode: settings.researcherMode,
+        deviceId: settings.deviceId,
       );

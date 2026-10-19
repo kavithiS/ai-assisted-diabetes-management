@@ -166,6 +166,104 @@ class ResearcherInfo {
   final Map<String, double> thresholds;
 }
 
+/// One answered DHS question and how favourable it is (1, 0.5 or 0; provisional).
+class DhsItem {
+  const DhsItem({
+    required this.factor,
+    required this.label,
+    required this.value,
+    required this.itemScore,
+    required this.group,
+  });
+
+  factory DhsItem.fromJson(Map<String, dynamic> json) => DhsItem(
+        factor: json['factor'] as String,
+        label: json['label'] as String,
+        value: json['value'] as Object,
+        itemScore: (json['item_score'] as num).toDouble(),
+        group: json['group'] as String,
+      );
+
+  final String factor;
+  final String label;
+  final Object value;
+  final double itemScore;
+
+  /// `behaviour` or `clinical marker`.
+  final String group;
+}
+
+/// Diabetic Health Score from the server, 0-100, higher is better. PROVISIONAL.
+class Dhs {
+  const Dhs({
+    required this.score,
+    required this.todayScore,
+    required this.items,
+    required this.note,
+    this.previousScore,
+    this.provisional = true,
+  });
+
+  factory Dhs.fromJson(Map<String, dynamic> json) => Dhs(
+        score: (json['score'] as num).toDouble(),
+        todayScore: (json['today_score'] as num).toDouble(),
+        previousScore: (json['previous_score'] as num?)?.toDouble(),
+        items: (json['items'] as List<dynamic>? ?? const <dynamic>[])
+            .map((e) => DhsItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        provisional: json['provisional'] as bool? ?? true,
+        note: json['note'] as String,
+      );
+
+  /// Smoothed with this device's previous score when there is one (adaptive).
+  final double score;
+  final double todayScore;
+  final double? previousScore;
+  final List<DhsItem> items;
+  final bool provisional;
+  final String note;
+}
+
+/// One template message from the server's reviewed rule base. PROVISIONAL wording.
+class Recommendation {
+  const Recommendation({
+    required this.id,
+    required this.title,
+    required this.trigger,
+    required this.raisedEstimate,
+    required this.window,
+    required this.action,
+    required this.reviewStatus,
+    this.seekCare,
+    this.current,
+    this.target,
+  });
+
+  factory Recommendation.fromJson(Map<String, dynamic> json) => Recommendation(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        trigger: json['trigger'] as String,
+        raisedEstimate: json['raised_estimate'] as bool,
+        window: json['window'] as String,
+        action: json['action'] as String,
+        reviewStatus: json['review_status'] as String,
+        seekCare: json['seek_care'] as String?,
+        current: json['current'] as String?,
+        target: json['target'] as String?,
+      );
+
+  final String id;
+  final String title;
+  final String trigger;
+  final bool raisedEstimate;
+  final String window;
+  final String action;
+  final String reviewStatus;
+  final String? seekCare;
+  final String? current;
+  final String? target;
+}
+
 class RiskAssessment {
   const RiskAssessment({
     required this.status,
@@ -181,6 +279,9 @@ class RiskAssessment {
     this.problems = const [],
     this.explanation,
     this.researcherInfo,
+    this.saved,
+    this.dhs,
+    this.recommendations = const [],
   });
 
   factory RiskAssessment.fromJson(Map<String, dynamic> json) => RiskAssessment(
@@ -198,6 +299,11 @@ class RiskAssessment {
         explanation: json['explanation'] == null
             ? null
             : RiskExplanation.fromJson(json['explanation'] as Map<String, dynamic>),
+        saved: json['saved'] as bool?,
+        dhs: json['dhs'] == null ? null : Dhs.fromJson(json['dhs'] as Map<String, dynamic>),
+        recommendations: (json['recommendations'] as List<dynamic>? ?? const <dynamic>[])
+            .map((e) => Recommendation.fromJson(e as Map<String, dynamic>))
+            .toList(),
         researcherInfo: json['debug'] == null
             ? null
             : ResearcherInfo.fromJson(json['debug'] as Map<String, dynamic>),
@@ -224,4 +330,14 @@ class RiskAssessment {
 
   /// Researcher view only. Null unless the server ran in research mode.
   final ResearcherInfo? researcherInfo;
+
+  /// True: stored on the server. False: storage failed (the result is still valid).
+  /// Null: not sent for saving.
+  final bool? saved;
+
+  /// Diabetic Health Score (only when status is ok).
+  final Dhs? dhs;
+
+  /// Template recommendations, most relevant first (may be empty).
+  final List<Recommendation> recommendations;
 }

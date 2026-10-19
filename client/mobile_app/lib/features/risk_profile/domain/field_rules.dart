@@ -23,6 +23,9 @@ const glucoseRule = FieldRule(1.5, 40, 'mmol/L');
 const heightRule = FieldRule(100, 250, 'cm');
 const weightRule = FieldRule(20, 300, 'kg');
 
+/// Weight now minus 3 months ago (server: -30 to 30 kg).
+const weightChangeRule = FieldRule(-30, 30, 'kg');
+
 /// BMI = weight (kg) / height (m)², rounded to one decimal. Plain arithmetic.
 double bmiFrom({required double heightCm, required double weightKg}) {
   final metres = heightCm / 100;

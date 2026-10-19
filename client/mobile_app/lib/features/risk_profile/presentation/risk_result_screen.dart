@@ -1,106 +1,34 @@
 import 'package:flutter/material.dart';
 
 import '../c3_strings.dart';
-import '../data/risk_api.dart';
+import '../c3_theme.dart';
 import '../domain/risk_assessment.dart';
 import '../domain/risk_profile.dart';
 import 'risk_controller.dart';
+import 'risk_questionnaire_screen.dart';
+import 'risk_recommendations_screen.dart';
+import 'risk_xai_screen.dart';
+import 'widgets/c3_widgets.dart';
 import 'widgets/risk_widgets.dart';
 
-/// Sends one profile to C3 and shows the answer. Loading, error + Retry, then the result.
-class RiskResultScreen extends StatefulWidget {
-  const RiskResultScreen({super.key, required this.controller, required this.profile});
-
-  final RiskController controller;
-  final RiskProfile profile;
-
-  @override
-  State<RiskResultScreen> createState() => _RiskResultScreenState();
-}
-
-class _RiskResultScreenState extends State<RiskResultScreen> {
-  late Future<RiskAssessment> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = widget.controller.assess(widget.profile);
-  }
-
-  static bool _isServerDown(Object? error) =>
-      error is RiskApiException &&
-      (error.kind == RiskApiErrorKind.network || error.kind == RiskApiErrorKind.gateway);
-
-  void _retry() {
-    setState(() {
-      _future = widget.controller.assess(widget.profile);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<RiskAssessment>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const _Frame(
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text(C3Strings.estimating),
-                ],
-              ),
-            ),
-          );
-        }
-        if (snapshot.hasError) {
-          return _Frame(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                const NoticeBox(icon: Icons.cloud_off_outlined, text: C3Strings.errorTitle, strong: true),
-                const SizedBox(height: 12),
-                Text('${snapshot.error}'),
-                if (_isServerDown(snapshot.error)) ServerDownHint(onCheckAgain: _retry),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: _retry,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text(C3Strings.retry),
-                ),
-              ],
-            ),
-          );
-        }
-        return RiskResultView(
-          assessment: snapshot.data!,
-          isDemoData: widget.controller.isDemoData,
-        );
-      },
-    );
-  }
-}
-
-class _Frame extends StatelessWidget {
-  const _Frame({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) =>
-      Scaffold(appBar: AppBar(title: const Text(C3Strings.resultTitle)), body: child);
-}
-
-/// Renders one assessment exactly as the server sent it. Used by the result and
-/// history screens. Patient view: never shows a probability or a percentage.
+/// "Your Risk Assessment" (prototype Module 3): the Diabetic Health Score ring, the
+/// model's estimated band, the referral note, and the way to the explanation and the
+/// recommendations. Shows exactly what the server sent; never a probability.
 class RiskResultView extends StatelessWidget {
-  const RiskResultView({super.key, required this.assessment, this.isDemoData = false});
+  const RiskResultView({
+    super.key,
+    required this.assessment,
+    this.isDemoData = false,
+    this.controller,
+    this.profile,
+  });
 
   final RiskAssessment assessment;
   final bool isDemoData;
+
+  /// Present for a fresh result (not for a history entry): enables "Update" and "What-if".
+  final RiskController? controller;
+  final RiskProfile? profile;
 
   void _openResearcherView(BuildContext context) {
     final info = assessment.researcherInfo;
@@ -122,11 +50,19 @@ class RiskResultView extends StatelessWidget {
                 Text('Cut-off ${entry.key}: ${entry.value.toStringAsFixed(4)}'),
               Text('Model: ${assessment.modelUsed} (${assessment.featureSet})'),
             ],
+            if (assessment.dhs != null)
+              Text(
+                'DHS today ${assessment.dhs!.todayScore}, previous '
+                '${assessment.dhs!.previousScore ?? '-'}, shown ${assessment.dhs!.score}',
+              ),
           ],
         ),
       ),
     );
   }
+
+  void _push(BuildContext context, Widget screen) =>
+      Navigator.of(context).push(c3Route<void>(screen));
 
   @override
   Widget build(BuildContext context) {
@@ -148,64 +84,86 @@ class RiskResultView extends StatelessWidget {
           child: const Text(C3Strings.resultTitle),
         ),
       ),
-      body: ListView(padding: const EdgeInsets.all(16), children: children),
+      body: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: children),
     );
   }
 
   List<Widget> _okContent(BuildContext context) {
-    final explanation = assessment.explanation;
-    final modifiable = explanation?.shap.where((f) => f.factorType == 'modifiable').toList() ?? [];
-    final other = explanation?.shap.where((f) => f.factorType != 'modifiable').toList() ?? [];
+    final band = assessment.band!;
+    final dhs = assessment.dhs;
+    final (bandColour, _, _) = bandStyle(band);
     return [
-      BandCard(band: assessment.band!),
-      if (assessment.referral != null) ...[
-        const SizedBox(height: 12),
-        NoticeBox(icon: Icons.local_hospital_outlined, text: assessment.referral!, strong: true),
-      ],
-      if (explanation != null) ...[
-        const SizedBox(height: 16),
-        Text(explanation.explanationText),
-        if (modifiable.isNotEmpty) ...[
-          const SectionTitle(C3Strings.workOn),
-          FactorBars(factors: modifiable),
-        ],
-        if (other.isNotEmpty) ...[
-          const SectionTitle(C3Strings.background),
-          FactorBars(factors: other),
-        ],
-        const SizedBox(height: 8),
-        Text(C3Strings.notCauses, style: Theme.of(context).textTheme.bodySmall),
-        const SectionTitle(C3Strings.secondCheck),
-        const Text(C3Strings.secondCheckIntro),
-        for (final factor in explanation.lime)
-          ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(factor.weight > 0 ? Icons.arrow_upward : Icons.arrow_downward),
-            title: Text(
-              '${factor.readable}: ${factor.weight > 0 ? C3Strings.raises : C3Strings.lowers}',
-            ),
-            subtitle: Text(factor.rule),
-          ),
-        const SizedBox(height: 8),
-        Text(
-          C3Strings.agreement(
-            explanation.agreement.shared.length,
-            explanation.agreement.shapTop.length,
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            children: [
+              if (dhs != null) ...[
+                const Text(C3Strings.dhsName, style: TextStyle(color: C3Colors.text2)),
+                const SizedBox(height: 10),
+                DhsGauge(score: dhs.score, colour: bandColour),
+                const SizedBox(height: 8),
+                const ProvisionalTag(text: C3Strings.provisionalScore),
+                const SizedBox(height: 14),
+              ],
+              BandBadge(band: band, large: true),
+              const SizedBox(height: 10),
+              const Text(
+                C3Strings.resultSummary,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: C3Colors.text2, fontSize: 12.5),
+              ),
+            ],
           ),
         ),
-        Text(C3Strings.limeFit(explanation.limeFidelity)),
-        if (explanation.explanationQuality != 'consistent') ...[
-          const SizedBox(height: 8),
-          NoticeBox(icon: Icons.warning_amber_outlined, text: explanation.explanationQuality),
-        ],
+      ),
+      if (assessment.referral != null) ...[
+        const SizedBox(height: 8),
+        NoticeBox(icon: Icons.local_hospital_outlined, text: assessment.referral!, strong: true),
       ],
-      const SizedBox(height: 16),
+      if (assessment.saved == false) ...[
+        const SizedBox(height: 8),
+        const NoticeBox(icon: Icons.cloud_off_outlined, text: C3Strings.notSaved),
+      ],
+      const SizedBox(height: 14),
+      if (assessment.explanation != null)
+        FilledButton.icon(
+          onPressed: () => _push(
+            context,
+            RiskXaiScreen(assessment: assessment, controller: controller, profile: profile),
+          ),
+          icon: const Icon(Icons.auto_awesome),
+          label: const Text(C3Strings.understandMyRisk),
+        ),
+      const SizedBox(height: 10),
+      OutlinedButton(
+        onPressed: () => _push(
+          context,
+          RiskRecommendationsScreen(
+            assessment: assessment,
+            controller: controller,
+            profile: profile,
+          ),
+        ),
+        child: Text(C3Strings.viewRecommendations(assessment.recommendations.length)),
+      ),
+      if (controller != null && profile != null) ...[
+        const SizedBox(height: 10),
+        TextButton(
+          onPressed: () => _push(
+            context,
+            RiskQuestionnaireScreen(controller: controller!, initial: profile),
+          ),
+          child: const Text(C3Strings.updateHealthInfo),
+        ),
+      ],
+      const SizedBox(height: 12),
       Text(
         assessment.imputedFields.isEmpty
             ? C3Strings.allAnswersUsed
             : C3Strings.imputedIntro +
                 assessment.imputedFields.map((f) => c3FieldLabels[f] ?? f).join(', '),
+        style: const TextStyle(fontSize: 12.5),
       ),
       if (assessment.modelUsed != null)
         Text(
@@ -214,7 +172,7 @@ class RiskResultView extends StatelessWidget {
             assessment.modelVersion ?? '?',
             assessment.featureSet == 'with_glucose',
           ),
-          style: Theme.of(context).textTheme.bodySmall,
+          style: const TextStyle(fontSize: 11.5, color: C3Colors.text2),
         ),
     ];
   }
@@ -228,10 +186,7 @@ class RiskResultView extends StatelessWidget {
             leading: const Icon(Icons.edit_note),
             title: Text(c3FieldLabels[field] ?? field),
           ),
-        OutlinedButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text(C3Strings.answerQuestions),
-        ),
+        _answerAgainButton(context),
       ];
 
   List<Widget> _invalidContent(BuildContext context) => [
@@ -239,9 +194,15 @@ class RiskResultView extends StatelessWidget {
         const SizedBox(height: 12),
         for (final problem in assessment.problems)
           ListTile(leading: const Icon(Icons.close), title: Text(problem)),
-        OutlinedButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text(C3Strings.answerQuestions),
-        ),
+        _answerAgainButton(context),
       ];
+
+  Widget _answerAgainButton(BuildContext context) => OutlinedButton(
+        onPressed: () => controller != null
+            ? Navigator.of(context).pushReplacement(
+                c3Route<void>(RiskQuestionnaireScreen(controller: controller!, initial: profile)),
+              )
+            : Navigator.of(context).pop(),
+        child: const Text(C3Strings.answerQuestions),
+      );
 }

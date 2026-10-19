@@ -20,8 +20,16 @@ class BandCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final (icon, background, foreground) = switch (band) {
-      RiskBand.low => (Icons.check_circle_outline, scheme.secondaryContainer, scheme.onSecondaryContainer),
-      RiskBand.moderate => (Icons.info_outline, scheme.tertiaryContainer, scheme.onTertiaryContainer),
+      RiskBand.low => (
+          Icons.check_circle_outline,
+          scheme.secondaryContainer,
+          scheme.onSecondaryContainer
+        ),
+      RiskBand.moderate => (
+          Icons.info_outline,
+          scheme.tertiaryContainer,
+          scheme.onTertiaryContainer
+        ),
       RiskBand.high => (Icons.priority_high, scheme.errorContainer, scheme.onErrorContainer),
     };
     final text = '${C3Strings.bandPrefix}${label(band)}';

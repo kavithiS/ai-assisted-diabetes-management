@@ -10,7 +10,7 @@ void main() {
     const profile = RiskProfile(age: 58, bmi: 27.8, systolicBp: 150, diastolicBp: 95);
 
     expect(profile.toJson(), {
-      'schema_version': '0.1',
+      'schema_version': '0.2',
       'age': 58.0,
       'bmi': 27.8,
       'systolic_bp': 150.0,
@@ -77,23 +77,95 @@ void main() {
     expect(assessment.status, AssessmentStatus.ok);
   });
 
-  test('presets send exactly the Python examples (ml/predict.py)', () {
-    // EXAMPLE_PATIENT and LOW_RISK_PATIENT, copied from the server code.
-    expect(higherRiskPreset.profile.toJson(), {
-      'schema_version': '0.1',
-      'age': 58.0, 'sex_male': 1, 'bmi': 27.8, 'systolic_bp': 150.0, 'diastolic_bp': 95.0,
-      'pulse_rate': 84.0, 'glucose_mmol': 9.8, 'family_history_diabetes': 1,
-      'family_history_hypertension': 1, 'hypertensive': 1, 'cardiovascular_disease': 0,
+  test('presets send exactly the Python examples (ml/predict.py) to the model', () {
+    // The model fields equal EXAMPLE_PATIENT and LOW_RISK_PATIENT from the server code;
+    // the lifestyle answers only feed the DHS and the recommendations.
+    const lifestyle = {
+      'physical_activity',
+      'smoker',
+      'medication_adherence',
+      'cholesterol_level',
+      'kidney_disease',
+      'liver_disease',
+      'weight_change_kg',
+    };
+    Map<String, Object?> modelPart(Map<String, Object?> json) =>
+        Map.fromEntries(json.entries.where((e) => !lifestyle.contains(e.key)));
+
+    expect(higherRiskPreset.profile.toJson()['physical_activity'], 'low');
+    expect(modelPart(higherRiskPreset.profile.toJson()), {
+      'schema_version': '0.2',
+      'age': 58.0,
+      'sex_male': 1,
+      'bmi': 27.8,
+      'systolic_bp': 150.0,
+      'diastolic_bp': 95.0,
+      'pulse_rate': 84.0,
+      'glucose_mmol': 9.8,
+      'family_history_diabetes': 1,
+      'family_history_hypertension': 1,
+      'hypertensive': 1,
+      'cardiovascular_disease': 0,
       'stroke': 0,
     });
-    expect(lowerRiskPreset.profile.toJson(), {
-      'schema_version': '0.1',
-      'age': 29.0, 'sex_male': 0, 'bmi': 21.5, 'systolic_bp': 112.0, 'diastolic_bp': 72.0,
-      'pulse_rate': 72.0, 'glucose_mmol': 5.4, 'family_history_diabetes': 0,
-      'family_history_hypertension': 0, 'hypertensive': 0, 'cardiovascular_disease': 0,
+    expect(modelPart(lowerRiskPreset.profile.toJson()), {
+      'schema_version': '0.2',
+      'age': 29.0,
+      'sex_male': 0,
+      'bmi': 21.5,
+      'systolic_bp': 112.0,
+      'diastolic_bp': 72.0,
+      'pulse_rate': 72.0,
+      'glucose_mmol': 5.4,
+      'family_history_diabetes': 0,
+      'family_history_hypertension': 0,
+      'hypertensive': 0,
+      'cardiovascular_disease': 0,
       'stroke': 0,
     });
     expect(missingBmiPreset.profile.toJson().containsKey('bmi'), isFalse);
+  });
+
+  test('DHS and recommendations are parsed', () {
+    final assessment = RiskAssessment.fromJson({
+      'status': 'ok',
+      'disclaimer': 'This is not a diagnosis.',
+      'risk_category': 'Moderate',
+      'dhs': {
+        'score': 64.5,
+        'today_score': 70.0,
+        'previous_score': 59.0,
+        'components': {'stable': 0.6, 'behaviour': 0.8, 'glycemic': null, 'uncertainty': 0.0},
+        'items': [
+          {
+            'factor': 'smoker',
+            'label': 'Smoking',
+            'value': 0,
+            'item_score': 1.0,
+            'group': 'behaviour',
+          },
+        ],
+        'provisional': true,
+        'note': 'Provisional.',
+      },
+      'recommendations': [
+        {
+          'id': 'activity',
+          'factor': 'physical_activity',
+          'title': 'Increase physical activity',
+          'trigger': 'Physical activity answered as low or moderate',
+          'raised_estimate': false,
+          'window': 'your latest answers',
+          'action': 'Walk more.',
+          'review_status': 'provisional - pending clinician review',
+        },
+      ],
+    });
+    expect(assessment.dhs!.score, 64.5);
+    expect(assessment.dhs!.previousScore, 59.0);
+    expect(assessment.dhs!.items.single.itemScore, 1.0);
+    expect(assessment.dhs!.provisional, isTrue);
+    expect(assessment.recommendations.single.seekCare, isNull);
   });
 
   test('researcher-only debug block is parsed apart from the patient fields', () {

@@ -6,12 +6,97 @@
 class C3Strings {
   const C3Strings._();
 
+  // Module 3 screens (team prototype: DHS, health info, analysis, result, XAI,
+  // recommendations, what-if)
+  static const dhsName = 'Diabetic Health Score';
+  static const estimatedRisk = 'estimated risk';
+  static const provisional = 'Provisional';
+  static const provisionalScore = 'Provisional score - weights pending clinician review';
+  static const statusGood = 'Good';
+  static const statusMixed = 'Fair';
+  static const statusAttention = 'Needs attention';
+  static const yourCurrentDhs = 'Your current DHS';
+  static const noScoreYet =
+      'No score yet. Fill in your health and lifestyle information, or try a demo example.';
+  static const lastAssessed = 'Last assessed: ';
+  static const today = 'today';
+  static const recalculate = 'Recalculate score';
+  static const riskFactors = 'Risk factors';
+  static const bloodPressureTitle = 'Blood pressure';
+  static const usedByModel = 'used by the risk model';
+  static const understandMyScore = 'Understand my score';
+  static const updateHealthInfoShort = 'Update health info';
+  static const fullAssessment = 'Full risk assessment';
+  static const inputTitle = 'Health & Lifestyle Info';
+  static const inputIntro = 'Feeds your multi-factor Diabetic Health Score and the explainable AI. '
+      'Leave anything you do not know empty.';
+  static const bmiNeeded = 'Enter height and weight to work out your BMI (needed).';
+  static const bloodPressure = 'Blood pressure (mmHg)';
+  static const lifestyleTitle = 'Lifestyle and risk factors';
+  static const lifestyleNote =
+      'These answers shape your health score and recommendations. The risk model itself '
+      'does not use them yet.';
+  static const activityLevel = 'Physical activity level';
+  static const smokingStatus = 'Smoking';
+  static const adherence = 'Medication adherence';
+  static const cholesterol = 'Cholesterol level (as told by your doctor)';
+  static const kidney = 'Kidney condition';
+  static const liver = 'Liver condition';
+  static const weightChange = 'Body-weight change in 3 months';
+  static const weightChangeHelp = 'For example 2 for +2 kg, -1.5 for a loss.';
+  static const optionalClinical = 'Optional clinical values';
+  static const historyTitle = 'Family and medical history';
+  static const saveAndRecalculate = 'Save & recalculate';
+  static const analyzingTitle = 'Multi-factor analysis';
+  static const analyzing = 'Analyzing your risk';
+  static const analyzingSub = 'Running the multi-factor risk engine · research prototype';
+  static const resultSummary =
+      'The band is the risk model\'s estimate. The health score also uses your lifestyle '
+      'answers. Both are estimates, not a diagnosis.';
+  static const understandMyRisk = 'Understand my risk';
+  static String viewRecommendations(int n) =>
+      n == 0 ? 'Recommendations' : 'View recommendations ($n)';
+  static const updateHealthInfo = 'Update health information';
+  static const aiExplanation = 'AI Explanation';
+  static const factorsAffecting = 'Factors affecting your estimate';
+  static const increasing = 'Factors increasing risk';
+  static const protective = 'Factors reducing risk (protective)';
+  static const legendIncreasing = 'Increasing risk';
+  static const legendProtective = 'Protective';
+  static const noneInThisGroup = 'None among the top factors.';
+  static const shapFootnote =
+      'Generated with SHAP feature attributions over the risk model. Each bar shows how much '
+      'that answer moved the model\'s estimate; these are not medical causes.';
+  static const recommendationsTitle = 'Recommendations';
+  static const personalised = 'Personalised recommendation';
+  static const topPriority = 'Top priority';
+  static const current = 'Current';
+  static const target = 'Target';
+  static const additional = 'Additional suggestions';
+  static const noRecommendations = 'No recommendations for your current answers. Keep it up.';
+  static const recommendationsFooter =
+      'From a fixed set of message templates, pending clinician review. They never ask '
+      'you to change your medicines.';
+  static String because(String trigger, String window, bool raised) =>
+      'Why: $trigger (from $window)'
+      '${raised && !trigger.contains('raised') ? '; it raised the model\'s estimate' : ''}.';
+  static const exploreWhatIf = 'Explore what-if changes';
+  static const whatIfTitle = 'Explore your risk';
+  static const whatIfIntro =
+      'What happens to your health score if you improve these factors? · Prototype scenario';
+  static const cholesterolManagement = 'Cholesterol management';
+  static const estimate = 'Estimate';
+  static const estimatedDhs = 'Your estimated DHS (today)';
+  static const whatIfBandNote =
+      'The risk band comes from the model, which does not use these answers, so it stays the same.';
+  static const whatIfDisclaimer =
+      'Estimated scenario, not a guaranteed medical outcome. Not saved.';
+
   // Home
   static const homeTitle = 'Your diabetes risk profile';
   static const homeIntro =
-      'Answer a few questions about your health. The app estimates a risk band and '
-      'explains which answers influenced it. It is an estimate, not a diagnosis.';
-  static const startQuestionnaire = 'Start the questionnaire';
+      'Your multi-factor health score with explainable AI. It is an estimate, not a diagnosis.';
+  static const startQuestionnaire = 'Enter health & lifestyle info';
   static const history = 'Past results';
   static const presetsTitle = 'Demo examples (made-up people)';
   static const warmUp = 'Warm up the model';
@@ -25,13 +110,11 @@ class C3Strings {
   static const offline = 'Not connected';
   static const demoData = 'Demo data';
   static const serverDownTitle = 'The risk server is not reachable.';
-  static const serverDownBody =
-      'On the demo laptop, start C3 and the gateway with one command:\n'
+  static const serverDownBody = 'On the demo laptop, start C3 and the gateway with one command:\n'
       r'.\server\services\c3_risk_xai\scripts\demo.ps1'
       '\nThen tap "Check again". Results are never replaced by demo data.';
   static const checkAgain = 'Check again';
-  static const demoBanner =
-      'DEMO DATA: these results are fixed examples, not from the risk model.';
+  static const demoBanner = 'DEMO DATA: these results are fixed examples, not from the risk model.';
 
   // Questionnaire
   static const questionnaireTitle = 'Risk questionnaire';
@@ -81,11 +164,9 @@ class C3Strings {
   static String agreement(int shared, int total) =>
       'The two methods agree on $shared of their top $total factors.';
   static String limeFit(double r2) => 'LIME fit (R²): ${r2.toStringAsFixed(2)}';
-  static const notCauses =
-      'These are contributions to the model\'s estimate, not medical causes.';
+  static const notCauses = 'These are contributions to the model\'s estimate, not medical causes.';
   static const allAnswersUsed = 'All your answers were used.';
-  static const imputedIntro =
-      'Some answers were missing and were filled with typical values: ';
+  static const imputedIntro = 'Some answers were missing and were filled with typical values: ';
   static String modelLine(String model, String version, bool withGlucose) =>
       'Model: ${model.replaceAll('_', ' ')}, version $version, '
       '${withGlucose ? 'with' : 'without'} a glucose result.';
@@ -104,7 +185,16 @@ class C3Strings {
       'C3_RESEARCH_MODE=true.';
 
   // History
-  static const historyEmpty = 'No results yet. Results are kept until the app closes.';
+  static const historyEmpty = 'No saved results yet.';
+  static const historyFromServer = 'Saved results on the server (newest first)';
+  static const historyFallback =
+      'Saved results are not available right now (the database may be stopped). '
+      'Showing only the results from this session:';
+  static const sessionEmpty = 'No results in this session yet.';
+  static const statusInsufficient = 'More answers were needed (no band)';
+  static const statusInvalid = 'Answers were out of range (no band)';
+  static const notSaved =
+      'This result was not saved (the database is unavailable). The result itself is valid.';
 
   // Settings
   static const settingsTitle = 'Settings';
@@ -120,6 +210,12 @@ class C3Strings {
       'Patient screens never show it.';
   static const deviceId = 'Pseudonymous device ID';
   static const save = 'Save';
+  static const deleteMine = 'Delete my saved results';
+  static const deleteConfirm =
+      'Delete every result saved on the server for this device? This cannot be undone.';
+  static const cancel = 'Cancel';
+  static const delete = 'Delete';
+  static String deleted(int n) => 'Deleted $n saved result${n == 1 ? '' : 's'}.';
   static const resetDefaults = 'Reset to defaults';
 }
 
