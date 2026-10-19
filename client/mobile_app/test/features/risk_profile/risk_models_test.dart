@@ -1,9 +1,8 @@
-// UNVERIFIED: written without the Flutter SDK; run `flutter test` before use.
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_app/features/risk_profile/data/mock_risk_repository.dart';
 import 'package:mobile_app/features/risk_profile/data/risk_api.dart';
 import 'package:mobile_app/features/risk_profile/domain/risk_assessment.dart';
+import 'package:mobile_app/features/risk_profile/domain/risk_presets.dart';
 import 'package:mobile_app/features/risk_profile/domain/risk_profile.dart';
 
 void main() {
@@ -76,6 +75,40 @@ void main() {
 
     expect(repository.isDemoData, isTrue);
     expect(assessment.status, AssessmentStatus.ok);
+  });
+
+  test('presets send exactly the Python examples (ml/predict.py)', () {
+    // EXAMPLE_PATIENT and LOW_RISK_PATIENT, copied from the server code.
+    expect(higherRiskPreset.profile.toJson(), {
+      'schema_version': '0.1',
+      'age': 58.0, 'sex_male': 1, 'bmi': 27.8, 'systolic_bp': 150.0, 'diastolic_bp': 95.0,
+      'pulse_rate': 84.0, 'glucose_mmol': 9.8, 'family_history_diabetes': 1,
+      'family_history_hypertension': 1, 'hypertensive': 1, 'cardiovascular_disease': 0,
+      'stroke': 0,
+    });
+    expect(lowerRiskPreset.profile.toJson(), {
+      'schema_version': '0.1',
+      'age': 29.0, 'sex_male': 0, 'bmi': 21.5, 'systolic_bp': 112.0, 'diastolic_bp': 72.0,
+      'pulse_rate': 72.0, 'glucose_mmol': 5.4, 'family_history_diabetes': 0,
+      'family_history_hypertension': 0, 'hypertensive': 0, 'cardiovascular_disease': 0,
+      'stroke': 0,
+    });
+    expect(missingBmiPreset.profile.toJson().containsKey('bmi'), isFalse);
+  });
+
+  test('researcher-only debug block is parsed apart from the patient fields', () {
+    final assessment = RiskAssessment.fromJson({
+      'status': 'ok',
+      'disclaimer': 'This is not a diagnosis.',
+      'risk_category': 'High',
+      'debug': {
+        'risk_probability': 0.5657,
+        'risk_percent': 56.6,
+        'thresholds': {'low_max': 0.0259, 'high_min': 0.1345},
+      },
+    });
+    expect(assessment.researcherInfo!.riskProbability, 0.5657);
+    expect(assessment.researcherInfo!.thresholds['high_min'], 0.1345);
   });
 
   test('live API only targets the gateway route', () {

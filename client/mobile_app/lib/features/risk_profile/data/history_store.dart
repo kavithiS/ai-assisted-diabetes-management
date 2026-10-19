@@ -1,5 +1,3 @@
-// UNVERIFIED: written without the Flutter SDK; run `flutter analyze` before use.
-
 import '../domain/risk_assessment.dart';
 
 class RiskHistoryEntry {
@@ -24,5 +22,6 @@ class RiskHistoryStore {
     );
   }
 
-  // TODO(c3): persist on the device once a storage package is approved for pubspec.yaml.
+  // TODO(c3): history moves to the server (c3 schema, GET /v1/risk/history, FR13) in the
+  // database phase, so it is not duplicated on the device.
 }

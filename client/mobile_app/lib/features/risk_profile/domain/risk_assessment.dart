@@ -1,11 +1,10 @@
-// UNVERIFIED: written without the Flutter SDK; run `flutter analyze` before use.
-
 /// What C3 returns: `risk_assessment` 0.1
 /// (server/services/c3_risk_xai/docs/contract_proposal.md, a proposal until agreed).
 ///
 /// The band, the explanation and every sentence come from the server. The app never
 /// computes a band, a threshold or a SHAP/LIME value. The researcher-only `debug`
-/// block is deliberately not modelled: patient screens never show a probability.
+/// block is kept apart in [ResearcherInfo]: only the hidden Researcher view reads it,
+/// patient screens never show a probability.
 library;
 
 enum AssessmentStatus { ok, insufficientData, invalidInput }
@@ -150,6 +149,23 @@ class RiskExplanation {
   final String explanationText;
 }
 
+/// Researcher-only `debug` block (server research mode AND `?debug=true`).
+/// Never shown on patient screens.
+class ResearcherInfo {
+  const ResearcherInfo({required this.riskProbability, required this.thresholds});
+
+  factory ResearcherInfo.fromJson(Map<String, dynamic> json) => ResearcherInfo(
+        riskProbability: (json['risk_probability'] as num).toDouble(),
+        thresholds: (json['thresholds'] as Map<String, dynamic>)
+            .map((key, value) => MapEntry(key, (value as num).toDouble())),
+      );
+
+  final double riskProbability;
+
+  /// Band cut-offs, `low_max` and `high_min`.
+  final Map<String, double> thresholds;
+}
+
 class RiskAssessment {
   const RiskAssessment({
     required this.status,
@@ -164,6 +180,7 @@ class RiskAssessment {
     this.missingCriticalFields = const [],
     this.problems = const [],
     this.explanation,
+    this.researcherInfo,
   });
 
   factory RiskAssessment.fromJson(Map<String, dynamic> json) => RiskAssessment(
@@ -181,6 +198,9 @@ class RiskAssessment {
         explanation: json['explanation'] == null
             ? null
             : RiskExplanation.fromJson(json['explanation'] as Map<String, dynamic>),
+        researcherInfo: json['debug'] == null
+            ? null
+            : ResearcherInfo.fromJson(json['debug'] as Map<String, dynamic>),
       );
 
   final AssessmentStatus status;
@@ -201,4 +221,7 @@ class RiskAssessment {
   final List<String> missingCriticalFields;
   final List<String> problems;
   final RiskExplanation? explanation;
+
+  /// Researcher view only. Null unless the server ran in research mode.
+  final ResearcherInfo? researcherInfo;
 }

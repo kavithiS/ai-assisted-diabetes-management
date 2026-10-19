@@ -1,5 +1,3 @@
-// UNVERIFIED: written without the Flutter SDK; run `flutter analyze` before use.
-
 /// What the app sends to C3: `patient_risk_profile` 0.1
 /// (server/services/c3_risk_xai/docs/contract_proposal.md, a proposal until agreed).
 ///
