@@ -7,6 +7,7 @@ from fastapi import FastAPI
 
 from c3_risk_xai.api.routes import router
 from c3_risk_xai.services import risk_service
+from c3_risk_xai.settings import get_settings
 from diacare_shared.config import BaseServiceSettings
 from diacare_shared.health import create_health_router
 from diacare_shared.logging import configure_logging
@@ -21,6 +22,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # Load the model bundles once. If they are missing the service still starts:
     # /health stays ok, /v1/risk/status reports model_loaded false, assess answers 503.
     risk_service.load_models()
+    # Same for the database: if it is down the service still answers (saving is best-effort).
+    settings = get_settings()
+    risk_service.init_storage(settings.c3_persistence, settings.database_url)
     yield
 
 

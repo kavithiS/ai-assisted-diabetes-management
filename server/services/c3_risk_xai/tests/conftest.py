@@ -20,6 +20,20 @@ from c3_risk_xai.ml.modeling import (
     get_models,
     make_bundle,
 )
+from c3_risk_xai.settings import get_settings
+
+
+@pytest.fixture(autouse=True, scope="session")
+def no_real_database():
+    """Tests never write to the developer's Postgres: the app starts with saving off.
+    tests/test_storage.py uses an in-memory store, or a throwaway device in the real
+    database only when it is reachable."""
+    patch = pytest.MonkeyPatch()
+    patch.setenv("C3_PERSISTENCE", "false")
+    get_settings.cache_clear()
+    yield
+    patch.undo()
+    get_settings.cache_clear()
 
 
 def pytest_configure(config: pytest.Config) -> None:
