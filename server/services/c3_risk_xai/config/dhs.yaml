@@ -1,0 +1,41 @@
+# Diabetic Health Score (DHS) settings - TAF task 4, proposal section 3.4.4.
+#
+#   DHS = 100 x clip( (ws*S + wd*D + wq*Q) / (ws + wd + wq_if_present) - wu*U , 0, 1 )
+#   smoothed: DHS~ = a * DHS_today + (1 - a) * DHS_previous   (adaptive, FR10)
+#
+# S stable risk     = model_share * (1 - estimated risk) + (1 - model_share) * clinical markers
+# D behaviour       = mean of the behaviour item scores the patient answered
+# Q glycemic        = from C2's forecast; absent until a C2 contract exists (left out)
+# U uncertainty     = share of DHS questions left unanswered
+#
+# PROVISIONAL: every weight and item score below is a prototype value pending clinician
+# review. They are NOT taken from a guideline and must not be cited as clinical thresholds.
+# The DHS is a communication score, not a validated clinical index.
+provisional: "pending clinician review"
+
+weights:
+  stable: 0.45
+  behaviour: 0.30
+  glycemic: 0.15
+  uncertainty: 0.10
+
+smoothing_alpha: 0.5
+
+stable:
+  model_share: 0.7
+
+# Item scores: 1 = favourable, 0 = unfavourable. Answers are the app's choices.
+behaviour_items:
+  physical_activity: {low: 0.0, moderate: 0.5, high: 1.0}
+  smoker: {0: 1.0, 1: 0.0}
+  medication_adherence: {poor: 0.0, fair: 0.5, good: 1.0}
+
+# Weight change over the last 3 months, kg (absolute value).
+weight_change:
+  stable_kg: 2.0
+  moderate_kg: 5.0
+
+clinical_markers:
+  cholesterol_level: {normal: 1.0, borderline_high: 0.5, high: 0.0}
+  kidney_disease: {0: 1.0, 1: 0.0}
+  liver_disease: {0: 1.0, 1: 0.0}
