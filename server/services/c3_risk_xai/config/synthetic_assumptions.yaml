@@ -1,0 +1,205 @@
+# Assumptions behind the SYNTHETIC TAF factors used by C3 model v2 (PP1).
+#
+# SYNTHETIC DATA. The real South Asian data (DiaBD, Bangladesh) has none of these factors.
+# They are generated, per real TRAINING row, from the assumptions below. They are used for
+# training and demo only. They are never added to the real held-out test rows and never
+# support a reported performance claim (see ml/dataprep/synthetic_factors.py).
+#
+# Every parameter has a value, a source and a status:
+#   verified    - the value was checked against the cited publication (see `note`).
+#   placeholder - no verified source. The value is a conservative modelling choice and is
+#                 listed as [INFORMATION REQUIRED] in the report. Never cite it as evidence.
+#
+# Effects on diabetes: the cited studies report the relative risk of DEVELOPING type 2
+# diabetes. Here they are applied as an odds ratio with the CURRENT diabetes label in DiaBD
+# (6.5% diabetic, so OR and RR are close). This is an approximation, stated in the report.
+# A placeholder effect is an odds ratio of 1.0 (no assumed effect), the conservative choice.
+#
+# Role (Phase-0 table): C = risk model and DHS. Role-B factors are listed at the end and are
+# NOT generated (they would leak the diabetes label into the risk model).
+
+seed: 2026
+
+factors:
+  smoking_status:
+    role: C
+    kind: categorical
+    unit: "0 never, 1 former, 2 current"
+    range: [0, 2]
+    parameters:
+      prevalence_current:
+        value: 0.1644
+        source: >-
+          Rahman et al. Was there any change in tobacco smoking among adults in Bangladesh
+          during 2009-2017? BMJ Open, article e057896. doi:10.1136/bmjopen-2021-057896
+        note: "Adult (15+) smoking prevalence 16.44% in GATS 2017. Smoking only, not smokeless tobacco."
+        status: verified
+      prevalence_former:
+        value: 0.05
+        source: "[INFORMATION REQUIRED]"
+        note: "No verified Bangladesh figure for former smokers found."
+        status: placeholder
+      log_odds_male_current:
+        value: 3.0
+        source: "[INFORMATION REQUIRED]"
+        note: >-
+          Smoking in Bangladesh is mostly male (Rahman et al. report higher odds for men) but no
+          sex-specific prevalence was verified, so the size of the sex gap is a placeholder.
+        status: placeholder
+      log_odds_male_former:
+        value: 2.0
+        source: "[INFORMATION REQUIRED]"
+        status: placeholder
+      odds_ratio_diabetes_current:
+        value: 1.37
+        source: >-
+          Pan A, Wang Y, Talaei M, Hu FB, Wu T. Relation of active, passive, and quitting smoking
+          with incident type 2 diabetes: a systematic review and meta-analysis. Lancet Diabetes
+          Endocrinol. 2015;3(12):958-967. doi:10.1016/S2213-8587(15)00316-2
+        note: "Pooled RR 1.37 (95% CI 1.33-1.42), current vs never smokers; 88 prospective studies."
+        status: verified
+      odds_ratio_diabetes_former:
+        value: 1.14
+        source: >-
+          Pan A, Wang Y, Talaei M, Hu FB, Wu T. Lancet Diabetes Endocrinol. 2015;3(12):958-967.
+          doi:10.1016/S2213-8587(15)00316-2
+        note: "Pooled RR 1.14 (95% CI 1.10-1.18), former vs never smokers."
+        status: verified
+
+  physical_activity_min_week:
+    role: C
+    kind: continuous
+    unit: "minutes of moderate-or-vigorous activity per week"
+    range: [0, 2000]
+    parameters:
+      prevalence_insufficient:
+        value: 0.123
+        source: >-
+          Biswas RK, Chowdhury S, Hossain S, Chowdhury PB. Hypertension, diabetes, and
+          hypercholesterolemia in Bangladesh: evaluating role of physical activity from
+          cross-sectional STEPS 2018 survey. Health Sci Rep. 2024;7(7):e2243.
+          doi:10.1002/hsr2.2243
+        note: >-
+          Low/insufficient physical activity 12.3% in Bangladesh STEPS 2018, as cited in the
+          introduction of Biswas et al. (their reference 17). Secondary citation.
+        status: verified
+      odds_ratio_diabetes_meets_150:
+        value: 0.74
+        source: >-
+          Smith AD, Crippa A, Woodcock J, Brage S. Physical activity and incident type 2 diabetes
+          mellitus: a systematic review and dose-response meta-analysis of prospective cohort
+          studies. Diabetologia. 2016;59(12):2527-2545. doi:10.1007/s00125-016-4079-0
+        note: >-
+          26% (95% CI 20-31%) lower risk at 11.25 MET h/week (= 150 min/week moderate activity)
+          vs inactive, so RR about 0.74 (arithmetic from the reported percentage). Applied here as
+          meeting vs not meeting 150 min/week.
+        status: verified
+      log_odds_meets_per_10y_age:
+        value: -0.2
+        source: "[INFORMATION REQUIRED]"
+        note: "Older people assumed slightly less active."
+        status: placeholder
+      insufficient_minutes_max:
+        value: 150
+        source: "WHO guideline threshold of 150 minutes per week (definition, not an estimate)."
+        status: verified
+      extra_minutes_median:
+        value: 150
+        source: "[INFORMATION REQUIRED]"
+        note: "Minutes above 150 for people who meet the guideline: lognormal with this median."
+        status: placeholder
+      extra_minutes_log_sd:
+        value: 0.8
+        source: "[INFORMATION REQUIRED]"
+        status: placeholder
+
+  total_cholesterol_mmol:
+    role: C
+    kind: continuous
+    unit: "mmol/L"
+    range: [2.0, 12.0]
+    parameters:
+      prevalence_high:
+        value: 0.302
+        source: >-
+          Biswas RK, Chowdhury S, Hossain S, Chowdhury PB. Health Sci Rep. 2024;7(7):e2243.
+          doi:10.1002/hsr2.2243
+        note: >-
+          Hypercholesterolemia 30.2% in Bangladesh STEPS 2018, defined as total cholesterol
+          >= 190 mg/dL or taking cholesterol medication. Used to set the mean (medication cases
+          make this a slight overestimate).
+        status: verified
+      high_cutoff_mmol:
+        value: 4.91
+        source: "190 mg/dL (Biswas et al. 2024 definition) divided by 38.67 mg/dL per mmol/L."
+        status: verified
+      sd_mmol:
+        value: 1.0
+        source: "[INFORMATION REQUIRED]"
+        note: "No published Bangladesh SD verified; no mean was reported either."
+        status: placeholder
+      per_10y_age_mmol:
+        value: 0.15
+        source: "[INFORMATION REQUIRED]"
+        status: placeholder
+      per_bmi_unit_mmol:
+        value: 0.03
+        source: "[INFORMATION REQUIRED]"
+        status: placeholder
+      odds_ratio_diabetes_per_mmol:
+        value: 1.0
+        source: "[INFORMATION REQUIRED]"
+        note: >-
+          No verified published effect of total cholesterol on type 2 diabetes risk was found,
+          so no effect is assumed (conservative). The model can therefore learn nothing real
+          from this column until real data exists.
+        status: placeholder
+
+  weight_change_kg_12m:
+    role: C
+    kind: continuous
+    unit: "kg, weight now minus 12 months ago"
+    range: [-30, 30]
+    parameters:
+      mean_kg:
+        value: 0.0
+        source: "[INFORMATION REQUIRED]"
+        status: placeholder
+      sd_kg:
+        value: 3.0
+        source: "[INFORMATION REQUIRED]"
+        status: placeholder
+      odds_ratio_diabetes_per_kg:
+        value: 1.0
+        source: "[INFORMATION REQUIRED]"
+        note: >-
+          Candidate: Zheng et al., JAMA 2017 (Nurses' Health Study and Health Professionals
+          Follow-up Study) report an incidence rate ratio of 1.31 per 5 kg gained from early to
+          middle adulthood (seen in a secondary report, not checked against the full paper).
+          That is weight gained over decades, not a 12-month change, so it is not applied.
+          Also, unplanned weight LOSS can be a symptom of diabetes. No effect is assumed.
+        status: placeholder
+
+  bp_medication:
+    role: C
+    kind: binary
+    unit: "1 = takes blood-pressure medicine, 0 = no"
+    range: [0, 1]
+    parameters:
+      share_treated_if_hypertensive:
+        value: 0.5
+        source: "[INFORMATION REQUIRED]"
+        note: "Only people with diagnosed hypertension (real column) can be on BP medicine."
+        status: placeholder
+      odds_ratio_diabetes:
+        value: 1.0
+        source: "Design choice: no effect beyond the real blood-pressure columns already in the model."
+        note: "It is generated from real `hypertensive`, so it mostly repeats that column."
+        status: placeholder
+
+# Role B (DHS and recommendations only). Not generated and not risk-model inputs.
+not_generated:
+  diabetes_medication: "Only people with diabetes take it: it would leak the label."
+  diabetes_medication_adherence: "Only defined for people on diabetes medication: leaks the label."
+  kidney_disease: "Mostly a complication of diabetes: reverse direction, leaks the label (decision 1 = B)."
+  liver_disease: "Two-way relation with diabetes: kept out of the risk model (decision 1 = B)."
