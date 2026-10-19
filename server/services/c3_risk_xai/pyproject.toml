@@ -21,6 +21,10 @@ dependencies = [
     # scikit-learn / FastAPI to bring them in. Lower bounds only: nothing is downgraded.
     "scipy>=1.11",
     "pydantic>=2.0",
+    # c3 Postgres schema (team stack: PostgreSQL 16, SQLAlchemy 2, Alembic).
+    "sqlalchemy==2.1.5",
+    "alembic==1.20.0",
+    "psycopg[binary]==3.3.6",
 ]
 
 [project.optional-dependencies]
