@@ -1,7 +1,6 @@
-// UNVERIFIED: written without the Flutter SDK; run `flutter analyze` before use.
-
 import '../domain/risk_assessment.dart';
 import '../domain/risk_profile.dart';
+import '../domain/service_status.dart';
 import 'risk_repository.dart';
 
 /// Demo-only repository. Screens must show a visible "Demo data" banner when it is used.
@@ -17,6 +16,10 @@ class MockRiskRepository implements RiskRepository {
   @override
   Future<RiskAssessment> assess(RiskProfile profile) async =>
       RiskAssessment.fromJson(_demoHighResult);
+
+  @override
+  Future<ServiceStatus> status() async =>
+      const ServiceStatus(modelLoaded: true, models: {'demo': 'demo'});
 
   static const String _disclaimer =
       'Statistical risk estimate for self-management support. '
