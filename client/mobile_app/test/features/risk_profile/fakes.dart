@@ -1,11 +1,18 @@
 import 'package:mobile_app/features/risk_profile/data/risk_repository.dart';
 import 'package:mobile_app/features/risk_profile/domain/risk_assessment.dart';
 import 'package:mobile_app/features/risk_profile/domain/risk_profile.dart';
+import 'package:mobile_app/features/risk_profile/domain/server_history.dart';
 import 'package:mobile_app/features/risk_profile/domain/service_status.dart';
 
-/// Shaped like the real C3 answer for the higher-risk preset (contract 0.1), including
-/// the researcher-only `debug` block, so tests can prove patient screens hide it.
-Map<String, dynamic> okJson({String band = 'High', Map<String, dynamic>? debug}) => {
+/// Shaped like the real C3 answer for the higher-risk preset (contract 0.2), including
+/// the DHS, recommendations and the researcher-only `debug` block, so tests can prove
+/// patient screens hide it.
+Map<String, dynamic> okJson({
+  String band = 'High',
+  Map<String, dynamic>? debug,
+  double dhs = 58.2,
+}) =>
+    {
       'status': 'ok',
       'disclaimer': 'Statistical risk estimate for self-management support. '
           'This is not a diagnosis and does not replace medical advice.',
@@ -65,6 +72,66 @@ Map<String, dynamic> okJson({String band = 'High', Map<String, dynamic>? debug})
         'explanation_quality': 'consistent',
         'explanation_text': 'Your estimated risk band is High.',
       },
+      'dhs': {
+        'score': dhs,
+        'today_score': dhs,
+        'components': {
+          'stable': 0.554,
+          'behaviour': 0.625,
+          'glycemic': null,
+          'uncertainty': 0.0,
+        },
+        'items': [
+          {
+            'factor': 'physical_activity',
+            'label': 'Physical activity',
+            'value': 'low',
+            'item_score': 0.0,
+            'group': 'behaviour',
+          },
+          {
+            'factor': 'cholesterol_level',
+            'label': 'Cholesterol',
+            'value': 'borderline_high',
+            'item_score': 0.5,
+            'group': 'clinical marker',
+          },
+          {
+            'factor': 'smoker',
+            'label': 'Smoking',
+            'value': 0,
+            'item_score': 1.0,
+            'group': 'behaviour',
+          },
+        ],
+        'provisional': true,
+        'note': 'Provisional Diabetic Health Score: weights pending clinician review.',
+      },
+      'recommendations': [
+        {
+          'id': 'activity',
+          'factor': 'physical_activity',
+          'title': 'Increase physical activity',
+          'trigger': 'Physical activity answered as low or moderate',
+          'raised_estimate': false,
+          'window': 'your latest answers',
+          'action': 'Build up step by step to at least 150 minutes of moderate activity a week.',
+          'current': 'Low activity',
+          'target': '150 min of moderate activity per week (WHO guideline)',
+          'review_status': 'provisional - pending clinician review',
+        },
+        {
+          'id': 'cholesterol',
+          'factor': 'cholesterol_level',
+          'title': 'Review your cholesterol with your doctor',
+          'trigger': 'Cholesterol answered as borderline high or high',
+          'raised_estimate': false,
+          'window': 'your latest answers',
+          'action': 'Choose fewer fried and fatty foods.',
+          'seek_care': 'Discuss your cholesterol result with your doctor.',
+          'review_status': 'provisional - pending clinician review',
+        },
+      ],
       if (debug != null) 'debug': debug,
     };
 
@@ -77,7 +144,21 @@ const debugJson = {
 /// Repository with scripted answers: each call takes the next item (a JSON map, or an
 /// exception to throw).
 class FakeRiskRepository implements RiskRepository {
-  FakeRiskRepository(this.answers, {this.modelLoaded = true, this.statusError});
+  FakeRiskRepository(
+    this.answers, {
+    this.modelLoaded = true,
+    this.statusError,
+    this.serverHistory = const [],
+    this.historyError,
+  });
+
+  /// Saved results the fake server returns, or an error to throw instead.
+  List<ServerHistoryItem> serverHistory;
+  Exception? historyError;
+  int deleteCalls = 0;
+
+  /// How many what-if previews were sent without saving.
+  int unsaved = 0;
 
   final List<Object> answers;
   final bool modelLoaded;
@@ -91,11 +172,26 @@ class FakeRiskRepository implements RiskRepository {
   bool get isDemoData => false;
 
   @override
-  Future<RiskAssessment> assess(RiskProfile profile) async {
+  Future<RiskAssessment> assess(RiskProfile profile, {bool save = true}) async {
     sent.add(profile);
+    if (!save) unsaved += 1;
     final answer = answers.length > 1 ? answers.removeAt(0) : answers.first;
     if (answer is Exception) throw answer;
     return RiskAssessment.fromJson(answer as Map<String, dynamic>);
+  }
+
+  @override
+  Future<List<ServerHistoryItem>> history() async {
+    if (historyError != null) throw historyError!;
+    return serverHistory;
+  }
+
+  @override
+  Future<int> deleteMyRecords() async {
+    deleteCalls += 1;
+    final count = serverHistory.length;
+    serverHistory = const [];
+    return count;
   }
 
   @override

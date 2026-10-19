@@ -7,6 +7,7 @@ import '../data/settings_store.dart';
 import '../domain/risk_assessment.dart';
 import '../domain/risk_presets.dart';
 import '../domain/risk_profile.dart';
+import '../domain/server_history.dart';
 
 enum GatewayState { checking, online, modelNotLoaded, offline }
 
@@ -26,6 +27,9 @@ class RiskController extends ChangeNotifier {
   final RiskHistoryStore history = RiskHistoryStore();
 
   RiskSettings? _settings;
+  RiskAssessment? _latest;
+  RiskProfile? _latestProfile;
+  DateTime? _latestAt;
   RiskRepository? _repository;
   GatewayState _gateway = GatewayState.checking;
   String? _gatewayMessage;
@@ -35,6 +39,11 @@ class RiskController extends ChangeNotifier {
   String? get gatewayMessage => _gatewayMessage;
   bool get isReady => _repository != null;
   bool get isDemoData => _repository?.isDemoData ?? false;
+
+  /// Latest `ok` result of this session, its answers and when it was made.
+  RiskAssessment? get latest => _latest;
+  RiskProfile? get latestProfile => _latestProfile;
+  DateTime? get latestAt => _latestAt;
 
   Future<void> init() async {
     _settings = await _store.load();
@@ -76,8 +85,27 @@ class RiskController extends ChangeNotifier {
   Future<RiskAssessment> assess(RiskProfile profile) async {
     final assessment = await _repository!.assess(profile);
     history.add(assessment);
+    if (assessment.status == AssessmentStatus.ok) {
+      _latest = assessment;
+      _latestProfile = profile;
+      _latestAt = DateTime.now();
+    }
     notifyListeners();
     return assessment;
+  }
+
+  /// What-if preview: same server call, but not saved and not added to history.
+  Future<RiskAssessment> simulate(RiskProfile profile) => _repository!.assess(profile, save: false);
+
+  /// Saved results from the server (FR13). Errors are passed on; the history screen
+  /// then falls back to this session's list and says so.
+  Future<List<ServerHistoryItem>> serverHistory() => _repository!.history();
+
+  /// FR16: delete this device's saved results on the server. Returns how many.
+  Future<int> deleteMyRecords() async {
+    final count = await _repository!.deleteMyRecords();
+    notifyListeners();
+    return count;
   }
 
   /// One throw-away request so SHAP and LIME are loaded before the demo. Not kept in

@@ -89,6 +89,68 @@ void main() {
     expect(api.isDemoData, isFalse);
   });
 
+  test('the device pseudonym goes in the X-Device-Id header, never in the URL', () async {
+    late http.Request seen;
+    final api = RiskApi(
+      client: ApiClient(baseUrl: 'http://localhost:8000'),
+      deviceId: '0123456789abcdef0123456789abcdef',
+      httpClient: MockClient((request) async {
+        seen = request;
+        return http.Response(jsonEncode({...okJson(), 'saved': true}), 200);
+      }),
+    );
+
+    final assessment = await api.assess(lowerRiskPreset.profile);
+
+    expect(seen.headers['X-Device-Id'], '0123456789abcdef0123456789abcdef');
+    expect(seen.url.query, isEmpty);
+    expect(assessment.saved, isTrue);
+  });
+
+  test('history and delete use the server and parse its answers', () async {
+    final api = RiskApi(
+      client: ApiClient(baseUrl: 'http://localhost:8000'),
+      deviceId: '0123456789abcdef0123456789abcdef',
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/api/v1/risk/history');
+        if (request.method == 'DELETE') {
+          return http.Response('{"deleted_assessments": 2}', 200);
+        }
+        return http.Response(
+          jsonEncode({
+            'items': [
+              {
+                'id': 'a',
+                'assessed_at': '2026-10-19T10:00:00Z',
+                'status': 'ok',
+                'risk_category': 'High',
+                'model_version': '2026-10-10',
+                'schema_version': '0.1',
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final items = await api.history();
+    expect(items.single.band, RiskBand.high);
+    expect(items.single.schemaVersion, '0.1');
+    expect(await api.deleteMyRecords(), 2);
+  });
+
+  test('a stopped database (503) is reported with the server message', () async {
+    final api = apiAnswering(
+      (_) async => http.Response('{"detail": "C3 database is unreachable."}', 503),
+    );
+    expect(
+      () => api.history(),
+      throwsA(isA<RiskApiException>()
+          .having((e) => e.message, 'message', 'C3 database is unreachable.')),
+    );
+  });
+
   test('status parses model_loaded and the models', () async {
     final api = apiAnswering(
       (_) async => http.Response(

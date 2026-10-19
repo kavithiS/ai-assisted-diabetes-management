@@ -70,6 +70,34 @@ class _RiskSettingsScreenState extends State<RiskSettingsScreen> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  Future<void> _deleteMine() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: const Text(C3Strings.deleteConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(C3Strings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(C3Strings.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    String message;
+    try {
+      message = C3Strings.deleted(await widget.controller.deleteMyRecords());
+    } on Object catch (error) {
+      message = '$error';
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _reset() async {
     await widget.controller.resetSettings();
     if (mounted) Navigator.of(context).pop();
@@ -120,6 +148,12 @@ class _RiskSettingsScreenState extends State<RiskSettingsScreen> {
             ),
             const SizedBox(height: 16),
             FilledButton(onPressed: _save, child: const Text(C3Strings.save)),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _deleteMine,
+              icon: const Icon(Icons.delete_outline),
+              label: const Text(C3Strings.deleteMine),
+            ),
             TextButton(onPressed: _reset, child: const Text(C3Strings.resetDefaults)),
           ],
         ),

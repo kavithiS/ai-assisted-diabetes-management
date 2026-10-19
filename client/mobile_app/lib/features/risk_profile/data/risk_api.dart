@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/api_client.dart';
 import '../domain/risk_assessment.dart';
 import '../domain/risk_profile.dart';
+import '../domain/server_history.dart';
 import '../domain/service_status.dart';
 import 'risk_repository.dart';
 
@@ -30,6 +31,7 @@ class RiskApi implements RiskRepository {
     ApiClient? client,
     http.Client? httpClient,
     this.researcherMode = false,
+    this.deviceId,
     this.timeout = const Duration(seconds: 10),
   })  : _client = client ?? ApiClient(),
         _http = httpClient ?? http.Client();
@@ -39,23 +41,29 @@ class RiskApi implements RiskRepository {
 
   /// Adds `?debug=true`; the server only honours it in research mode.
   final bool researcherMode;
+
+  /// Random device pseudonym, sent as the X-Device-Id header so the server can save
+  /// the result (best-effort). Never a name; never in the URL.
+  final String? deviceId;
   final Duration timeout;
 
   /// Gateway route; the gateway forwards it to C3. No service port is used here.
   Uri get assessUri => _client.uri('/api/v1/risk/assess');
   Uri get statusUri => _client.uri('/api/v1/risk/status');
+  Uri get historyUri => _client.uri('/api/v1/risk/history');
+
+  Map<String, String> get _deviceHeader => deviceId == null ? const {} : {'X-Device-Id': deviceId!};
 
   @override
   bool get isDemoData => false;
 
   @override
-  Future<RiskAssessment> assess(RiskProfile profile) async {
-    final uri =
-        researcherMode ? assessUri.replace(queryParameters: {'debug': 'true'}) : assessUri;
+  Future<RiskAssessment> assess(RiskProfile profile, {bool save = true}) async {
+    final uri = researcherMode ? assessUri.replace(queryParameters: {'debug': 'true'}) : assessUri;
     final body = await _send(
       () => _http.post(
         uri,
-        headers: const {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', if (save) ..._deviceHeader},
         body: jsonEncode(profile.toJson()),
       ),
     );
@@ -67,7 +75,32 @@ class RiskApi implements RiskRepository {
   }
 
   @override
-  Future<ServiceStatus> status() async => ServiceStatus.fromJson(await _send(() => _http.get(statusUri)));
+  Future<List<ServerHistoryItem>> history() async {
+    final body = await _send(() => _http.get(historyUri, headers: _deviceHeader));
+    return (body['items'] as List<dynamic>)
+        .map((e) => ServerHistoryItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<int> deleteMyRecords() async {
+    final body = await _send(() => _http.delete(historyUri, headers: _deviceHeader));
+    return body['deleted_assessments'] as int;
+  }
+
+  @override
+  Future<ServiceStatus> status() async =>
+      ServiceStatus.fromJson(await _send(() => _http.get(statusUri)));
+
+  /// FastAPI's `detail` text, e.g. "C3 database is unreachable."
+  static String? _detail(http.Response response) {
+    try {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      return body is Map<String, dynamic> ? body['detail'] as String? : null;
+    } on FormatException {
+      return null;
+    }
+  }
 
   Future<Map<String, dynamic>> _send(Future<http.Response> Function() request) async {
     final http.Response response;
@@ -88,9 +121,9 @@ class RiskApi implements RiskRepository {
       case 200:
         break;
       case 503:
-        throw const RiskApiException(
+        throw RiskApiException(
           RiskApiErrorKind.notReady,
-          'The risk model is not loaded on the server yet.',
+          _detail(response) ?? 'The risk model is not loaded on the server yet.',
         );
       case 502:
         throw const RiskApiException(
@@ -110,7 +143,8 @@ class RiskApi implements RiskRepository {
       throw const RiskApiException(RiskApiErrorKind.badResponse, 'The answer was not valid JSON.');
     }
     if (decoded is! Map<String, dynamic>) {
-      throw const RiskApiException(RiskApiErrorKind.badResponse, 'The answer had an unexpected shape.');
+      throw const RiskApiException(
+          RiskApiErrorKind.badResponse, 'The answer had an unexpected shape.');
     }
     return decoded;
   }

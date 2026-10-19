@@ -1,5 +1,6 @@
 import '../domain/risk_assessment.dart';
 import '../domain/risk_profile.dart';
+import '../domain/server_history.dart';
 import '../domain/service_status.dart';
 import 'risk_repository.dart';
 
@@ -14,15 +15,20 @@ class MockRiskRepository implements RiskRepository {
   bool get isDemoData => true;
 
   @override
-  Future<RiskAssessment> assess(RiskProfile profile) async =>
+  Future<RiskAssessment> assess(RiskProfile profile, {bool save = true}) async =>
       RiskAssessment.fromJson(_demoHighResult);
 
   @override
   Future<ServiceStatus> status() async =>
       const ServiceStatus(modelLoaded: true, models: {'demo': 'demo'});
 
-  static const String _disclaimer =
-      'Statistical risk estimate for self-management support. '
+  @override
+  Future<List<ServerHistoryItem>> history() async => const [];
+
+  @override
+  Future<int> deleteMyRecords() async => 0;
+
+  static const String _disclaimer = 'Statistical risk estimate for self-management support. '
       'This is not a diagnosis and does not replace medical advice.';
 
   static const Map<String, dynamic> _demoHighResult = {
