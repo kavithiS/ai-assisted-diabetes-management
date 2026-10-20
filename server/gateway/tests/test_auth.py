@@ -24,6 +24,7 @@ PASSWORD = "correct horse battery"
 EMAIL = "demo@example.test"
 GatewayFactory = Callable[..., Any]
 REGISTRATION = {
+    "display_name": "Kasun Perera",
     "email": "New.Patient@Example.test",
     "password": "a long enough password",
     "consent_version": "v1",
@@ -212,6 +213,7 @@ def test_registration_when_open_creates_a_user_and_consent(make_gateway: Gateway
         user = session.scalars(select(AppUser)).one()
     assert (consent.consent_version, consent.scope) == ("v1", "app_use")
     assert user.email == "new.patient@example.test"
+    assert user.display_name == "Kasun Perera"
     assert user.role == "patient" and user.is_demo is False
 
 
@@ -239,6 +241,28 @@ def test_registration_rejects_duplicates_weak_passwords_and_missing_consent(
     assert no_consent.status_code == 422
     bad_email = post(gateway, "/auth/register", **{**REGISTRATION, "email": "not-an-email"})
     assert bad_email.status_code == 422
+    missing_name = REGISTRATION.copy()
+    missing_name.pop("display_name")
+    assert (
+        post(gateway, "/auth/register", **{**missing_name, "email": "d@example.test"}).status_code
+        == 422
+    )
+
+
+def test_name_can_be_updated_and_persists(make_gateway: GatewayFactory) -> None:
+    gateway = make_gateway()
+    gateway.add_user()
+    token = gateway.login()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    invalid = gateway.client.patch("/api/v1/me", headers=headers, json={"display_name": " "})
+    assert invalid.status_code == 422
+    saved = gateway.client.patch(
+        "/api/v1/me", headers=headers, json={"display_name": "  Nimal Silva  "}
+    )
+    assert saved.status_code == 200
+    assert saved.json()["display_name"] == "Nimal Silva"
+    assert gateway.client.get("/api/v1/me", headers=headers).json()["display_name"] == "Nimal Silva"
 
 
 def test_login_endpoints_say_so_when_no_database_is_configured(

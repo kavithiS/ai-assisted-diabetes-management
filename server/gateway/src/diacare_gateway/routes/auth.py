@@ -46,14 +46,13 @@ LoginEmail = Annotated[
 NewPassword = Annotated[str, StringConstraints(min_length=10, max_length=128)]
 AnyPassword = Annotated[str, StringConstraints(min_length=1, max_length=128)]
 Token = Annotated[str, StringConstraints(min_length=1, max_length=256)]
+DisplayName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=100)]
 
 
 class RegisterRequest(BaseModel):
     email: RegisterEmail
     password: NewPassword
-    display_name: (
-        Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None
-    ) = None
+    display_name: DisplayName
     consent_version: Annotated[str, StringConstraints(min_length=1, max_length=32)]
     accept: Literal[True]
 
@@ -84,6 +83,10 @@ class UserOut(BaseModel):
     display_name: str | None
     role: str
     created_at: datetime
+
+
+class UpdateMeRequest(BaseModel):
+    display_name: DisplayName
 
 
 def _aware(moment: datetime) -> datetime:
@@ -257,6 +260,21 @@ def me(user: CurrentUser) -> UserOut:
         role=user.role,
         created_at=_aware(user.created_at),
     )
+
+
+@router.patch("/me")
+def update_me(
+    body: UpdateMeRequest,
+    request: Request,
+    user: CurrentUser,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> UserOut:
+    user.display_name = body.display_name
+    _audit(session, "profile_updated", user.id, request, settings)
+    session.commit()
+    session.refresh(user)
+    return me(user)
 
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
