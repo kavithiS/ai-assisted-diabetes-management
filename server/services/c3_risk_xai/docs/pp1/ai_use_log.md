@@ -13,3 +13,4 @@ Fill the "How I verified" column in your own words before adding these to `docs/
 | 2026-10-19 | Module 3 screens from the team prototype | 7 screens in the prototype style | Changed misleading prototype wording | |
 | 2026-10-20 | Emulator + release APK | New C3_Demo AVD, release-build fix, phone-window script | | |
 | 2026-10-20 | PP1 pack | Slides, script, Q&A, checklists | | |
+| 2026-10-20 | Final PP1 recheck | Fixed the phone-window port (Chrome blocks 5060) and window height; re-measured latency (2.22 s, saved to a result file) | Updated docs from 2.15 s to the measured 2.22 s | |

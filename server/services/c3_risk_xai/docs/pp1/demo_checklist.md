@@ -7,9 +7,16 @@
    Wait for `All good`. Keep the **C3** and **Gateway** windows open.
 3. Emulator instead (optional, 1-3 min boot):
    `& "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd C3_Demo -no-snapshot -gpu swiftshader_indirect -no-boot-anim`
-   then open **DiaCare AI** on it.
+   then once, to get the latest app (includes the warm-up fix):
+   `& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" install -r client\mobile_app\build\app\outputs\flutter-apk\app-release.apk`
+   and open **DiaCare AI** on it.
 4. In the app: **Risk Profile** tab → chip says **Connected** → **Warm up the model**.
 5. Run **Higher-risk example** once (High, DHS 58), go back.
+
+Note: the DHS is adaptive. If you run the lower-risk example right after the higher-risk one on
+the same device, its score is blended with the previous one (seen: 79 instead of 100). That is
+by design; say "the score evolves with the patient's history". For a clean 100, use Settings →
+"Delete my saved results" first.
 
 ## During the demo
 | Click | Say |

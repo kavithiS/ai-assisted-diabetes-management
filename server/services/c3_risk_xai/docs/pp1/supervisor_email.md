@@ -4,7 +4,9 @@
 
 Dear Ms Kahandawaarachchi and Ms Premarathne,
 
-After PP1 I need your guidance on three points for Component 3:
+After PP1 I need your guidance on three points for Component 3. For context: the ethics
+application was submitted on 21/09/2026 and is not approved yet, and KDU could not share the
+amount of data we requested, so I currently use public South Asian datasets and demo data only.
 
 1. **Wording of the risk output.** My model is trained on open South Asian data where the label is
    "diagnosed diabetes (yes/no)", but our app users already have diabetes. I currently describe the
