@@ -1,0 +1,7 @@
+# Candidate training dataset: public Food-101.
+# Selected via the `kind` key (see src/c1_food_nutrition/ml/data/registry.py).
+# No dataset statistics are recorded here until the data is downloaded and versioned with DVC.
+name: Food-101
+kind: food101
+root: data/c1/raw/food101
+description: Public Food-101 dataset (candidate; dataset choice not finalised).

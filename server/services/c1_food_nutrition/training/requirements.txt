@@ -1,0 +1,13 @@
+# Training environment for C1 (Python 3.11). NOT installed by `uv sync`: the service does not
+# depend on PyTorch, and CI must not download it.
+#
+# GPU (CUDA 12.6) build, about 2.6 GB:
+#   python -m pip install torch==2.14.1 torchvision==0.29.1 --index-url https://download.pytorch.org/whl/cu126
+#   python -m pip install -r requirements.txt
+# The torch lines below are then already satisfied. Processor-only: just the second command.
+torch==2.14.1
+torchvision==0.29.1
+numpy>=2.4
+pillow>=12
+scikit-learn>=1.9   # only for the test that checks our metrics against scikit-learn
+pytest>=9

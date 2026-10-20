@@ -246,7 +246,12 @@ def test_dietary_risk_returns_503_when_gru_is_unavailable(
     response = client.post("/v1/glucose/dietary-risk", json=VALID_REQUEST)
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "The C2 forecasting model is currently unavailable."}
+    assert response.json()["error"] == {
+        "code": "SERVICE_UNAVAILABLE",
+        "message": "The C2 forecasting model is currently unavailable.",
+        "details": [],
+    }
+    assert response.json()["request_id"]
 
 
 @pytest.mark.parametrize(

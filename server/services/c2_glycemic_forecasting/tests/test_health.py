@@ -74,7 +74,14 @@ def test_forecast_returns_503_when_model_is_unavailable(monkeypatch: pytest.Monk
     )
 
     assert response.status_code == 503
-    assert response.json()["detail"] == ("The C2 forecasting model is currently unavailable.")
+    body = response.json()
+    assert body["error"] == {
+        "code": "SERVICE_UNAVAILABLE",
+        "message": "The C2 forecasting model is currently unavailable.",
+        "details": [],
+    }
+    assert body["request_id"]
+    assert "predictions" not in body
 
 
 VALID_REQUEST = {
@@ -112,8 +119,10 @@ def test_invalid_field_value_returns_422(field: str, value: object) -> None:
     response = client.post("/v1/glucose/forecast", json={**VALID_REQUEST, field: value})
 
     assert response.status_code == 422
-    detail = response.json()["detail"]
-    assert all("input" not in error for error in detail)
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert body["error"]["details"]
+    assert all(set(error) == {"field", "issue"} for error in body["error"]["details"])
 
 
 def test_unknown_field_returns_422() -> None:
@@ -142,8 +151,10 @@ def test_non_finite_number_returns_422_without_echoing_input(token: str) -> None
     )
 
     assert response.status_code == 422
-    detail = response.json()["detail"]
-    assert all("input" not in error for error in detail)
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    # Error details carry the field and the reason only; the rejected value is never echoed.
+    assert token not in response.text
+    assert all(set(error) == {"field", "issue"} for error in response.json()["error"]["details"])
 
 
 def test_decimal_values_are_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -204,6 +215,10 @@ def test_programming_errors_are_not_reported_as_503(
 
     monkeypatch.setattr(forecast_routes, "predict_glucose", broken_model)
 
-    # TestClient re-raises unhandled server errors, which a real server returns as 500.
-    with pytest.raises(error_type):
-        client.post("/v1/glucose/forecast", json=VALID_REQUEST)
+    # The shared RequestContextMiddleware turns unhandled errors into a 500 in the
+    # standard envelope, and logs them. These are not model outages, so never a 503.
+    response = client.post("/v1/glucose/forecast", json=VALID_REQUEST)
+
+    assert response.status_code == 500
+    assert response.json()["error"]["code"] == "INTERNAL_ERROR"
+    assert "predictions" not in response.json()

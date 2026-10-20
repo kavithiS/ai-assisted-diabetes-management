@@ -11,3 +11,5 @@ class BaseServiceSettings(BaseSettings):
     log_level: str = "INFO"
     database_url: str = "postgresql://diacare:change-me@localhost:5432/diacare"
     mlflow_tracking_uri: str = "http://localhost:5000"
+    #: Secret the gateway sends in ``X-Internal-Token``; every package must share the value.
+    internal_token: str | None = None
