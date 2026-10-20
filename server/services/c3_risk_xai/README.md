@@ -99,7 +99,9 @@ Request and response shapes: `docs/contract_proposal.md` (a proposal until the t
 
 Layers: `api/routes.py` (thin) -> `services/risk_service.py` (the only layer that imports `ml/`) -> `ml/` (plain Python). `ml/dataprep/` is offline code, used only by `training/` and tests. `tests/test_architecture.py` enforces these rules.
 
-**Clients.** The Flutter app (`client/mobile_app/lib/features/risk_profile/`) is the real client. `demo/streamlit_app.py` is a **PP1-only demo client**: it calls the API through the gateway and imports no model code. Whether Streamlit is allowed for PP1 is an open question in `CLAUDE.md`.
+**Client.** The Flutter app (`client/mobile_app/lib/features/risk_profile/`) is the only client: the seven Module 3 screens (DHS, health and lifestyle info, analysis, result, AI explanation, recommendations, what-if). It calls the gateway only and holds no model logic. The Streamlit demo was retired (supervisors require Flutter).
+
+**Also in PP1:** provisional Diabetic Health Score and template recommendations (`ml/dhs.py`, `ml/recommend.py`, `config/dhs.yaml`); PostgreSQL schema `c3` with history, deletion and audit log (`db/`, `migrations/`, `docs/database.md`). PP1 pack: `docs/pp1/`.
 
 ### Results (real test set: 1,058 Bangladeshi adults never used in training)
 
@@ -126,7 +128,8 @@ uv run python -m c3_risk_xai.ml.predict                                       # 
 uv run python -m c3_risk_xai.ml.explain                                       # Function 2 demo
 uv run pytest server/services/c3_risk_xai -v                                  # tests (no data needed)
 .\scripts\dev.ps1                                                             # gateway + C1-C4 services
-uv run --package c3-risk-xai --extra demo streamlit run server/services/c3_risk_xai/demo/streamlit_app.py
+.\server\services\c3_risk_xai\scripts\demo.ps1 -Research                    # C3 + gateway, one command
+.\server\services\c3_risk_xai\scripts\demo_phone.ps1                       # ... plus the app in a phone window
 ```
 
 ### Where things live
@@ -143,7 +146,8 @@ server/services/c3_risk_xai/
 │       │                       explain (FUNCTION 2), evidence
 │       └── dataprep/           data_loader, south_asia_dataset, synthetic (offline)
 ├── training/                   external_data.py, train.py, experiment_south_asia.py
-├── demo/streamlit_app.py       PP1 demo CLIENT (calls the API over HTTP)
+├── scripts/                    demo.ps1, demo_phone.ps1 (one-command demo)
+├── migrations/, alembic.ini    PostgreSQL schema c3
 ├── tests/                      pipeline, service, API and architecture tests (no data needed)
 └── docs/                       data dictionary, architecture, requirements, test plan,
                                 risk register, diary, AI usage log, demo script, figures/,

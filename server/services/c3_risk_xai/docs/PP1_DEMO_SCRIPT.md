@@ -1,3 +1,5 @@
+> **Superseded (2026-10-20):** the current demo is the Flutter app. Use `docs/pp1/demo_checklist.md` and `docs/pp1/script_2min.md`.
+
 # PP1 demo script - Component 3
 
 About 6 minutes of live demo inside a 10-12 minute slot. Every number below comes

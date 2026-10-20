@@ -33,7 +33,10 @@ Patient data (questionnaire + clinical, optional glucose)
    Plain-language summary    <- modifiable vs not-modifiable factors
           |                     FUNCTION 2 OUTPUT
           v
-   FastAPI service (POST /v1/risk/assess)  <-- gateway <-- Flutter app / Streamlit demo (clients)
+   FastAPI service (POST /v1/risk/assess)  <-- gateway <-- Flutter app (client)
+          |
+          v
+   DHS + recommendations, saved in PostgreSQL schema c3
 ```
 
 ## Training pipeline
@@ -66,10 +69,10 @@ DiaBD + Narsingdi (Bangladesh)  --south_asia_dataset-->  harmonised table
 | Predict (Function 1) | `src/c3_risk_xai/ml/predict.py` | Done |
 | Explain (Function 2) | `src/c3_risk_xai/ml/explain.py` | Done |
 | Evidence figures | `src/c3_risk_xai/ml/evidence.py` | Done |
-| Demo client (calls the API) | `demo/streamlit_app.py` | Done |
-| DHS engine | not yet created | PP2 |
+| DHS (provisional) + recommendations | `ml/dhs.py`, `ml/recommend.py`, `config/dhs.yaml` | Done |
+| Database (history, deletion, audit) | `db/`, `migrations/` | Done |
 | API route + service layer | `api/routes.py`, `services/risk_service.py`, `schemas.py` | Done |
-| Flutter C3 screens | `client/mobile_app/lib/features/risk_profile/` | Split done, screens PP2 |
+| Flutter C3 screens | `client/mobile_app/lib/features/risk_profile/` | Done (7 Module 3 screens) |
 
 ## Integration with the other components
 
