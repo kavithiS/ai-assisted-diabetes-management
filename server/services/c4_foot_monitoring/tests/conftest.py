@@ -34,7 +34,10 @@ def make_client() -> Iterator[Callable[..., TestClient]]:
     clients: list[TestClient] = []
 
     def factory(**overrides: object) -> TestClient:
-        settings = Settings(environment="test", **overrides)  # type: ignore[arg-type]
+        # Ignore the developer's .env, so a local FOOT_MODEL_PATH never changes the tests.
+        values: dict[str, object] = {"environment": "test", "foot_model_path": None}
+        values.update(overrides)
+        settings = Settings(_env_file=None, **values)  # type: ignore[arg-type]
         client = TestClient(create_app(settings))
         client.__enter__()  # runs the lifespan, which loads the classifier
         clients.append(client)

@@ -126,9 +126,7 @@ def test_error_envelope_echoes_request_id(client: TestClient) -> None:
 def test_missing_weights_fall_back_to_mock(
     make_client: Callable[..., TestClient], jpeg_bytes: bytes
 ) -> None:
-    fallback = make_client(
-        foot_model_path="does-not-exist.pth", foot_model_classes=("ulcer", "normal")
-    )
+    fallback = make_client(foot_model_path="does-not-exist.pt")
 
     response = fallback.post(URL, files={"image": ("foot.jpg", jpeg_bytes, "image/jpeg")})
 

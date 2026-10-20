@@ -24,7 +24,8 @@ Without settings the service uses a **mock classifier**: results are synthetic a
 response says `meta.is_mock: true`. The mock cycles Low → Medium → High so a demo shows every
 band.
 
-To use the trained ResNet50 (`best_resnet50_dfu.pth`, never committed; keep it in `data/c4/`):
+To use the trained ResNet50 checkpoint (never committed; keep it in `data/c4/`, e.g.
+`data/c4/resnet50_dfu_20261020_055802.pt`):
 
 ```bash
 uv sync --all-packages --extra model   # adds torch and torchvision to the shared .venv
@@ -34,8 +35,8 @@ Then set in `.env`:
 
 | Variable | Example | Note |
 |---|---|---|
-| `FOOT_MODEL_PATH` | `data/c4/best_resnet50_dfu.pth` | Missing file → warning and mock |
-| `FOOT_MODEL_CLASSES` | `["ulcer", "normal"]` | Label of output index 0 and 1, in training order. Required with the path: [INFORMATION REQUIRED] |
+| `FOOT_MODEL_PATH` | `data/c4/resnet50_dfu_20261020_055802.pt` | Missing file → warning and mock |
+| `FOOT_MODEL_CLASSES` | `["normal", "ulcer"]` | Optional. The class order is read from the checkpoint's `class_names`; set this only for a checkpoint without it. If both exist they must agree |
 | `FOOT_MODEL_DEVICE` | `cpu` | or `cuda` |
 | `FOOT_LOW_RISK_MIN_NORMAL_PROBABILITY` | `0.8` | "normal" at or above → Low, below → Medium. Placeholder cut-off, to agree with the supervisors |
 

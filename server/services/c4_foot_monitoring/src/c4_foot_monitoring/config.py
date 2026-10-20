@@ -35,8 +35,8 @@ class Settings(BaseSettings):
     foot_model_path: Path | None = Field(
         default=None,
         description=(
-            "Trained ResNet50 weights (e.g. data/c4/best_resnet50_dfu.pth). Empty means the "
-            "mock classifier. Never committed to git."
+            "Trained ResNet50 checkpoint (e.g. data/c4/resnet50_dfu_20261020_055802.pt). "
+            "Empty means the mock classifier. Never committed to git."
         ),
     )
     foot_model_device: Literal["cpu", "cuda"] = Field(
@@ -46,8 +46,8 @@ class Settings(BaseSettings):
         default=None,
         description=(
             "Label of each model output index, in training order, as JSON, e.g. "
-            '\'["ulcer", "normal"]\'. Required with FOOT_MODEL_PATH. It must match the '
-            "class order used in training: [INFORMATION REQUIRED]."
+            '\'["normal", "ulcer"]\'. Only needed when the checkpoint has no class_names; '
+            "if both exist they must agree."
         ),
     )
     foot_low_risk_min_normal_probability: float = Field(
@@ -73,9 +73,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check_model_settings(self) -> "Settings":
-        """A trained model needs its class order; image types must be ones we can decode."""
-        if self.foot_model_path is not None and self.foot_model_classes is None:
-            raise ValueError("FOOT_MODEL_CLASSES is required when FOOT_MODEL_PATH is set")
+        """The class order names each class once; image types must be ones we can decode."""
         if self.foot_model_classes is not None and len(set(self.foot_model_classes)) != 2:
             raise ValueError("FOOT_MODEL_CLASSES must name 'normal' and 'ulcer' once each")
         unsupported = self.allowed_image_types - SUPPORTED_IMAGE_TYPES

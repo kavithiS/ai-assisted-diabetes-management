@@ -27,11 +27,6 @@ def test_risk_band_rule(label: str, confidence: float, band: str) -> None:
     assert risk_band_for(result, 0.8) == band
 
 
-def test_model_path_requires_class_order() -> None:
-    with pytest.raises(ValidationError, match="FOOT_MODEL_CLASSES"):
-        Settings(foot_model_path=Path("model.pth"))
-
-
 def test_class_order_must_name_both_classes() -> None:
     with pytest.raises(ValidationError):
         Settings(foot_model_path=Path("model.pth"), foot_model_classes=("ulcer", "ulcer"))

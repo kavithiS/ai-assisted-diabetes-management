@@ -34,7 +34,7 @@ class ModelLoadError(RuntimeError):
 
 
 def build_network(torch_nn: Any, torchvision_models: Any) -> Any:
-    """ResNet50 with the head used in training: 2048 → 256 → 2."""
+    """ResNet50 with the head used in training: 2048 â†’ 256 â†’ 2."""
     network = torchvision_models.resnet50(weights=None)
     network.fc = torch_nn.Sequential(
         torch_nn.Dropout(0.3),
@@ -55,29 +55,60 @@ def _file_version(path: Path) -> str:
     return f"{path.stem}-{digest.hexdigest()[:8]}"
 
 
+def _classes_from(
+    checkpoint_classes: object, configured: tuple[FootLabel, FootLabel] | None
+) -> tuple[FootLabel, FootLabel]:
+    """The class order: from the checkpoint's ``class_names``, else from the settings."""
+    from_file: tuple[FootLabel, FootLabel] | None = None
+    if checkpoint_classes is not None:
+        if not isinstance(checkpoint_classes, list | tuple):
+            raise ModelLoadError("class_names in the checkpoint is not a list")
+        names = [str(name).lower() for name in checkpoint_classes]
+        if sorted(names) != ["normal", "ulcer"]:
+            raise ModelLoadError(f"Unexpected class_names in the checkpoint: {names}")
+        from_file = ("normal", "ulcer") if names[0] == "normal" else ("ulcer", "normal")
+    if from_file and configured and from_file != configured:
+        raise ModelLoadError(
+            f"FOOT_MODEL_CLASSES {list(configured)} differs from the checkpoint's "
+            f"class_names {list(from_file)}"
+        )
+    classes = from_file or configured
+    if classes is None:
+        raise ModelLoadError(
+            "The checkpoint has no class_names; set FOOT_MODEL_CLASSES to the training order"
+        )
+    return classes
+
+
 class TorchFootClassifier:
     """Binary classifier: the class with the highest softmax score wins."""
 
     def __init__(
-        self, weights_path: Path, classes: tuple[FootLabel, FootLabel], device: str = "cpu"
+        self,
+        weights_path: Path,
+        classes: tuple[FootLabel, FootLabel] | None = None,
+        device: str = "cpu",
     ) -> None:
         """Load the weights.
 
         Args:
-            weights_path: ``state_dict`` file saved by the training notebook.
-            classes: label of output index 0 and 1, in training order.
+            weights_path: a ``state_dict``, or a checkpoint dict with ``model_state_dict``
+                and ``class_names`` as saved by the training notebook.
+            classes: label of output index 0 and 1. Optional when the checkpoint has
+                ``class_names``; if both are given they must agree.
             device: ``cpu`` (default for the server) or ``cuda``.
 
         Raises:
-            ModelLoadError: the file is missing or does not fit the architecture.
+            ModelLoadError: the file is missing, does not fit the architecture, or the class
+                order is unknown or contradictory.
             RuntimeError: PyTorch or torchvision is not installed.
         """
         if not weights_path.is_file():
             raise ModelLoadError(f"Model weights not found: {weights_path}")
 
         try:
-            import torch  # type: ignore[import-not-found, unused-ignore]
-            import torchvision  # type: ignore[import-not-found, unused-ignore]
+            import torch  # type: ignore[import-not-found, import-untyped, unused-ignore]
+            import torchvision  # type: ignore[import-not-found, import-untyped, unused-ignore]
         except ImportError as exc:
             raise RuntimeError(
                 "FOOT_MODEL_PATH needs PyTorch and torchvision in this environment "
@@ -86,10 +117,15 @@ class TorchFootClassifier:
 
         try:
             state = torch.load(weights_path, map_location=device, weights_only=True)
+            checkpoint_classes = None
             if isinstance(state, dict) and "model_state_dict" in state:
+                checkpoint_classes = state.get("class_names")
                 state = state["model_state_dict"]
+            classes = _classes_from(checkpoint_classes, classes)
             network = build_network(torch.nn, torchvision.models)
             network.load_state_dict(state)
+        except ModelLoadError:
+            raise
         except (OSError, RuntimeError, KeyError, ValueError) as exc:
             raise ModelLoadError(f"Could not load model weights from {weights_path}") from exc
 
@@ -131,7 +167,7 @@ def build_classifier(settings: Settings) -> FootClassifier:
     A missing weights file falls back to the mock with a warning, so the demo still runs;
     every response then says ``is_mock: true``.
     """
-    if settings.foot_model_path is None or settings.foot_model_classes is None:
+    if settings.foot_model_path is None:
         logger.info("FOOT_MODEL_PATH not set: using the mock foot classifier.")
         return MockFootClassifier()
     try:
