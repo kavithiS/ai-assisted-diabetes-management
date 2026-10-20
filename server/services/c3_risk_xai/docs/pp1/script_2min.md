@@ -1,4 +1,4 @@
-# 2-minute script (about 260 words)
+# 2-minute script (about 255 spoken words)
 
 `[CUE]` = what to click. Start with the app open on the Risk Profile tab, model warmed up.
 
@@ -27,10 +27,11 @@ five factors. The app says clearly: these are contributions, not medical causes.
 "Recommendations come only from fixed templates for things he can change. They never touch
 his medicines."
 
-**(Evidence, 20 s)**
-"On 1,058 real people never used in training, ROC-AUC is 0.78 without glucose and 0.85
-with it. 85 server tests and 37 app tests pass. Every result is saved in PostgreSQL with
-model and schema versions."
+**(Evidence, 25 s)**
+"On 1,058 people never used in training, ROC-AUC is 0.78 without glucose and 0.85 with it.
+85 server tests and 37 app tests pass. Every result is saved in PostgreSQL with model and
+schema versions. No real patient data is used yet: our ethics application was submitted on
+21 September, so this demo uses made-up people and public South Asian data."
 
 **(Next, 5 s)**
 "Next: real Sri Lankan lifestyle data after ethics approval, and connecting C1 and C2. Thank you."
