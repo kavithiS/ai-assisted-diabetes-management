@@ -5,7 +5,7 @@
 .DESCRIPTION
   1. Starts C3 + gateway with demo.ps1 (skipped if they already answer).
   2. Builds the Flutter web app once (release, into client\mobile_app\build\web_phone).
-  3. Serves it on http://127.0.0.1:5060 and opens Chrome in app mode, phone-sized
+  3. Serves it on http://127.0.0.1:5180 and opens Chrome in app mode, phone-sized
      (412 x 915), with a separate temporary profile and web security off. Your normal
      Chrome profile is never touched. Web security is off only because the gateway has
      no CORS yet (docs/pr_notes/gateway_note.md); this window is for the local demo only.
@@ -30,7 +30,8 @@ $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..\..")).Path
 $Python = Join-Path $RepoRoot ".venv\Scripts\python.exe"
 $App = Join-Path $RepoRoot "client\mobile_app"
 $Web = Join-Path $App "build\web_phone"
-$Port = 5060
+# Not 5060: Chrome blocks it (ERR_UNSAFE_PORT, reserved for SIP).
+$Port = 5180
 $Chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 $Profile = Join-Path $env:TEMP "c3-phone-demo-profile"
 $Demo = Join-Path $PSScriptRoot "demo.ps1"
@@ -73,6 +74,11 @@ if ($Rebuild -or -not (Test-Path (Join-Path $Web "index.html")) -or $builtFor -n
     }
 }
 
+# Fit the window on this screen (a 864 px laptop screen cut off the bottom tab bar).
+Add-Type -AssemblyName System.Windows.Forms
+$work = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+if ($Height -gt $work.Height - 30) { $Height = $work.Height - 30 }
+
 # 3. Serve the build and open the phone-sized window.
 Stop-Port $Port
 Start-Process $Python -ArgumentList "-m", "http.server", "$Port", "--bind", "127.0.0.1", "--directory", "`"$Web`"" -WindowStyle Hidden
@@ -80,7 +86,7 @@ Start-Sleep -Seconds 2
 Start-Process $Chrome -ArgumentList @(
     "--app=http://127.0.0.1:$Port/",
     "--window-size=$Width,$Height",
-    "--window-position=40,20",
+    "--window-position=40,0",
     "--user-data-dir=`"$Profile`"",
     "--disable-web-security",
     "--no-first-run",
