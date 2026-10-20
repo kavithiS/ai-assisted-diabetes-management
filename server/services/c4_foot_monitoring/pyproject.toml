@@ -1,12 +1,24 @@
 [project]
 name = "c4-foot-monitoring"
-version = "0.1.0"
+version = "0.2.0"
 description = "C4 Mobile Platform & Foot Monitoring service (DiaCare AI research prototype)"
 requires-python = ">=3.11,<3.12"
 dependencies = [
     "diacare-shared",
     "fastapi>=0.115",
+    "numpy>=2.0",
+    "opencv-python-headless>=4.10",
+    "pydantic-settings>=2.4",
+    "python-multipart>=0.0.9",
     "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+# The trained model. Not installed by a plain `uv sync`, so CI and the mock run without it:
+#   uv sync --extra model
+model = [
+    "torch>=2.4.1",
+    "torchvision>=0.19.1",
 ]
 
 [tool.uv.sources]
