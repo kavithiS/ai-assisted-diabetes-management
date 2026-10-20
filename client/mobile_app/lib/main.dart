@@ -6,7 +6,7 @@ import 'features/auth/data/account_api.dart';
 import 'features/auth/data/auth_api.dart';
 import 'features/auth/data/auth_tokens.dart';
 import 'features/foot_monitor/foot_monitor_screen.dart';
-import 'features/glucose/glucose_screen.dart';
+import 'features/glucose/glucose_tabs.dart';
 import 'features/home/home_dashboard_screen.dart';
 import 'features/meal_history/meal_history_screen.dart';
 import 'features/meal_history/data/meal_history_api.dart';
@@ -133,7 +133,10 @@ class _HomeShellState extends State<HomeShell> {
             userName: _user?.greetingName,
             todaySummary: _today,
             onScanMeal: _openMealScan,
-            onGlucoseCheck: () => _open(const GlucoseScreen()),
+            onGlucoseCheck: () => _open(Scaffold(
+              appBar: AppBar(title: const Text('Glucose')),
+              body: const GlucoseTabs(),
+            )),
             onRiskCheck: () => _open(const RiskProfileScreen()),
             onFootCheck: () => _open(const FootMonitorScreen()),
             onMealHistory: () => _open(const MealHistoryScreen()),

@@ -7,6 +7,11 @@ dependencies = [
     "diacare-shared",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "pandas-stubs",
+    "torch>=2.14.1",
+    "xgboost>=2.1",
 ]
 
 [tool.uv.sources]

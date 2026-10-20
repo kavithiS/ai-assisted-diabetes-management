@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_app/features/dashboard/dashboard_screen.dart';
 import 'package:mobile_app/features/foot_monitor/foot_monitor_screen.dart';
-import 'package:mobile_app/features/glucose/glucose_screen.dart';
 import 'package:mobile_app/features/risk_profile/risk_profile_screen.dart';
 
 void main() {
@@ -13,11 +12,6 @@ void main() {
   }
 
   final screens = <String, ({Widget screen, String title, String feature})>{
-    'glucose': (
-      screen: const GlucoseScreen(),
-      title: 'Glucose Forecast',
-      feature: 'A 4-hour estimate of your glucose after a meal',
-    ),
     'risk profile': (
       screen: const RiskProfileScreen(),
       title: 'Risk Profile',
@@ -60,8 +54,8 @@ void main() {
           body: Column(children: [
             const Text('ROOT'),
             TextButton(
-              onPressed: () => Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => const GlucoseScreen())),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const RiskProfileScreen())),
               child: const Text('OPEN'),
             ),
           ]),
