@@ -12,14 +12,16 @@ void main() {
   test('login posts the credentials and returns the tokens', () async {
     final gateway = FakeGateway((_) => tokenResponse());
 
-    final tokens =
-        await gateway.api.login(email: '  me@example.test ', password: 'secret pass');
+    final tokens = await gateway.api
+        .login(email: '  me@example.test ', password: 'secret pass');
 
     expect(gateway.requests.single.method, 'POST');
     expect(gateway.requests.single.url.toString(),
         'http://gateway.test:8000/api/v1/auth/login');
-    expect(gateway.requests.single.headers['Content-Type'], contains('application/json'));
-    expect(gateway.bodyOf(0), {'email': 'me@example.test', 'password': 'secret pass'});
+    expect(gateway.requests.single.headers['Content-Type'],
+        contains('application/json'));
+    expect(gateway.bodyOf(0),
+        {'email': 'me@example.test', 'password': 'secret pass'});
     expect(tokens.accessToken, 'access-1');
     expect(tokens.refreshToken, 'refresh-1');
     expect(tokens.expiresInSeconds, 900);
@@ -40,10 +42,14 @@ void main() {
   test('register posts the consent and expects 201', () async {
     final gateway = FakeGateway((_) => json(201, {'user_id': 'abc'}));
 
-    await gateway.api.register(email: 'me@example.test', password: 'a long enough password');
+    await gateway.api.register(
+        fullName: 'Nimal Silva',
+        email: 'me@example.test',
+        password: 'a long enough password');
 
     expect(gateway.requests.single.url.path, '/api/v1/auth/register');
     expect(gateway.bodyOf(0), {
+      'display_name': 'Nimal Silva',
       'email': 'me@example.test',
       'password': 'a long enough password',
       'consent_version': kConsentVersion,
@@ -52,11 +58,14 @@ void main() {
   });
 
   test('a closed registration gives the gateway message', () async {
-    final gateway = FakeGateway(
-        (_) => errorEnvelope(403, 'REGISTRATION_CLOSED', 'Registration is closed.'));
+    final gateway = FakeGateway((_) =>
+        errorEnvelope(403, 'REGISTRATION_CLOSED', 'Registration is closed.'));
 
     await expectLater(
-      gateway.api.register(email: 'me@example.test', password: 'a long enough password'),
+      gateway.api.register(
+          fullName: 'Nimal Silva',
+          email: 'me@example.test',
+          password: 'a long enough password'),
       throwsA(isA<AuthApiException>()
           .having((e) => e.code, 'code', 'REGISTRATION_CLOSED')
           .having((e) => e.message, 'message', 'Registration is closed.')),
@@ -69,25 +78,32 @@ void main() {
           'VALIDATION_ERROR',
           'The request is invalid.',
           details: [
-            {'field': 'password', 'issue': 'String should have at least 10 characters'},
+            {
+              'field': 'password',
+              'issue': 'String should have at least 10 characters'
+            },
           ],
         ));
 
     await expectLater(
-      gateway.api.register(email: 'me@example.test', password: 'short'),
-      throwsA(isA<AuthApiException>().having(
-          (e) => e.details, 'details', ['String should have at least 10 characters'])),
+      gateway.api.register(
+          fullName: 'Nimal Silva', email: 'me@example.test', password: 'short'),
+      throwsA(isA<AuthApiException>().having((e) => e.details, 'details',
+          ['String should have at least 10 characters'])),
     );
   });
 
   test('an unreachable server gives a NETWORK error', () async {
     final api = AuthApi(
       apiClient: ApiClient(baseUrl: 'http://gateway.test:8000'),
-      httpClient: MockClient((_) async => throw http.ClientException('refused')),
+      httpClient:
+          MockClient((_) async => throw http.ClientException('refused')),
     );
 
-    await expectLater(api.login(email: 'a@b.co', password: 'x'),
-        throwsA(isA<AuthApiException>().having((e) => e.code, 'code', 'NETWORK')));
+    await expectLater(
+        api.login(email: 'a@b.co', password: 'x'),
+        throwsA(
+            isA<AuthApiException>().having((e) => e.code, 'code', 'NETWORK')));
   });
 
   test('a slow server gives a TIMEOUT error', () async {
@@ -97,12 +113,15 @@ void main() {
       requestTimeout: const Duration(milliseconds: 20),
     );
 
-    await expectLater(api.login(email: 'a@b.co', password: 'x'),
-        throwsA(isA<AuthApiException>().having((e) => e.code, 'code', 'TIMEOUT')));
+    await expectLater(
+        api.login(email: 'a@b.co', password: 'x'),
+        throwsA(
+            isA<AuthApiException>().having((e) => e.code, 'code', 'TIMEOUT')));
   });
 
   test('a reply that is not the error envelope never crashes', () async {
-    final gateway = FakeGateway((_) => http.Response('<html>Bad gateway</html>', 502));
+    final gateway =
+        FakeGateway((_) => http.Response('<html>Bad gateway</html>', 502));
 
     await expectLater(
       gateway.api.login(email: 'a@b.co', password: 'x'),
@@ -115,7 +134,9 @@ void main() {
   test('a malformed success reply gives BAD_RESPONSE', () async {
     final gateway = FakeGateway((_) => json(200, {'unexpected': true}));
 
-    await expectLater(gateway.api.login(email: 'a@b.co', password: 'x'),
-        throwsA(isA<AuthApiException>().having((e) => e.code, 'code', 'BAD_RESPONSE')));
+    await expectLater(
+        gateway.api.login(email: 'a@b.co', password: 'x'),
+        throwsA(isA<AuthApiException>()
+            .having((e) => e.code, 'code', 'BAD_RESPONSE')));
   });
 }

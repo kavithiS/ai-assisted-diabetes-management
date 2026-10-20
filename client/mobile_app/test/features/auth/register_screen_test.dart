@@ -24,21 +24,23 @@ void main() {
       );
 
   /// A gateway that creates the account (201) and then logs in (200).
-  FakeGateway openGateway() => FakeGateway((request) =>
-      request.url.path.endsWith('/register')
+  FakeGateway openGateway() =>
+      FakeGateway((request) => request.url.path.endsWith('/register')
           ? json(201, {'user_id': 'u1'})
           : tokenResponse());
 
   Future<void> fill(
     WidgetTester tester, {
+    String name = 'Nimal Silva',
     String email = 'me@example.test',
     String password = 'a long enough password',
     String confirm = 'a long enough password',
     bool agree = true,
   }) async {
-    await tester.enterText(find.byType(TextFormField).at(0), email);
-    await tester.enterText(find.byType(TextFormField).at(1), password);
-    await tester.enterText(find.byType(TextFormField).at(2), confirm);
+    await tester.enterText(find.byType(TextFormField).at(0), name);
+    await tester.enterText(find.byType(TextFormField).at(1), email);
+    await tester.enterText(find.byType(TextFormField).at(2), password);
+    await tester.enterText(find.byType(TextFormField).at(3), confirm);
     if (agree) await tester.tap(find.byType(Checkbox));
     await tester.tap(find.text('Create Account'));
     await tester.pumpAndSettle();
@@ -66,13 +68,15 @@ void main() {
     expect(gateway.requests, isEmpty);
   });
 
-  testWidgets('checks the email, the password length and that the passwords match',
+  testWidgets(
+      'checks the email, the password length and that the passwords match',
       (tester) async {
     useTallView(tester);
     final gateway = openGateway();
     await tester.pumpWidget(app(gateway, AuthSession()));
 
-    await fill(tester, email: 'not-an-email', password: 'short', confirm: 'different');
+    await fill(tester,
+        email: 'not-an-email', password: 'short', confirm: 'different');
 
     expect(find.text('Enter a valid email address.'), findsOneWidget);
     expect(find.text('Use 10 to 128 characters.'), findsOneWidget);
@@ -80,7 +84,7 @@ void main() {
     expect(gateway.requests, isEmpty);
   });
 
-  testWidgets('creates the account, signs in and continues to the questionnaire',
+  testWidgets('creates the account, signs in and opens health setup',
       (tester) async {
     useTallView(tester);
     final session = AuthSession();
@@ -92,11 +96,13 @@ void main() {
     expect(gateway.requests.map((r) => r.url.path),
         ['/api/v1/auth/register', '/api/v1/auth/login']);
     expect(gateway.bodyOf(0)['accept'], isTrue);
+    expect(gateway.bodyOf(0)['display_name'], 'Nimal Silva');
     expect(gateway.bodyOf(0)['consent_version'], kConsentVersion);
     expect(gateway.bodyOf(1),
         {'email': 'me@example.test', 'password': 'a long enough password'});
     expect(session.tokens!.accessToken, 'access-1');
     expect(find.byType(QuestionnaireScreen), findsOneWidget);
+    expect(find.text('Health Profile Setup'), findsOneWidget);
     expect(find.byType(RegisterScreen), findsNothing);
   });
 
@@ -125,25 +131,54 @@ void main() {
 
     await fill(tester);
 
-    expect(find.text('An account with this e-mail already exists.'), findsOneWidget);
+    expect(find.text('An account with this e-mail already exists.'),
+        findsOneWidget);
     expect(find.text('EMAIL_TAKEN'), findsOneWidget);
   });
 
-  testWidgets('if the account is created but sign-in fails, that error is shown',
+  testWidgets(
+      'if the account is created but sign-in fails, that error is shown',
       (tester) async {
     useTallView(tester);
     final session = AuthSession();
-    final gateway = FakeGateway((request) => request.url.path.endsWith('/register')
-        ? json(201, {'user_id': 'u1'})
-        : errorEnvelope(
-            429, 'TOO_MANY_ATTEMPTS', 'Too many failed attempts. Try again later.'));
+    final gateway = FakeGateway((request) =>
+        request.url.path.endsWith('/register')
+            ? json(201, {'user_id': 'u1'})
+            : errorEnvelope(429, 'TOO_MANY_ATTEMPTS',
+                'Too many failed attempts. Try again later.'));
     await tester.pumpWidget(app(gateway, session));
 
     await fill(tester);
 
-    expect(find.text('Too many failed attempts. Try again later.'), findsOneWidget);
+    expect(find.text('Too many failed attempts. Try again later.'),
+        findsOneWidget);
+    expect(find.text('Continue to account'), findsOneWidget);
     expect(session.isSignedIn, isFalse);
-    expect(find.byType(QuestionnaireScreen), findsNothing);
+    expect(find.text('HOME PAGE'), findsNothing);
+  });
+
+  testWidgets('retrying sign-in does not create a second account',
+      (tester) async {
+    useTallView(tester);
+    var loginAttempts = 0;
+    final gateway = FakeGateway((request) {
+      if (request.url.path.endsWith('/register')) {
+        return json(201, {'user_id': 'u1'});
+      }
+      loginAttempts++;
+      return loginAttempts == 1
+          ? errorEnvelope(503, 'SERVICE_UNAVAILABLE', 'Try again.')
+          : tokenResponse();
+    });
+    await tester.pumpWidget(app(gateway, AuthSession()));
+
+    await fill(tester);
+    await tester.tap(find.text('Continue to account'));
+    await tester.pumpAndSettle();
+
+    expect(gateway.requests.where((r) => r.url.path.endsWith('/register')),
+        hasLength(1));
+    expect(find.byType(QuestionnaireScreen), findsOneWidget);
   });
 
   testWidgets('"Log in" opens the login screen', (tester) async {

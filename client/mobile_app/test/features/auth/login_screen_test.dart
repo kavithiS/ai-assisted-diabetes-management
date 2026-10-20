@@ -25,7 +25,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('shows the fields, the buttons and a disabled "Forgot password?"',
+  testWidgets('shows the fields and supported actions',
       (tester) async {
     useTallView(tester);
     await tester.pumpWidget(app(FakeGateway((_) => tokenResponse()), AuthSession()));
@@ -33,9 +33,7 @@ void main() {
     expect(find.text('Email'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
     expect(find.text('Log In'), findsOneWidget);
-    final forgot =
-        tester.widget<TextButton>(find.widgetWithText(TextButton, 'Forgot password?'));
-    expect(forgot.onPressed, isNull);
+    expect(find.text('Forgot password?'), findsNothing);
     expect(find.text('Create account'), findsOneWidget);
   });
 

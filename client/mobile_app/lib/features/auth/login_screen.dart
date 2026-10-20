@@ -42,7 +42,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      final tokens = await _api.login(email: _email.text, password: _password.text);
+      final tokens =
+          await _api.login(email: _email.text, password: _password.text);
       await _session.signIn(tokens);
       if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
@@ -58,11 +59,13 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) => AuthScaffold(
         title: 'Welcome back',
-        subtitle: 'Log in to continue with your meals, glucose and health insights.',
+        subtitle:
+            'Log in to continue with your meals, glucose and health insights.',
         children: [
           Form(
             key: _formKey,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               AuthField(
                 label: 'Email',
                 child: TextFormField(
@@ -70,9 +73,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(hintText: 'you@example.com'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Enter your email.' : null,
+                  decoration:
+                      const InputDecoration(hintText: 'you@example.com'),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Enter your email.'
+                      : null,
                 ),
               ),
               AuthField(
@@ -88,15 +93,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ]),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: null,
-              child: Text('Forgot password?',
-                  style: GoogleFonts.inter(
-                      fontSize: 13, fontWeight: FontWeight.w600)),
-            ),
-          ),
           if (_error != null) AuthErrorText(_error!),
           const SizedBox(height: 4),
           FilledButton(
@@ -105,23 +101,26 @@ class _LoginScreenState extends State<LoginScreen> {
             child: _busy ? const ButtonSpinner() : const Text('Log In'),
           ),
           const SizedBox(height: 18),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text("Don't have an account?",
-                style: GoogleFonts.inter(
-                    fontSize: 13.5, color: AppColors.textSecondary)),
-            TextButton(
-              onPressed: _busy
-                  ? null
-                  : () => Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                            builder: (_) => RegisterScreen(
-                                api: widget.api, session: widget.session)),
-                      ),
-              child: Text('Create account',
-                  style: GoogleFonts.inter(
-                      fontSize: 13.5, fontWeight: FontWeight.w700)),
-            ),
-          ]),
+          Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text("Don't have an account?",
+                    style: GoogleFonts.manrope(
+                        fontSize: 13.5, color: AppColors.textSecondary)),
+                TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () => Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                                builder: (_) => RegisterScreen(
+                                    api: widget.api, session: widget.session)),
+                          ),
+                  child: Text('Create account',
+                      style: GoogleFonts.manrope(
+                          fontSize: 13.5, fontWeight: FontWeight.w700)),
+                ),
+              ]),
         ],
       );
 }

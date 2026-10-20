@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
 import 'add_food_screen.dart';
 import 'data/meal_history_api.dart';
 import 'data/meal_history_models.dart';
@@ -38,7 +39,9 @@ class _MealHistoryScreenState extends State<MealHistoryScreen> {
     } on MealHistoryException catch (e) {
       if (mounted) setState(() => _error = e.userMessage);
     } catch (_) {
-      if (mounted) setState(() => _error = 'Could not load meals. Check your connection.');
+      if (mounted) {
+        setState(() => _error = 'Could not load meals. Check your connection.');
+      }
     }
   }
 
@@ -46,7 +49,7 @@ class _MealHistoryScreenState extends State<MealHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Meal History'),
+        title: const Text('Meal history'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -60,8 +63,7 @@ class _MealHistoryScreenState extends State<MealHistoryScreen> {
         onPressed: () async {
           await Navigator.push<void>(
             context,
-            MaterialPageRoute(
-                builder: (_) => AddFoodScreen(api: _api)),
+            MaterialPageRoute(builder: (_) => AddFoodScreen(api: _api)),
           );
           _load();
         },
@@ -86,14 +88,39 @@ class _MealHistoryScreenState extends State<MealHistoryScreen> {
     }
     if (_meals == null) return const Center(child: CircularProgressIndicator());
     if (_meals!.isEmpty) {
-      return const Center(child: Text('No meals logged yet.'));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Icon(Icons.restaurant_menu_rounded,
+                  size: 32, color: AppColors.primary),
+            ),
+            const SizedBox(height: 18),
+            Text('No meals logged yet.',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 7),
+            const Text(
+              'Scan a plate or add a meal manually. Your meal timeline will appear here.',
+              textAlign: TextAlign.center,
+              style: TextStyle(height: 1.45, color: AppColors.textSecondary),
+            ),
+          ]),
+        ),
+      );
     }
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 96),
         itemCount: _meals!.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (context, i) => _MealTile(
           meal: _meals![i],
           onTap: () async {
@@ -125,20 +152,54 @@ class _MealTile extends StatelessWidget {
         '${dt.day}/${dt.month}/${dt.year}  ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     final kcal = meal.totals.energyKcal;
     final subtitle = [
-      if (meal.mealType != null) meal.mealType!.label,
       if (kcal != null) '${kcal.toStringAsFixed(0)} kcal',
       '${meal.items.length} item${meal.items.length == 1 ? '' : 's'}',
     ].join(' · ');
 
-    return ListTile(
-      onTap: onTap,
-      leading: Icon(
-        _mealIcon(meal.mealType),
-        color: theme.colorScheme.primary,
+    return Material(
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(_mealIcon(meal.mealType),
+                  color: theme.colorScheme.primary, size: 21),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(meal.mealType?.label ?? 'Meal',
+                      style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 3),
+                  Text('$dateStr  ·  $subtitle',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary, height: 1.35)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.textSecondary),
+          ]),
+        ),
       ),
-      title: Text(dateStr),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
     );
   }
 

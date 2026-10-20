@@ -14,13 +14,7 @@ class SplashScreen extends StatelessWidget {
         ),
         child: Scaffold(
           body: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF0A8996), AppColors.primaryDark],
-              ),
-            ),
+            color: AppColors.primaryDark,
             child: SafeArea(
               child: Center(
                 child: Column(
@@ -30,29 +24,28 @@ class SplashScreen extends StatelessWidget {
                       width: 84,
                       height: 84,
                       decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(36),
-                        borderRadius: BorderRadius.circular(24),
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(26),
                       ),
                       child: const Icon(Icons.water_drop_outlined,
-                          size: 40, color: Colors.white),
+                          size: 40, color: AppColors.primaryDark),
                     ),
                     const SizedBox(height: 20),
                     Text('DiaCare AI',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 27,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
                             letterSpacing: -0.02)),
                     const SizedBox(height: 8),
                     Text('Your Personalized Diabetes Companion',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 13.5,
                             color: Colors.white.withAlpha(210))),
                     const SizedBox(height: 26),
                     Text('Tap anywhere to continue',
-                        style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: Colors.white.withAlpha(130))),
+                        style: GoogleFonts.manrope(
+                            fontSize: 11, color: Colors.white.withAlpha(130))),
                   ],
                 ),
               ),

@@ -25,7 +25,7 @@ class ComingSoonView extends StatelessWidget {
         backgroundColor: AppColors.background,
         body: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(22, 6, 22, 24),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
             children: [
               if (Navigator.of(context).canPop())
                 Align(
@@ -38,59 +38,96 @@ class ComingSoonView extends StatelessWidget {
                 )
               else
                 const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Row(children: [
-                  IconContainer(icon: icon, size: 48),
-                  const SizedBox(width: 13),
-                  Expanded(
-                    child: Text(title,
-                        style: GoogleFonts.inter(
-                            fontSize: 20,
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(20),
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryDark,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(22),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Icon(icon, color: Colors.white, size: 23),
+                      ),
+                      const Spacer(),
+                      const AppBadge('Coming soon',
+                          variant: AppBadgeVariant.warning,
+                          icon: Icons.schedule_rounded),
+                    ]),
+                    const SizedBox(height: 26),
+                    Text(title,
+                        style: GoogleFonts.manrope(
+                            fontSize: 25,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.text)),
-                  ),
-                  const AppBadge('Coming soon',
-                      variant: AppBadgeVariant.warning, icon: Icons.schedule),
-                ]),
+                            letterSpacing: -.6,
+                            color: Colors.white)),
+                    const SizedBox(height: 8),
+                    Text(summary,
+                        style: GoogleFonts.manrope(
+                            fontSize: 13,
+                            height: 1.5,
+                            color: Colors.white.withAlpha(190))),
+                  ],
+                ),
               ),
               AppCard(
-                child: Text(summary,
-                    style: GoogleFonts.inter(
-                        fontSize: 14, height: 1.5, color: AppColors.text)),
-              ),
-              AppCard(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const SectionLabel('What it will do'),
-                  for (final feature in features)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(top: 1),
-                              child: Icon(Icons.check_circle_outline,
-                                  size: 17, color: AppColors.primary),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(feature,
-                                  style: GoogleFonts.inter(
-                                      fontSize: 13.5,
-                                      height: 1.45,
-                                      color: AppColors.text)),
-                            ),
-                          ]),
-                    ),
-                ]),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionLabel('What it will do'),
+                      for (final feature in features)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryLight,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.check_rounded,
+                                      size: 14, color: AppColors.primary),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(feature,
+                                      style: GoogleFonts.manrope(
+                                          fontSize: 13.5,
+                                          height: 1.45,
+                                          color: AppColors.text)),
+                                ),
+                              ]),
+                        ),
+                    ]),
               ),
               AppCard(
                 color: AppColors.primaryLight,
-                child: Text(
-                    'This feature is still being built. Nothing is recorded or shown here yet.',
-                    style: GoogleFonts.inter(
-                        fontSize: 13, height: 1.45, color: AppColors.primaryDark)),
+                child: Row(children: [
+                  const Icon(Icons.lock_outline_rounded,
+                      size: 19, color: AppColors.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                        'Nothing is recorded here while this feature is being built.',
+                        style: GoogleFonts.manrope(
+                            fontSize: 12.5,
+                            height: 1.45,
+                            color: AppColors.primaryDark)),
+                  ),
+                ]),
               ),
               const DisclaimerBanner(
                   'Research prototype. Outputs will be estimates and predictions, not diagnoses.'),

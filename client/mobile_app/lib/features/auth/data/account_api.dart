@@ -29,10 +29,17 @@ class UserProfile {
   final String role;
   final String? displayName;
 
-  /// The name shown in greetings: the display name when there is one, otherwise the e-mail.
+  /// Never use the e-mail address as the account's display name.
   String get label {
     final name = displayName?.trim();
-    return name == null || name.isEmpty ? email : name;
+    return name == null || name.isEmpty ? 'Complete your profile' : name;
+  }
+
+  String get greetingName {
+    final name = displayName?.trim();
+    return name == null || name.isEmpty
+        ? 'Welcome'
+        : name.split(RegExp(r'\s+')).first;
   }
 }
 
@@ -58,11 +65,33 @@ class AccountApi {
 
   Future<UserProfile> me() async {
     final response = await _send(() => _http.get(_apiClient.uri('/api/v1/me')));
-    if (response.statusCode != 200) throw AuthApiException.fromResponse(response);
+    if (response.statusCode != 200) {
+      throw AuthApiException.fromResponse(response);
+    }
     try {
-      return UserProfile.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      return UserProfile.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>);
     } catch (_) {
-      throw const AuthApiException('BAD_RESPONSE', 'Something went wrong. Please try again.');
+      throw const AuthApiException(
+          'BAD_RESPONSE', 'Something went wrong. Please try again.');
+    }
+  }
+
+  Future<UserProfile> updateName(String fullName) async {
+    final response = await _send(() => _http.patch(
+          _apiClient.uri('/api/v1/me'),
+          headers: const {'Content-Type': 'application/json'},
+          body: jsonEncode({'display_name': fullName.trim()}),
+        ));
+    if (response.statusCode != 200) {
+      throw AuthApiException.fromResponse(response);
+    }
+    try {
+      return UserProfile.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>);
+    } catch (_) {
+      throw const AuthApiException(
+          'BAD_RESPONSE', 'Something went wrong. Please try again.');
     }
   }
 
@@ -89,8 +118,11 @@ class AccountApi {
   /// when the gateway confirms; on a failure the account is unchanged and the call can be
   /// repeated.
   Future<void> deleteAccount() async {
-    final response = await _send(() => _http.delete(_apiClient.uri('/api/v1/me')));
-    if (response.statusCode != 204) throw AuthApiException.fromResponse(response);
+    final response =
+        await _send(() => _http.delete(_apiClient.uri('/api/v1/me')));
+    if (response.statusCode != 204) {
+      throw AuthApiException.fromResponse(response);
+    }
     await _session.signOut();
   }
 

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
-import '../onboarding/questionnaire_screen.dart';
 import 'auth_widgets.dart';
 import 'data/auth_api.dart';
 import 'data/auth_tokens.dart';
 import 'login_screen.dart';
+import '../onboarding/questionnaire_screen.dart';
 
 /// Wording of the consent checkbox, as given by the project owner.
 const String kConsentText =
@@ -28,6 +28,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _fullName = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
@@ -37,10 +38,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _consent = false;
   bool _consentMissing = false;
   bool _busy = false;
+  bool _accountCreated = false;
+  String? _createdUserId;
   AuthApiException? _error;
 
   @override
   void dispose() {
+    _fullName.dispose();
     _email.dispose();
     _password.dispose();
     _confirm.dispose();
@@ -58,13 +62,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _error = null;
     });
     try {
-      await _api.register(email: _email.text, password: _password.text);
+      if (!_accountCreated) {
+        _createdUserId = await _api.register(
+            fullName: _fullName.text,
+            email: _email.text,
+            password: _password.text);
+        _accountCreated = true;
+      }
       // The gateway returns no tokens when an account is created, so sign in straight away.
-      final tokens = await _api.login(email: _email.text, password: _password.text);
+      final tokens =
+          await _api.login(email: _email.text, password: _password.text);
       await _session.signIn(tokens);
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const QuestionnaireScreen()),
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(
+            builder: (_) => QuestionnaireScreen(userId: _createdUserId!)),
+        (_) => false,
       );
     } on AuthApiException catch (e) {
       if (!mounted) return;
@@ -78,26 +91,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) => AuthScaffold(
         title: 'Create your account',
-        subtitle: 'One account keeps your meals and health information together.',
+        subtitle:
+            'One account keeps your meals and health information together.',
         children: [
           Form(
             key: _formKey,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               AuthField(
-                label: 'Email',
+                label: 'Full name *',
+                child: TextFormField(
+                  controller: _fullName,
+                  autofillHints: const [AutofillHints.name],
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(hintText: 'Your full name'),
+                  validator: (value) {
+                    final name = value?.trim() ?? '';
+                    if (name.isEmpty) return 'Enter your full name.';
+                    if (name.length < 2 || name.length > 100) {
+                      return 'Use 2 to 100 characters.';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              AuthField(
+                label: 'Email *',
                 child: TextFormField(
                   controller: _email,
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(hintText: 'you@example.com'),
-                  validator: (v) => (v != null && emailPattern.hasMatch(v.trim()))
-                      ? null
-                      : 'Enter a valid email address.',
+                  decoration:
+                      const InputDecoration(hintText: 'you@example.com'),
+                  validator: (v) =>
+                      (v != null && emailPattern.hasMatch(v.trim()))
+                          ? null
+                          : 'Enter a valid email address.',
                 ),
               ),
               AuthField(
-                label: 'Password',
+                label: 'Password *',
                 child: PasswordField(
                   controller: _password,
                   hintText: 'At least $kMinPasswordLength characters',
@@ -111,7 +146,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               AuthField(
-                label: 'Confirm password',
+                label: 'Confirm password *',
                 child: PasswordField(
                   controller: _confirm,
                   autofillHints: const [AutofillHints.newPassword],
@@ -133,7 +168,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     }),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              child:
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Checkbox(
                   value: _consent,
                   onChanged: _busy
@@ -148,7 +184,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: Text(kConsentText,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 13, height: 1.45, color: AppColors.text)),
                   ),
                 ),
@@ -159,33 +195,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
             Padding(
               padding: const EdgeInsets.only(left: 12, bottom: 8),
               child: Text('Please agree to continue.',
-                  style: GoogleFonts.inter(fontSize: 13, color: AppColors.danger)),
+                  style: GoogleFonts.manrope(
+                      fontSize: 13, color: AppColors.danger)),
             ),
           const SizedBox(height: 10),
           if (_error != null) AuthErrorText(_error!),
+          if (_accountCreated && _error != null)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Text(
+                  'Your account was created. Try signing in again to continue.'),
+            ),
           FilledButton(
             style: primaryButtonStyle(),
             onPressed: _busy ? null : _submit,
-            child: _busy ? const ButtonSpinner() : const Text('Create Account'),
+            child: _busy
+                ? const ButtonSpinner()
+                : Text(
+                    _accountCreated ? 'Continue to account' : 'Create Account'),
           ),
           const SizedBox(height: 18),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text('Already have an account?',
-                style: GoogleFonts.inter(
-                    fontSize: 13.5, color: AppColors.textSecondary)),
-            TextButton(
-              onPressed: _busy
-                  ? null
-                  : () => Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                            builder: (_) => LoginScreen(
-                                api: widget.api, session: widget.session)),
-                      ),
-              child: Text('Log in',
-                  style: GoogleFonts.inter(
-                      fontSize: 13.5, fontWeight: FontWeight.w700)),
-            ),
-          ]),
+          Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text('Already have an account?',
+                    style: GoogleFonts.manrope(
+                        fontSize: 13.5, color: AppColors.textSecondary)),
+                TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () => Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                                builder: (_) => LoginScreen(
+                                    api: widget.api, session: widget.session)),
+                          ),
+                  child: Text('Log in',
+                      style: GoogleFonts.manrope(
+                          fontSize: 13.5, fontWeight: FontWeight.w700)),
+                ),
+              ]),
         ],
       );
 }

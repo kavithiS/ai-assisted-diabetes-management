@@ -12,7 +12,8 @@ const String kConsentVersion = 'v1';
 
 /// Calls the gateway's login endpoints: `POST /api/v1/auth/login` and `/register`.
 class AuthApi {
-  AuthApi({ApiClient? apiClient, http.Client? httpClient, Duration? requestTimeout})
+  AuthApi(
+      {ApiClient? apiClient, http.Client? httpClient, Duration? requestTimeout})
       : _apiClient = apiClient ?? ApiClient(),
         _http = httpClient ?? http.Client(),
         requestTimeout = requestTimeout ?? _defaultTimeout;
@@ -23,14 +24,18 @@ class AuthApi {
   static const Duration _defaultTimeout = Duration(seconds: 15);
   final Duration requestTimeout;
 
-  Future<AuthTokens> login({required String email, required String password}) async {
+  Future<AuthTokens> login(
+      {required String email, required String password}) async {
     final response = await _post('/api/v1/auth/login', {
       'email': email.trim(),
       'password': password,
     });
-    if (response.statusCode != 200) throw AuthApiException.fromResponse(response);
+    if (response.statusCode != 200) {
+      throw AuthApiException.fromResponse(response);
+    }
     try {
-      return AuthTokens.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      return AuthTokens.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>);
     } catch (_) {
       // Malformed JSON or an unexpected shape: never crash the screen.
       throw const AuthApiException('BAD_RESPONSE', _genericMessage);
@@ -38,23 +43,38 @@ class AuthApi {
   }
 
   /// Creates the account. The gateway answers `201 {"user_id": ...}` and no tokens.
-  Future<void> register({required String email, required String password}) async {
+  Future<String> register(
+      {required String fullName,
+      required String email,
+      required String password}) async {
     final response = await _post('/api/v1/auth/register', {
+      'display_name': fullName.trim(),
       'email': email.trim(),
       'password': password,
       'consent_version': kConsentVersion,
       'accept': true,
     });
-    if (response.statusCode != 201) throw AuthApiException.fromResponse(response);
+    if (response.statusCode != 201) {
+      throw AuthApiException.fromResponse(response);
+    }
+    try {
+      return (jsonDecode(response.body) as Map<String, dynamic>)['user_id']
+          as String;
+    } catch (_) {
+      throw const AuthApiException('BAD_RESPONSE', _genericMessage);
+    }
   }
 
   /// Swaps a refresh token for a new pair. Each refresh token works only once.
   Future<AuthTokens> refresh(String refreshToken) async {
     final response =
         await _post('/api/v1/auth/refresh', {'refresh_token': refreshToken});
-    if (response.statusCode != 200) throw AuthApiException.fromResponse(response);
+    if (response.statusCode != 200) {
+      throw AuthApiException.fromResponse(response);
+    }
     try {
-      return AuthTokens.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      return AuthTokens.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>);
     } catch (_) {
       throw const AuthApiException('BAD_RESPONSE', _genericMessage);
     }
@@ -109,7 +129,9 @@ class AuthApiException implements Exception {
         final raw = error['details'];
         if (raw is List) {
           for (final item in raw) {
-            if (item is Map && item['issue'] is String) details.add(item['issue'] as String);
+            if (item is Map && item['issue'] is String) {
+              details.add(item['issue'] as String);
+            }
           }
         }
       }

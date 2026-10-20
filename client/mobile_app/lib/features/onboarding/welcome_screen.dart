@@ -12,60 +12,145 @@ class WelcomeScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 22),
-            child: Column(children: [
-              const SizedBox(height: 34),
-              // Image placeholder
-              Container(
-                height: 230,
-                margin: const EdgeInsets.only(bottom: 26),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFFCFEEEF), AppColors.primaryLight],
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+                children: [
+                  Row(children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.water_drop_outlined,
+                          size: 20, color: Colors.white),
+                    ),
+                    const SizedBox(width: 10),
+                    Text('DiaCare AI',
+                        style: GoogleFonts.manrope(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text)),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text('Research prototype',
+                          style: GoogleFonts.manrope(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primaryDark)),
+                    ),
+                  ]),
+                  const SizedBox(height: 22),
+                  Container(
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryDark,
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 58,
+                          height: 58,
+                          decoration: BoxDecoration(
+                            color: AppColors.accent,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Icon(Icons.favorite_outline_rounded,
+                              color: AppColors.primaryDark, size: 29),
+                        ),
+                        const SizedBox(height: 42),
+                        Text('Everyday care,\nmade clearer.',
+                            style: GoogleFonts.manrope(
+                                fontSize: 32,
+                                height: 1.08,
+                                letterSpacing: -1,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Bring meals, glucose predictions, risk insights and foot monitoring into one calm daily view.',
+                          style: GoogleFonts.manrope(
+                              fontSize: 13.5,
+                              height: 1.5,
+                              color: Colors.white.withAlpha(220)),
+                        ),
+                        const SizedBox(height: 22),
+                        const Row(children: [
+                          _FeaturePill(Icons.restaurant_outlined, 'Meals'),
+                          SizedBox(width: 8),
+                          _FeaturePill(Icons.insights_outlined, 'Insights'),
+                          SizedBox(width: 8),
+                          _FeaturePill(Icons.healing_outlined, 'Foot'),
+                        ]),
+                      ],
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Center(
-                  child: Icon(Icons.favorite_border,
-                      size: 78, color: AppColors.primary),
-                ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    style: primaryButtonStyle(),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                    ),
+                    child: const Text('Get Started'),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton(
+                    style: ghostButtonStyle(),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    ),
+                    child: const Text('I already have an account'),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Outputs are estimates and predictions, not diagnoses.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.manrope(
+                        fontSize: 11.5, color: AppColors.textSecondary),
+                  ),
+                ],
               ),
-              Text('Manage your diabetes with confidence',
-                  style: GoogleFonts.inter(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.text,
-                      height: 1.25)),
-              const SizedBox(height: 12),
-              Text(
-                'AI-powered meal analysis, glucose prediction, risk insight and foot monitoring — built for how Sri Lankans actually eat and live.',
-                style: GoogleFonts.inter(
-                    fontSize: 14.5,
-                    color: AppColors.textSecondary,
-                    height: 1.55),
-              ),
-              const Spacer(),
-              FilledButton(
-                style: primaryButtonStyle(),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                ),
-                child: const Text('Get Started'),
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton(
-                style: ghostButtonStyle(),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                ),
-                child: const Text('I already have an account'),
-              ),
-              const SizedBox(height: 24),
-            ]),
+            ),
           ),
+        ),
+      );
+}
+
+class _FeaturePill extends StatelessWidget {
+  const _FeaturePill(this.icon, this.label);
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withAlpha(24),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(children: [
+            Icon(icon, size: 18, color: Colors.white),
+            const SizedBox(height: 5),
+            Text(label,
+                style: GoogleFonts.manrope(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white)),
+          ]),
         ),
       );
 }

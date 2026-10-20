@@ -8,7 +8,9 @@ import '../../../core/widgets.dart';
 import '../../meal_history/data/meal_history_api.dart';
 import '../../meal_history/data/meal_history_models.dart';
 import '../data/meal_analysis.dart';
+import 'food_database_picker.dart';
 import 'meal_result_view.dart' show formatAmount, formatNutrient, sourceLabel;
+import 'portion_edit_dialog.dart';
 
 /// Patient-facing C1 review flow.
 class MealModuleFlow extends StatefulWidget {
@@ -48,8 +50,7 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
   late List<bool> _included = List<bool>.filled(_foods.length, true);
   _ReviewStep _step = _ReviewStep.recognition;
   int? _editingIndex;
-  late final MealHistoryApi _historyApi =
-      widget.historyApi ?? MealHistoryApi();
+  late final MealHistoryApi _historyApi = widget.historyApi ?? MealHistoryApi();
   bool _saving = false;
   bool _saved = false;
   String? _saveError;
@@ -63,6 +64,16 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
         for (final food in _includedFoods) food.nutrition,
       ]);
 
+  /// Keep full meal totals strict for saving. The UI can separately show the
+  /// sum of reported values when an included food has missing nutrition.
+  NutrientProfile get _displayTotals => _foodsWithoutData.isEmpty
+      ? _totals
+      : NutrientProfile.sumAvailable([
+          for (final food in _includedFoods) food.nutrition,
+        ]);
+
+  bool get _hasPartialTotals => _foodsWithoutData.isNotEmpty;
+
   /// Included foods missing any of the headline nutrients; they make the meal total unknown.
   List<String> get _foodsWithoutData => [
         for (final food in _includedFoods)
@@ -74,13 +85,66 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
       ];
 
   bool get _hasMockNutrition =>
-      _foods.any((food) => food.nutritionSource == 'MOCK');
+      _includedFoods.any((food) => food.nutritionSource == 'MOCK');
 
-  Widget _notices() => Column(children: [
-        if (widget.analysis.isMock) _DemoNotice(mockNutrition: _hasMockNutrition),
-        if (_foodsWithoutData.isNotEmpty)
-          _MissingDataNotice(foods: _foodsWithoutData),
-      ]);
+  /// C1 records close and partial matches in its warnings. Show the note only
+  /// while the corresponding food is included in this meal.
+  List<String> get _nutritionMatchNotices => [
+        for (final food in _includedFoods)
+          for (final warning in widget.analysis.warnings)
+            if (warning
+                .startsWith("'${food.label}': nutrition from table entry "))
+              warning
+                  .replaceFirst(
+                      RegExp(r"^'[^']+': nutrition from table entry [^ ]+ \("),
+                      'Estimated nutrition for ${foodDisplayName(food.label)} uses a ')
+                  .replaceFirst(RegExp(r'\)$'), '.'),
+      ];
+
+  Widget _notices() {
+    if (!widget.analysis.recognitionIsMock &&
+        !widget.analysis.hasPlaceholderPortions &&
+        _foodsWithoutData.isEmpty &&
+        _nutritionMatchNotices.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        leading: const Icon(Icons.info_outline_rounded,
+            size: 18, color: AppColors.primary),
+        title: Text(
+          widget.analysis.recognitionIsMock
+              ? 'Demo analysis — values are placeholders'
+              : widget.analysis.hasPlaceholderPortions
+                  ? 'Review the estimated portions'
+                  : _hasPartialTotals
+                      ? 'Nutrition covers matched foods only'
+                      : 'About these nutrition values',
+          style: GoogleFonts.manrope(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primaryDark),
+        ),
+        children: [
+          if (widget.analysis.recognitionIsMock ||
+              widget.analysis.hasPlaceholderPortions)
+            _DemoNotice(mockNutrition: _hasMockNutrition),
+          if (_foodsWithoutData.isNotEmpty)
+            _MissingDataNotice(foods: _foodsWithoutData),
+          for (final notice in _nutritionMatchNotices) _Notice(notice),
+        ],
+      ),
+    );
+  }
 
   static const _mainSteps = <_ReviewStep>[
     _ReviewStep.recognition,
@@ -94,8 +158,12 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
   ];
 
   String get _title => switch (_step) {
-        _ReviewStep.recognition => 'Detected Foods',
-        _ReviewStep.foods => 'Confirm Detected Foods',
+        _ReviewStep.recognition => widget.analysis.recognitionIsMock
+            ? 'Demo Analysis'
+            : 'Detected Foods',
+        _ReviewStep.foods => widget.analysis.recognitionIsMock
+            ? 'Review Demo Foods'
+            : 'Confirm Detected Foods',
         _ReviewStep.editFood => 'Edit Food',
         _ReviewStep.portions => 'Confirm Portions',
         _ReviewStep.nutrition => 'Nutrition Analysis',
@@ -121,7 +189,34 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
     if (index > 0) setState(() => _step = _mainSteps[index - 1]);
   }
 
-  void _addFood() {
+  void _handleSystemBack() {
+    if (_step == _ReviewStep.recognition) {
+      widget.onScanAgain();
+    } else {
+      _back();
+    }
+  }
+
+  Future<void> _addFood() async {
+    final result = await showFoodDatabasePicker(context, _historyApi);
+    if (result == null || !mounted) return;
+    setState(() {
+      _foods = [
+        ..._foods,
+        FoodItem(
+          itemId: 'table-${result.id}-${DateTime.now().microsecondsSinceEpoch}',
+          label: result.name,
+          portion:
+              const Portion(grams: 100, estimationMethod: Portion.userEdited),
+          nutrition: result.per100g,
+          nutritionSource: result.source,
+        ),
+      ];
+      _included = [..._included, true];
+    });
+  }
+
+  void _addFoodManually() {
     final controller = TextEditingController();
     showDialog<String>(
       context: context,
@@ -135,8 +230,7 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
             child: const Text('Add food'),
@@ -152,8 +246,8 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
           FoodItem(
             itemId: 'user-${DateTime.now().microsecondsSinceEpoch}',
             label: label,
-            portion: const Portion(
-                grams: 100, estimationMethod: Portion.userEdited),
+            portion:
+                const Portion(grams: 100, estimationMethod: Portion.userEdited),
             nutrition: const NutrientProfile(),
           ),
         ];
@@ -182,7 +276,7 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
       await _historyApi.logMeal(MealCreate(
         eatenAt: widget.capturedAt,
         mealType: widget.analysis.mealType,
-        note: widget.analysis.isMock ? 'Demo meal analysis' : null,
+        note: widget.analysis.recognitionIsMock ? 'Demo meal analysis' : null,
         items: [
           for (final food in _includedFoods)
             MealItemIn.free(
@@ -225,22 +319,28 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
     if (_step == _ReviewStep.editFood && _editingIndex != null) {
       return _EditFoodPage(
         food: _foods[_editingIndex!],
+        historyApi: _historyApi,
         onCancel: _back,
         onSave: _saveFood,
       );
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(children: [
-          _buildTopBar(),
-          if (_step != _ReviewStep.recognition)
-            _StepProgress(
-                value: (_mainSteps.indexOf(_step)) /
-                    (_mainSteps.length - 1)),
-          Expanded(child: _buildStep()),
-        ]),
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _handleSystemBack();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Column(children: [
+            _buildTopBar(),
+            if (_step != _ReviewStep.recognition)
+              _StepProgress(
+                  value: (_mainSteps.indexOf(_step)) / (_mainSteps.length - 1)),
+            Expanded(child: _buildStep()),
+          ]),
+        ),
       ),
     );
   }
@@ -248,9 +348,11 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
   Widget _buildTopBar() => Padding(
         padding: const EdgeInsets.fromLTRB(22, 8, 22, 4),
         child: Row(children: [
-          if (_step != _ReviewStep.recognition)
-            InkWell(
-              onTap: _back,
+          Tooltip(
+            message: 'Back',
+            child: InkWell(
+              onTap:
+                  _step == _ReviewStep.recognition ? widget.onScanAgain : _back,
               borderRadius: BorderRadius.circular(11),
               child: Container(
                 width: 36,
@@ -263,9 +365,8 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
                 child: const Icon(Icons.arrow_back,
                     size: 17, color: AppColors.text),
               ),
-            )
-          else
-            const SizedBox(width: 36),
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(_title,
@@ -298,15 +399,28 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
             children: [
               _MealPhoto(image: widget.image, icon: Icons.camera_alt_outlined),
               Row(children: [
-                AiTag(_foods.isEmpty
-                    ? 'No foods recognised'
-                    : 'AI matched ${_foods.length} Sri Lankan '
-                        '${_foods.length == 1 ? 'dish' : 'dishes'}'),
+                AiTag(widget.analysis.recognitionIsMock
+                    ? 'Demo analysis · no photo recognition'
+                    : _foods.isEmpty
+                        ? 'No foods recognised'
+                        : 'AI matched ${_foods.length} Sri Lankan '
+                            '${_foods.length == 1 ? 'dish' : 'dishes'}'),
               ]),
               const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  _foods.isEmpty
+                      ? 'No foods were recognised. You can add foods from the database on the next screen.'
+                      : 'Check these matches. You can correct them or add missing foods on the next screen.',
+                  style: GoogleFonts.inter(
+                      fontSize: 12.5, color: AppColors.textSecondary),
+                ),
+              ),
               _notices(),
               for (final food in _foods) ...[
-                _RecognitionRow(label: food.label),
+                _RecognitionRow(
+                    label: food.label, demo: widget.analysis.recognitionIsMock),
                 const SizedBox(height: 4),
               ],
             ],
@@ -317,7 +431,11 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
           child: FilledButton(
             style: primaryButtonStyle(),
             onPressed: _next,
-            child: const Text('Confirm Detected Foods'),
+            child: Text(widget.analysis.recognitionIsMock
+                ? 'Review Demo Foods'
+                : _foods.isEmpty
+                    ? 'Add Foods'
+                    : 'Review Detected Foods'),
           ),
         ),
       ]);
@@ -330,8 +448,10 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
             padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
             children: [
               Row(children: [
-                AiTag('Multi-label recognition · ${_foods.length} '
-                    '${_foods.length == 1 ? 'dish' : 'dishes'} matched'),
+                AiTag(widget.analysis.recognitionIsMock
+                    ? 'Demo foods · replace with your meal'
+                    : 'Multi-label recognition · ${_foods.length} '
+                        '${_foods.length == 1 ? 'dish' : 'dishes'} matched'),
               ]),
               const SizedBox(height: 12),
               _notices(),
@@ -361,16 +481,21 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
                   child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                    const Icon(Icons.add,
-                        size: 16, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Text('Add Food',
-                        style: GoogleFonts.inter(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary)),
-                  ]),
+                        const Icon(Icons.add,
+                            size: 16, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text('Add from food database',
+                            style: GoogleFonts.inter(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary)),
+                      ]),
                 ),
+              ),
+              TextButton.icon(
+                onPressed: _addFoodManually,
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: const Text('Add an unlisted food'),
               ),
             ],
           ),
@@ -393,7 +518,7 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
             padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
             children: [
               Text(
-                'Review the AI-estimated portion for each detected food, or adjust it.',
+                'Check each amount. Nutrition updates when you change grams.',
                 style: GoogleFonts.inter(
                     fontSize: 12, color: AppColors.textSecondary),
               ),
@@ -422,14 +547,13 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
   // ── Step: Nutrition ────────────────────────────────────────────────────────
 
   Widget _buildNutrition() {
-    final totals = _totals;
+    final totals = _displayTotals;
     final maxMacro = [
       totals.carbohydrateG ?? 0,
       totals.proteinG ?? 0,
       totals.fatG ?? 0,
     ].reduce((a, b) => a > b ? a : b);
-    double fraction(double? v) =>
-        v == null || maxMacro <= 0 ? 0 : v / maxMacro;
+    double fraction(double? v) => v == null || maxMacro <= 0 ? 0 : v / maxMacro;
     final kcal = totals.energyKcal;
 
     return Column(children: [
@@ -444,7 +568,10 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
               margin: const EdgeInsets.only(bottom: 14),
               decoration: appCardDecoration(),
               child: Column(children: [
-                Text('ESTIMATED CALORIES',
+                Text(
+                    _hasPartialTotals
+                        ? 'ESTIMATED CALORIES FROM REPORTED FOODS'
+                        : 'ESTIMATED CALORIES',
                     style: GoogleFonts.inter(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w700,
@@ -454,7 +581,9 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
                 RichText(
                   text: TextSpan(children: [
                     TextSpan(
-                        text: kcal == null ? 'Not available' : '${formatAmount(kcal)} ',
+                        text: kcal == null
+                            ? 'Not available'
+                            : '${formatAmount(kcal)} ',
                         style: GoogleFonts.inter(
                             fontSize: kcal == null ? 22 : 34,
                             fontWeight: FontWeight.w800,
@@ -470,22 +599,44 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
               ]),
             ),
             NutritionBarRow(
-              label: 'Carbohydrates',
+              label: _hasPartialTotals
+                  ? 'Reported carbohydrates'
+                  : 'Carbohydrates',
               value: _roundedTotal(totals.carbohydrateG, 'g'),
               fraction: fraction(totals.carbohydrateG),
               color: AppColors.primary,
             ),
             NutritionBarRow(
-              label: 'Protein',
+              label: _hasPartialTotals ? 'Reported protein' : 'Protein',
               value: _roundedTotal(totals.proteinG, 'g'),
               fraction: fraction(totals.proteinG),
               color: AppColors.success,
             ),
             NutritionBarRow(
-              label: 'Fat',
+              label: _hasPartialTotals ? 'Reported fat' : 'Fat',
               value: _roundedTotal(totals.fatG, 'g'),
               fraction: fraction(totals.fatG),
               color: AppColors.warning,
+            ),
+            const SizedBox(height: 18),
+            Text('In this meal',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Container(
+              decoration: appCardDecoration(),
+              child: Column(children: [
+                for (var i = 0; i < _includedFoods.length; i++) ...[
+                  if (i > 0) const Divider(height: 1),
+                  ListTile(
+                    dense: true,
+                    title: Text(foodDisplayName(_includedFoods[i].label)),
+                    subtitle: Text(
+                        '${formatAmount(_includedFoods[i].portion.grams)} g'),
+                    trailing: Text(_roundedTotal(
+                        _includedFoods[i].nutrition.energyKcal, 'kcal')),
+                  ),
+                ],
+              ]),
             ),
           ],
         ),
@@ -513,7 +664,9 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
                 _FoodNutritionCard(food: food),
                 const SizedBox(height: 10),
               ],
-              const SectionLabel('Meal Total'),
+              SectionLabel(_hasPartialTotals
+                  ? 'Reported-Food Subtotal (Incomplete)'
+                  : 'Meal Total'),
               Container(
                 padding: const EdgeInsets.all(16),
                 margin: const EdgeInsets.only(bottom: 14),
@@ -521,13 +674,19 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
                 child: Column(children: [
                   _NutrientGridRow(
                     items: [
-                      ('Calories', _roundedTotal(_totals.energyKcal, 'kcal')),
-                      ('Carbohydrates', _roundedTotal(_totals.carbohydrateG, 'g')),
-                      ('Protein', _roundedTotal(_totals.proteinG, 'g')),
-                      ('Fat', _roundedTotal(_totals.fatG, 'g')),
+                      (
+                        'Calories',
+                        _roundedTotal(_displayTotals.energyKcal, 'kcal')
+                      ),
+                      (
+                        'Carbohydrates',
+                        _roundedTotal(_displayTotals.carbohydrateG, 'g')
+                      ),
+                      ('Protein', _roundedTotal(_displayTotals.proteinG, 'g')),
+                      ('Fat', _roundedTotal(_displayTotals.fatG, 'g')),
                     ],
                   ),
-                  if (_totals.dietaryFiberG != null) ...[
+                  if (_displayTotals.dietaryFiberG != null) ...[
                     const Divider(height: 1, color: AppColors.border),
                     Padding(
                       padding: const EdgeInsets.only(top: 11),
@@ -539,7 +698,7 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
                                   fontSize: 11.5,
                                   color: AppColors.textSecondary)),
                           Text(
-                              formatNutrient(_totals.dietaryFiberG, "g"),
+                              formatNutrient(_displayTotals.dietaryFiberG, "g"),
                               style: GoogleFonts.inter(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
@@ -574,6 +733,7 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
                   style: GoogleFonts.inter(
                       fontSize: 12, color: AppColors.textSecondary)),
               const SizedBox(height: 14),
+              _notices(),
               // 2x2 grid of GI metrics
               GridView.count(
                 crossAxisCount: 2,
@@ -588,11 +748,13 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
                   const _GlycemicMetricCard(
                       label: 'Glycemic Load', value: 'Not available'),
                   _GlycemicMetricCard(
-                      label: 'Carbohydrates',
-                      value: _roundedTotal(_totals.carbohydrateG, 'g')),
+                      label: _hasPartialTotals
+                          ? 'Reported carbs'
+                          : 'Carbohydrates',
+                      value: _roundedTotal(_displayTotals.carbohydrateG, 'g')),
                   _GlycemicMetricCard(
-                      label: 'Fibre',
-                      value: formatNutrient(_totals.dietaryFiberG, 'g')),
+                      label: _hasPartialTotals ? 'Reported fibre' : 'Fibre',
+                      value: formatNutrient(_displayTotals.dietaryFiberG, 'g')),
                 ],
               ),
               const SizedBox(height: 14),
@@ -636,8 +798,7 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
               _MealPhoto(image: widget.image, icon: Icons.check_circle_outline),
               Center(
                 child: Column(children: [
-                  Text(
-                      widget.analysis.mealType?.label ?? 'Meal',
+                  Text(widget.analysis.mealType?.label ?? 'Meal',
                       style: GoogleFonts.inter(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -649,6 +810,9 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
               ),
               const SizedBox(height: 14),
               // 2x2 nutrition grid
+              if (_hasPartialTotals) ...[
+                const SectionLabel('Reported-Food Subtotal (Incomplete)'),
+              ],
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -659,16 +823,16 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
                 children: [
                   _SummaryMetricCard(
                       label: 'Calories',
-                      value: _roundedTotal(_totals.energyKcal, 'kcal')),
+                      value: _roundedTotal(_displayTotals.energyKcal, 'kcal')),
                   _SummaryMetricCard(
                       label: 'Carbs',
-                      value: _roundedTotal(_totals.carbohydrateG, 'g')),
+                      value: _roundedTotal(_displayTotals.carbohydrateG, 'g')),
                   _SummaryMetricCard(
                       label: 'Protein',
-                      value: _roundedTotal(_totals.proteinG, 'g')),
+                      value: _roundedTotal(_displayTotals.proteinG, 'g')),
                   _SummaryMetricCard(
                       label: 'Fat',
-                      value: _roundedTotal(_totals.fatG, 'g')),
+                      value: _roundedTotal(_displayTotals.fatG, 'g')),
                 ],
               ),
               const SizedBox(height: 11),
@@ -761,7 +925,7 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
             const SizedBox(height: 10),
             OutlinedButton(
               style: secondaryButtonStyle(),
-              onPressed: _back,
+              onPressed: () => setState(() => _step = _ReviewStep.portions),
               child: const Text('Edit Portion'),
             ),
           ]),
@@ -772,15 +936,17 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
 // ─── Recognition Row ─────────────────────────────────────────────────────────
 
 class _RecognitionRow extends StatelessWidget {
-  const _RecognitionRow({required this.label});
+  const _RecognitionRow({required this.label, required this.demo});
   final String label;
+  final bool demo;
 
   @override
   Widget build(BuildContext context) => Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: appCardDecoration(),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        child:
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Expanded(
             child: Text(foodDisplayName(label),
                 style: GoogleFonts.inter(
@@ -788,7 +954,9 @@ class _RecognitionRow extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: AppColors.text)),
           ),
-          const AppBadge('Detected', variant: AppBadgeVariant.success),
+          AppBadge(demo ? 'Demo item' : 'Detected',
+              variant:
+                  demo ? AppBadgeVariant.neutral : AppBadgeVariant.success),
         ]),
       );
 }
@@ -812,8 +980,7 @@ class _FoodCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: appCardDecoration(),
         child: Row(children: [
           Container(
@@ -827,9 +994,8 @@ class _FoodCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(foodDisplayName(food.label),
                   style: GoogleFonts.inter(
                       fontSize: 13.5,
@@ -837,25 +1003,23 @@ class _FoodCard extends StatelessWidget {
                       color: AppColors.text)),
               Text('AI Detected',
                   style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: AppColors.textSecondary)),
+                      fontSize: 11, color: AppColors.textSecondary)),
             ]),
           ),
-          const AppBadge('Detected',
-              variant: AppBadgeVariant.success),
-          const SizedBox(width: 4),
+          Checkbox(
+            value: selected,
+            onChanged: (value) => onSelected(value ?? false),
+            visualDensity: VisualDensity.compact,
+          ),
           _SmallIconBtn(icon: Icons.edit_outlined, onTap: onEdit),
           _SmallIconBtn(
-              icon: Icons.close,
-              onTap: onRemove,
-              color: AppColors.danger),
+              icon: Icons.close, onTap: onRemove, color: AppColors.danger),
         ]),
       );
 }
 
 class _SmallIconBtn extends StatelessWidget {
-  const _SmallIconBtn(
-      {required this.icon, required this.onTap, this.color});
+  const _SmallIconBtn({required this.icon, required this.onTap, this.color});
   final IconData icon;
   final VoidCallback onTap;
   final Color? color;
@@ -872,8 +1036,7 @@ class _SmallIconBtn extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: AppColors.border),
           ),
-          child: Icon(icon,
-              size: 14, color: color ?? AppColors.textSecondary),
+          child: Icon(icon, size: 14, color: color ?? AppColors.textSecondary),
         ),
       );
 }
@@ -890,17 +1053,38 @@ class _PortionCard extends StatefulWidget {
 }
 
 class _PortionCardState extends State<_PortionCard> {
-  late int _selectedIdx = 1; // middle = AI estimate
+  late double _baseGrams;
+  int? _selectedIdx = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _baseGrams =
+        widget.food.portion.grams > 0 ? widget.food.portion.grams : 100;
+  }
+
+  @override
+  void didUpdateWidget(covariant _PortionCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.food.itemId != widget.food.itemId) {
+      _baseGrams =
+          widget.food.portion.grams > 0 ? widget.food.portion.grams : 100;
+      _selectedIdx = 1;
+    }
+  }
 
   List<(String, double)> get _options {
-    final base = widget.food.portion.grams > 0
-        ? widget.food.portion.grams
-        : 100.0;
+    final base = _baseGrams;
     return [
       ('Smaller (${(base * 0.5).round()} g)', base * 0.5),
-      (widget.food.portion.householdMeasure != null
-          ? '${widget.food.portion.householdMeasure} (${base.round()} g)'
-          : 'As analysed (${base.round()} g)', base),
+      (
+        widget.food.portion.householdMeasure != null
+            ? '${widget.food.portion.householdMeasure} (${base.round()} g)'
+            : widget.food.portion.estimationMethod == 'mock'
+                ? 'Starting amount (${base.round()} g)'
+                : 'As analysed (${base.round()} g)',
+        base
+      ),
       ('Larger (${(base * 1.5).round()} g)', base * 1.5),
     ];
   }
@@ -917,21 +1101,33 @@ class _PortionCardState extends State<_PortionCard> {
                     fontWeight: FontWeight.w700,
                     color: AppColors.text)),
             AppBadge(
-              _options[_selectedIdx].$1.split(' ').first,
+              '${formatAmount(widget.food.portion.grams)} g',
               variant: AppBadgeVariant.neutral,
             ),
           ]),
           const SizedBox(height: 9),
           ChipRow(
             options: _options.map((o) => o.$1).toList(),
-            selected: _options[_selectedIdx].$1,
+            selected: _selectedIdx == null ? null : _options[_selectedIdx!].$1,
             onChanged: (label) {
-              final idx =
-                  _options.indexWhere((o) => o.$1 == label);
+              final idx = _options.indexWhere((o) => o.$1 == label);
               if (idx < 0) return;
               setState(() => _selectedIdx = idx);
               widget.onPortionChanged(_options[idx].$2);
             },
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () async {
+                final grams = await showPortionEditDialog(context, widget.food);
+                if (grams == null || !mounted) return;
+                setState(() => _selectedIdx = null);
+                widget.onPortionChanged(grams);
+              },
+              icon: const Icon(Icons.edit_outlined, size: 16),
+              label: const Text('Enter grams'),
+            ),
           ),
         ]),
       );
@@ -965,13 +1161,13 @@ class _FoodNutritionCard extends StatelessWidget {
           const SizedBox(height: 10),
           _NutrientGridRow(
             items: [
-              ('Calories',
-                  formatNutrient(food.nutrition.energyKcal, "kcal")),
-              ('Carbs',
-                  formatNutrient(food.nutrition.carbohydrateG, "g")),
-              ('Protein',
-                  formatNutrient(food.nutrition.proteinG, "g")),
+              ('Calories', formatNutrient(food.nutrition.energyKcal, "kcal")),
+              ('Carbs', formatNutrient(food.nutrition.carbohydrateG, "g")),
+              ('Protein', formatNutrient(food.nutrition.proteinG, "g")),
               ('Fat', formatNutrient(food.nutrition.fatG, "g")),
+              ('Fibre', formatNutrient(food.nutrition.dietaryFiberG, "g")),
+              ('Sugars', formatNutrient(food.nutrition.sugarsG, "g")),
+              ('Sodium', formatNutrient(food.nutrition.sodiumMg, "mg")),
             ],
           ),
           const SizedBox(height: 6),
@@ -1087,10 +1283,9 @@ class _ExpandableCardState extends State<_ExpandableCard> {
           padding: const EdgeInsets.all(14),
           margin: const EdgeInsets.only(bottom: 10),
           decoration: appCardDecoration(),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Text(widget.title,
                   style: GoogleFonts.inter(
                       fontSize: 13,
@@ -1145,11 +1340,10 @@ class _DemoNotice extends StatelessWidget {
   final bool mockNutrition;
 
   @override
-  Widget build(BuildContext context) => _Notice(
-      mockNutrition
-          ? 'Demo data: these foods and values are placeholders.'
-          : 'Portions are not measured from the photo yet. Each food starts at '
-              'a fixed amount; change it in the portion step if you know it.');
+  Widget build(BuildContext context) => _Notice(mockNutrition
+      ? 'Demo data: these foods and values are placeholders.'
+      : 'Portions are not measured from the photo yet. Each food starts at '
+          'a fixed amount; change it in the portion step if you know it.');
 }
 
 class _MissingDataNotice extends StatelessWidget {
@@ -1158,9 +1352,9 @@ class _MissingDataNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _Notice(
-      'No nutrition data for ${foods.join(', ')}, so the meal totals are not '
-      'available. Remove ${foods.length == 1 ? 'it' : 'them'} in "Confirm '
-      'Foods" to see totals for the other foods.');
+      'Missing nutrient data for ${foods.join(', ')}. Shown values add only foods '
+      'with reported nutrients; the full meal total is not available. '
+      'Deselect a food in "Confirm Foods" only if it was identified incorrectly.');
 }
 
 class _Notice extends StatelessWidget {
@@ -1169,21 +1363,11 @@ class _Notice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.warningBg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.warning),
-        ),
-        child: Row(children: [
-          const Icon(Icons.info_outline, color: AppColors.warning),
-          const SizedBox(width: 8),
-          Expanded(
-              child: Text(text,
-                  style: GoogleFonts.inter(
-                      fontSize: 12, color: AppColors.text))),
-        ]),
+        width: double.infinity,
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(text,
+            style: GoogleFonts.manrope(
+                fontSize: 11.5, height: 1.45, color: AppColors.textSecondary)),
       );
 }
 
@@ -1211,9 +1395,9 @@ class _MealPhoto extends StatelessWidget {
 /// A meal total for display; an unknown total is "Not available", never 0.
 String _roundedTotal(double? value, String unit) => formatNutrient(value, unit);
 
-/// "white_rice" -> "White rice". Labels typed by the patient are shown as typed.
+/// "white_rice" -> "White rice", "pappadam" -> "Pappadam". Labels with capitals are shown as is.
 String foodDisplayName(String label) {
-  if (!label.contains('_')) return label;
+  if (!label.contains('_') && label != label.toLowerCase()) return label;
   final words = label.replaceAll('_', ' ').trim();
   return words.isEmpty ? label : words[0].toUpperCase() + words.substring(1);
 }
@@ -1222,9 +1406,13 @@ String foodDisplayName(String label) {
 
 class _EditFoodPage extends StatefulWidget {
   const _EditFoodPage(
-      {required this.food, required this.onCancel, required this.onSave});
+      {required this.food,
+      required this.historyApi,
+      required this.onCancel,
+      required this.onSave});
 
   final FoodItem food;
+  final MealHistoryApi historyApi;
   final VoidCallback onCancel;
   final ValueChanged<FoodItem> onSave;
 
@@ -1235,17 +1423,6 @@ class _EditFoodPage extends StatefulWidget {
 class _EditFoodPageState extends State<_EditFoodPage> {
   late final TextEditingController _label =
       TextEditingController(text: widget.food.label);
-  late String? _category = 'Curries';
-
-  static const _categories = [
-    'Curries', 'Rice', 'Vegetables', 'Sambols',
-    'Short Eats', 'Desserts', 'Beverages',
-  ];
-
-  static const _suggestions = [
-    'Brinjal Moju', 'Fish Curry', 'Pol Sambol', 'Lunu Miris',
-    'Parippu', 'Gotukola Sambol', 'Jackfruit Curry',
-  ];
 
   @override
   void dispose() {
@@ -1256,12 +1433,28 @@ class _EditFoodPageState extends State<_EditFoodPage> {
   void _save() {
     final label = _label.text.trim();
     if (label.isEmpty) return;
+    final changed = label.toLowerCase() != widget.food.label.toLowerCase();
     widget.onSave(FoodItem(
       itemId: widget.food.itemId,
       label: label,
       portion: widget.food.portion,
-      nutrition: widget.food.nutrition,
-      nutritionSource: widget.food.nutritionSource,
+      nutrition: changed ? const NutrientProfile() : widget.food.nutrition,
+      nutritionSource: changed ? null : widget.food.nutritionSource,
+    ));
+  }
+
+  Future<void> _chooseMatchedFood() async {
+    final query = foodDisplayName(widget.food.label)
+        .replaceFirst(RegExp(r'\s+(dish|curry)$', caseSensitive: false), '');
+    final result = await showFoodDatabasePicker(context, widget.historyApi,
+        initialQuery: query);
+    if (result == null || !mounted) return;
+    widget.onSave(FoodItem(
+      itemId: widget.food.itemId,
+      label: result.name,
+      portion: widget.food.portion,
+      nutrition: result.per100g.scale(widget.food.portion.grams / 100),
+      nutritionSource: result.source,
     ));
   }
 
@@ -1300,58 +1493,29 @@ class _EditFoodPageState extends State<_EditFoodPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(22, 6, 22, 16),
                 children: [
-                  const SectionLabel('Detected'),
+                  const SectionLabel('Food name'),
                   TextField(
                     controller: _label,
                     textCapitalization: TextCapitalization.words,
-                    decoration:
-                        const InputDecoration(hintText: 'Food name'),
+                    decoration: const InputDecoration(hintText: 'Food name'),
                     style: GoogleFonts.inter(
                         fontSize: 13.5, color: AppColors.text),
                   ),
-                  const SizedBox(height: 18),
-                  const SectionLabel('Category'),
-                  ChipRow(
-                    options: _categories,
-                    selected: _category,
-                    onChanged: (v) => setState(() => _category = v),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _chooseMatchedFood,
+                    icon: const Icon(Icons.search_rounded),
+                    label: const Text('Choose a food with nutrition data'),
                   ),
-                  const SizedBox(height: 18),
-                  const SectionLabel('Suggested Sri Lankan Foods'),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 2),
-                    decoration: appCardDecoration(),
-                    child: Column(children: [
-                      for (final s in _suggestions)
-                        InkWell(
-                          onTap: () =>
-                              setState(() => _label.text = s),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 12, horizontal: 2),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                  bottom: BorderSide(
-                                      color: AppColors.border,
-                                      width: _suggestions.last == s
-                                          ? 0
-                                          : 1)),
-                            ),
-                            child: Row(children: [
-                              Expanded(
-                                child: Text(s,
-                                    style: GoogleFonts.inter(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.text)),
-                              ),
-                            ]),
-                          ),
-                        ),
-                    ]),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Renaming without a database match clears the old nutrition values.',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        height: 1.4,
+                        color: AppColors.textSecondary),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
                   Row(children: [
                     Expanded(
                       child: OutlinedButton(

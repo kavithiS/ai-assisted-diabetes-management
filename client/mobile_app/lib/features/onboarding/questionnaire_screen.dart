@@ -3,9 +3,21 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
+import 'data/health_profile.dart';
 
 class QuestionnaireScreen extends StatefulWidget {
-  const QuestionnaireScreen({super.key});
+  const QuestionnaireScreen({
+    super.key,
+    required this.userId,
+    this.initialProfile,
+    this.store,
+    this.onCompleted,
+  });
+
+  final String userId;
+  final HealthProfile? initialProfile;
+  final HealthProfileStore? store;
+  final VoidCallback? onCompleted;
 
   @override
   State<QuestionnaireScreen> createState() => _QuestionnaireScreenState();
@@ -13,28 +25,66 @@ class QuestionnaireScreen extends StatefulWidget {
 
 class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
   int _step = 0;
+  bool _saving = false;
+  String? _saveError;
+  late final HealthProfileStore _store =
+      widget.store ?? SecureHealthProfileStore();
+  late final TextEditingController _years = TextEditingController(
+      text: widget.initialProfile?.answer('years_since_diagnosis'));
+  late final TextEditingController _systolic =
+      TextEditingController(text: widget.initialProfile?.answer('systolic_bp'));
+  late final TextEditingController _diastolic = TextEditingController(
+      text: widget.initialProfile?.answer('diastolic_bp'));
 
-  // Step 1 answers
-  String? _stapleFood = 'White Rice';
-  String? _mealsPerDay = '3';
-  String? _eatOut = 'Rarely';
-  String? _sugarInTea = 'No';
+  // No health answers are preselected or fabricated.
+  String? _stapleFood;
+  String? _mealsPerDay;
+  String? _eatOut;
+  String? _sugarInTea;
 
   // Step 2 answers
-  String? _diabetesType = 'Type 2';
-  String? _usesCgm = 'Yes';
-  String? _medication = 'Metformin';
+  String? _diabetesType;
+  String? _usesCgm;
+  String? _medication;
 
   // Step 3 answers
-  String? _activityLevel = 'Moderate';
-  String? _cholesterol = 'Borderline High';
-  String? _smokes = 'No';
+  String? _activityLevel;
+  String? _cholesterol;
+  String? _smokes;
 
   // Step 4 answers
-  String? _footUlcers = 'No';
-  String? _footNumbness = 'Yes, sometimes';
-  String? _checkFeet = 'Not really';
-  String? _footwear = 'Closed Shoes';
+  String? _footUlcers;
+  String? _footNumbness;
+  String? _checkFeet;
+  String? _footwear;
+
+  @override
+  void initState() {
+    super.initState();
+    final answers = widget.initialProfile?.answers ?? const <String, String>{};
+    _stapleFood = answers['staple_food'];
+    _mealsPerDay = answers['meals_per_day'];
+    _eatOut = answers['eat_out'];
+    _sugarInTea = answers['sugar_in_tea'];
+    _diabetesType = answers['diabetes_type'];
+    _usesCgm = answers['uses_glucose_meter'];
+    _medication = answers['medication'];
+    _activityLevel = answers['activity_level'];
+    _cholesterol = answers['cholesterol'];
+    _smokes = answers['smokes'];
+    _footUlcers = answers['foot_ulcers'];
+    _footNumbness = answers['foot_numbness'];
+    _checkFeet = answers['checks_feet'];
+    _footwear = answers['footwear'];
+  }
+
+  @override
+  void dispose() {
+    _years.dispose();
+    _systolic.dispose();
+    _diastolic.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -45,17 +95,37 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
             Expanded(
               child: SingleChildScrollView(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: _buildStep(),
               ),
             ),
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-              child: FilledButton(
-                style: primaryButtonStyle(),
-                onPressed: _next,
-                child: Text(_step < 3 ? 'Continue' : 'Complete Setup'),
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+              decoration: const BoxDecoration(
+                color: AppColors.card,
+                border: Border(top: BorderSide(color: AppColors.border)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  if (_saveError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(_saveError!,
+                          style: const TextStyle(color: AppColors.danger)),
+                    ),
+                  FilledButton(
+                    style: primaryButtonStyle(),
+                    onPressed: _saving ? null : _next,
+                    child: Text(_saving
+                        ? 'Saving…'
+                        : _step < 3
+                            ? 'Continue'
+                            : widget.onCompleted == null
+                                ? 'Complete Setup'
+                                : 'Save profile'),
+                  ),
+                ]),
               ),
             ),
           ]),
@@ -63,43 +133,43 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
       );
 
   Widget _buildHeader() => Padding(
-        padding:
-            const EdgeInsets.fromLTRB(22, 12, 22, 8),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
         child: Column(children: [
           Row(children: [
             if (_step > 0)
-              InkWell(
-                onTap: () => setState(() => _step--),
-                borderRadius: BorderRadius.circular(11),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(11),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Icon(Icons.arrow_back, size: 17,
-                      color: AppColors.text),
-                ),
+              IconButton(
+                onPressed: () => setState(() => _step--),
+                icon: const Icon(Icons.arrow_back_rounded),
               )
             else
-              const SizedBox(width: 36),
-            const SizedBox(width: 12),
+              const SizedBox(width: 48),
             Text('Health Profile Setup',
-                style: GoogleFonts.inter(
-                    fontSize: 18,
+                style: GoogleFonts.manrope(
+                    fontSize: 17,
                     fontWeight: FontWeight.w800,
                     color: AppColors.text)),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text('${_step + 1} / 4',
+                  style: GoogleFonts.manrope(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryDark)),
+            ),
           ]),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Row(
             children: [
               for (var i = 0; i < 4; i++) ...[
                 Expanded(
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    height: 5,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: i <= _step ? AppColors.primary : AppColors.border,
                       borderRadius: BorderRadius.circular(4),
@@ -126,14 +196,16 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
           _StepHeader(
             label: 'Step 1 of 4 · Module 1',
             title: 'Diet & Meal Habits',
-            subtitle:
-                'Helps our AI recognize your meals and estimate portions accurately.',
+            subtitle: 'Keep your usual meal habits with your profile.',
           ),
           _QField(
             label: "What's your typical staple food?",
             child: ChipRow(
               options: const [
-                'White Rice', 'Red Rice', 'Roti / Bread', 'String Hoppers'
+                'White Rice',
+                'Red Rice',
+                'Roti / Bread',
+                'String Hoppers'
               ],
               selected: _stapleFood,
               onChanged: (v) => setState(() => _stapleFood = v),
@@ -172,14 +244,12 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
           _StepHeader(
             label: 'Step 2 of 4 · Module 2',
             title: 'Glucose & Medication',
-            subtitle: 'Used to personalize your glucose prediction model.',
+            subtitle: 'Record the information you want to keep on this device.',
           ),
           _QField(
             label: 'Diabetes type',
             child: ChipRow(
-              options: const [
-                'Type 1', 'Type 2', 'Prediabetes', 'Gestational'
-              ],
+              options: const ['Type 1', 'Type 2', 'Prediabetes', 'Gestational'],
               selected: _diabetesType,
               onChanged: (v) => setState(() => _diabetesType = v),
             ),
@@ -187,7 +257,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
           _QField(
             label: 'Years since diagnosis',
             child: TextFormField(
-              initialValue: '4',
+              controller: _years,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(hintText: 'e.g. 4'),
             ),
@@ -217,15 +287,14 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
           _StepHeader(
             label: 'Step 3 of 4 · Module 3',
             title: 'Lifestyle & Risk Factors',
-            subtitle:
-                'Feeds your multi-factor Diabetic Health Score and explainable AI.',
+            subtitle: 'These answers are saved with your device profile.',
           ),
           _QField(
             label: 'Blood pressure (mmHg)',
             child: Row(children: [
               Expanded(
                 child: TextFormField(
-                  initialValue: '128',
+                  controller: _systolic,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(hintText: 'Systolic'),
                 ),
@@ -233,7 +302,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: TextFormField(
-                  initialValue: '82',
+                  controller: _diastolic,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(hintText: 'Diastolic'),
                 ),
@@ -273,7 +342,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
           _StepHeader(
             label: 'Step 4 of 4 · Module 4',
             title: 'Foot Health History',
-            subtitle: 'Helps calibrate your AI foot screening baseline.',
+            subtitle: 'Keep a note of your foot health history.',
           ),
           _QField(
             label: 'Any history of foot ulcers?',
@@ -310,12 +379,73 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
         ],
       );
 
-  void _next() {
+  Future<void> _next() async {
     if (_step < 3) {
       setState(() => _step++);
     } else {
-      Navigator.of(context)
-          .pushNamedAndRemoveUntil('/home', (_) => false);
+      final years = _years.text.trim();
+      final systolic = _systolic.text.trim();
+      final diastolic = _diastolic.text.trim();
+      if ((years.isNotEmpty &&
+              (int.tryParse(years) == null ||
+                  int.parse(years) < 0 ||
+                  int.parse(years) > 120)) ||
+          (systolic.isNotEmpty &&
+              (int.tryParse(systolic) == null ||
+                  int.parse(systolic) < 1 ||
+                  int.parse(systolic) > 300)) ||
+          (diastolic.isNotEmpty &&
+              (int.tryParse(diastolic) == null ||
+                  int.parse(diastolic) < 1 ||
+                  int.parse(diastolic) > 200))) {
+        setState(() => _saveError = 'Check the number fields and try again.');
+        return;
+      }
+      final values = <String, String>{};
+      void add(String key, String? value) {
+        if (value != null && value.trim().isNotEmpty) {
+          values[key] = value.trim();
+        }
+      }
+
+      add('staple_food', _stapleFood);
+      add('meals_per_day', _mealsPerDay);
+      add('eat_out', _eatOut);
+      add('sugar_in_tea', _sugarInTea);
+      add('diabetes_type', _diabetesType);
+      add('years_since_diagnosis', years);
+      add('uses_glucose_meter', _usesCgm);
+      add('medication', _medication);
+      add('systolic_bp', systolic);
+      add('diastolic_bp', diastolic);
+      add('activity_level', _activityLevel);
+      add('cholesterol', _cholesterol);
+      add('smokes', _smokes);
+      add('foot_ulcers', _footUlcers);
+      add('foot_numbness', _footNumbness);
+      add('checks_feet', _checkFeet);
+      add('footwear', _footwear);
+      setState(() {
+        _saving = true;
+        _saveError = null;
+      });
+      try {
+        await _store.save(widget.userId, HealthProfile(values));
+        if (!mounted) return;
+        if (widget.onCompleted != null) {
+          widget.onCompleted!();
+        } else {
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _saving = false;
+            _saveError =
+                'Could not save your profile on this device. Try again.';
+          });
+        }
+      }
     }
   }
 }
@@ -328,27 +458,35 @@ class _StepHeader extends StatelessWidget {
   final String subtitle;
 
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label.toUpperCase(),
-              style: GoogleFonts.inter(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: .05,
-                  color: AppColors.primaryDark)),
-          const SizedBox(height: 4),
-          Text(title,
-              style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text)),
-          const SizedBox(height: 4),
-          Text(subtitle,
-              style: GoogleFonts.inter(
-                  fontSize: 12.5, color: AppColors.textSecondary, height: 1.4)),
-          const SizedBox(height: 18),
-        ],
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(18),
+        margin: const EdgeInsets.only(bottom: 20),
+        decoration: BoxDecoration(
+          color: AppColors.primaryDark,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label.toUpperCase(),
+                style: GoogleFonts.manrope(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.1,
+                    color: AppColors.accent)),
+            const SizedBox(height: 12),
+            Text(title,
+                style: GoogleFonts.manrope(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.4,
+                    color: Colors.white)),
+            const SizedBox(height: 5),
+            Text(subtitle,
+                style: GoogleFonts.manrope(
+                    fontSize: 12, color: Colors.white70, height: 1.45)),
+          ],
+        ),
       );
 }
 
@@ -359,12 +497,12 @@ class _QField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 18),
+        padding: const EdgeInsets.only(bottom: 20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                   fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                   color: AppColors.text)),
           const SizedBox(height: 9),
           child,

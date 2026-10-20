@@ -4,9 +4,16 @@ import '../../meal_scan/data/meal_analysis.dart';
 
 /// Displays a [NutrientProfile] as a table of label / value rows.
 class NutrientTable extends StatelessWidget {
-  const NutrientTable(this.nutrients, {super.key});
+  const NutrientTable(
+    this.nutrients, {
+    super.key,
+    this.color,
+    this.mutedColor,
+  });
 
   final NutrientProfile nutrients;
+  final Color? color;
+  final Color? mutedColor;
 
   @override
   Widget build(BuildContext context) {
@@ -25,11 +32,15 @@ class NutrientTable extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(
               children: [
-                Expanded(child: Text(r.label)),
+                Expanded(child: Text(r.label, style: TextStyle(color: color))),
                 Text(
-                  r.value == null ? 'Not available' : '${r.value!.toStringAsFixed(1)} ${r.unit}',
+                  r.value == null
+                      ? 'Not available'
+                      : '${r.value!.toStringAsFixed(1)} ${r.unit}',
                   style: TextStyle(
-                    color: r.value == null ? Theme.of(context).colorScheme.outline : null,
+                    color: r.value == null
+                        ? mutedColor ?? Theme.of(context).colorScheme.outline
+                        : color,
                   ),
                 ),
               ],

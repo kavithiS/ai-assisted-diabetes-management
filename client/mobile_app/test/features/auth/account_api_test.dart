@@ -28,11 +28,28 @@ void main() {
       expect(user.label, 'Nimal');
     });
 
-    test('the label falls back to the e-mail when there is no display name', () async {
+    test('the label asks for profile completion when there is no display name',
+        () async {
       final session = await signedInSession();
       final gateway = FakeGateway((_) => meResponse());
 
-      expect((await gateway.accountApi(session).me()).label, 'me@example.test');
+      expect((await gateway.accountApi(session).me()).label,
+          'Complete your profile');
+    });
+
+    test('name update is sent to the account endpoint and returned', () async {
+      final session = await signedInSession();
+      final gateway =
+          FakeGateway((_) => meResponse(displayName: 'Nimal Silva'));
+
+      final updated =
+          await gateway.accountApi(session).updateName('  Nimal Silva  ');
+
+      expect(gateway.requests.single.method, 'PATCH');
+      expect(gateway.requests.single.url.path, '/api/v1/me');
+      expect(gateway.bodyOf(0), {'display_name': 'Nimal Silva'});
+      expect(updated.label, 'Nimal Silva');
+      expect(updated.greetingName, 'Nimal');
     });
 
     test('me reports an expired session with the gateway code', () async {
@@ -42,7 +59,8 @@ void main() {
 
       await expectLater(
         gateway.accountApi(session).me(),
-        throwsA(isA<AuthApiException>().having((e) => e.code, 'code', 'UNAUTHORIZED')),
+        throwsA(isA<AuthApiException>()
+            .having((e) => e.code, 'code', 'UNAUTHORIZED')),
       );
     });
 
@@ -57,16 +75,19 @@ void main() {
       expect(session.isSignedIn, isFalse);
     });
 
-    test('logout still signs out on the device when the server is down', () async {
+    test('logout still signs out on the device when the server is down',
+        () async {
       final session = await signedInSession();
-      final gateway = FakeGateway((_) => errorEnvelope(502, 'UPSTREAM_UNAVAILABLE', 'Down.'));
+      final gateway = FakeGateway(
+          (_) => errorEnvelope(502, 'UPSTREAM_UNAVAILABLE', 'Down.'));
 
       await gateway.accountApi(session).logout();
 
       expect(session.isSignedIn, isFalse);
     });
 
-    test('deleting the account signs out only after the gateway confirms', () async {
+    test('deleting the account signs out only after the gateway confirms',
+        () async {
       final session = await signedInSession();
       final gateway = FakeGateway((_) => json(204, {}));
 
@@ -95,7 +116,9 @@ void main() {
     setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
     const tokens = AuthTokens(
-        accessToken: 'access-9', refreshToken: 'refresh-9', expiresInSeconds: 900);
+        accessToken: 'access-9',
+        refreshToken: 'refresh-9',
+        expiresInSeconds: 900);
 
     test('keeps the tokens between app starts', () async {
       await AuthSession(store: SecureTokenStore()).signIn(tokens);
@@ -105,7 +128,8 @@ void main() {
 
       expect(restarted.isSignedIn, isTrue);
       expect(restarted.tokens!.refreshToken, 'refresh-9');
-      expect(restarted.needsRefresh, isTrue, reason: 'expiry is unknown after a restart');
+      expect(restarted.needsRefresh, isTrue,
+          reason: 'expiry is unknown after a restart');
     });
 
     test('signing out removes them', () async {
@@ -119,7 +143,8 @@ void main() {
       expect(restarted.isSignedIn, isFalse);
     });
 
-    testWidgets('storage that never answers cannot block start-up', (tester) async {
+    testWidgets('storage that never answers cannot block start-up',
+        (tester) async {
       final store = SecureTokenStore(storage: _HangingStorage());
 
       final loaded = store.load();
@@ -131,7 +156,8 @@ void main() {
     });
 
     test('damaged stored data means signed out, not a crash', () async {
-      FlutterSecureStorage.setMockInitialValues({'diacare_auth_tokens': 'not json'});
+      FlutterSecureStorage.setMockInitialValues(
+          {'diacare_auth_tokens': 'not json'});
 
       final session = AuthSession(store: SecureTokenStore());
       await session.restore();

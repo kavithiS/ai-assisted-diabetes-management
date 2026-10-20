@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
 import 'data/meal_history_api.dart';
 import 'data/meal_history_models.dart';
 
@@ -17,12 +20,17 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
   late final MealHistoryApi _api;
 
   final _queryController = TextEditingController();
+  Timer? _searchDebounce;
   List<FoodResult>? _results;
   String? _searchError;
   bool _searching = false;
 
   final List<_StagedItem> _staged = [];
-  MealType? _mealType;
+  MealType _mealType = MealType.values[DateTime.now().hour < 11
+      ? 0
+      : DateTime.now().hour < 16
+          ? 1
+          : 2];
 
   bool _saving = false;
   String? _saveError;
@@ -35,12 +43,19 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _queryController.dispose();
     super.dispose();
   }
 
   Future<void> _search(String q) async {
-    if (q.trim().length < 2) return;
+    if (q.trim().length < 2) {
+      setState(() {
+        _results = null;
+        _searchError = null;
+      });
+      return;
+    }
     setState(() {
       _searching = true;
       _searchError = null;
@@ -48,15 +63,36 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     });
     try {
       final r = await _api.searchFoods(q.trim());
-      if (mounted) setState(() => _results = r);
+      if (mounted && _queryController.text.trim() == q.trim()) {
+        setState(() => _results = r);
+      }
     } on MealHistoryException catch (e) {
-      if (mounted) setState(() => _searchError = e.userMessage);
+      if (mounted && _queryController.text.trim() == q.trim()) {
+        setState(() => _searchError = e.userMessage);
+      }
     } catch (_) {
-      if (mounted) setState(() => _searchError = 'Search failed. Check your connection.');
+      if (mounted && _queryController.text.trim() == q.trim()) {
+        setState(() => _searchError = 'Search failed. Check your connection.');
+      }
     } finally {
-      if (mounted) setState(() => _searching = false);
+      if (mounted && _queryController.text.trim() == q.trim()) {
+        setState(() => _searching = false);
+      }
     }
   }
+
+  void _queueSearch(String query) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _search(query),
+    );
+  }
+
+  NutrientProfile get _knownTotals => NutrientProfile.sumAvailable([
+        for (final item in _staged)
+          if (item.per100g != null) item.per100g!.scale(item.grams / 100),
+      ]);
 
   void _addFromSearch(FoodResult food) {
     _showGramsDialog(
@@ -97,7 +133,9 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     } on MealHistoryException catch (e) {
       if (mounted) setState(() => _saveError = e.userMessage);
     } catch (_) {
-      if (mounted) setState(() => _saveError = 'Could not save meal. Try again.');
+      if (mounted) {
+        setState(() => _saveError = 'Could not save meal. Try again.');
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -106,17 +144,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Meal'),
-        actions: [
-          if (_staged.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.save_outlined),
-              tooltip: 'Save meal',
-              onPressed: _saving ? null : _save,
-            ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Add meal')),
       body: Column(
         children: [
           if (_saveError != null)
@@ -134,10 +162,11 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
             onChanged: (t) => setState(() => _mealType = t),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
             child: SearchBar(
               controller: _queryController,
               hintText: 'Search foods (e.g. rice, dhal)',
+              onChanged: _queueSearch,
               onSubmitted: _search,
               trailing: [
                 if (_searching)
@@ -159,24 +188,87 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
               children: [
+                if (_results == null &&
+                    _staged.isEmpty &&
+                    _queryController.text.isEmpty) ...[
+                  Text('Start with a food',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  const Text(
+                      'Search for a dish to use its available nutrient data, or enter your own food below.',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, height: 1.4)),
+                  const SizedBox(height: 12),
+                  Wrap(spacing: 8, children: [
+                    for (final suggestion in ['Rice', 'Dhal', 'Roti'])
+                      ActionChip(
+                        label: Text(suggestion),
+                        onPressed: () {
+                          _queryController.text = suggestion;
+                          _search(suggestion);
+                        },
+                      ),
+                  ]),
+                  const SizedBox(height: 14),
+                ],
                 if (_staged.isNotEmpty) ...[
                   Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 4),
+                    padding: const EdgeInsets.only(bottom: 8),
                     child: Text('Items to log',
-                        style: Theme.of(context).textTheme.labelLarge),
+                        style: Theme.of(context).textTheme.titleMedium),
                   ),
                   for (final s in _staged)
-                    ListTile(
-                      title: Text(s.name),
-                      subtitle: Text('${s.grams.toStringAsFixed(0)} g'),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.remove_circle_outline),
-                        onPressed: () => setState(() => _staged.remove(s)),
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.restaurant_outlined,
+                              size: 18, color: AppColors.primary),
+                        ),
+                        title: Text(s.name),
+                        subtitle: Text('${s.grams.toStringAsFixed(0)} g'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => setState(() => _staged.remove(s)),
+                        ),
                       ),
                     ),
-                  const Divider(),
+                  const SizedBox(height: 12),
+                  Card(
+                    color: AppColors.primaryLight,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(children: [
+                        const Icon(Icons.summarize_outlined,
+                            color: AppColors.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Estimated energy',
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium),
+                              Text(
+                                  _knownTotals.energyKcal == null
+                                      ? 'Nutrition is not available for these items'
+                                      : '${_knownTotals.energyKcal!.round()} kcal from matched foods',
+                                  style: Theme.of(context).textTheme.bodySmall),
+                            ],
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                 ],
                 if (_searchError != null)
                   Padding(
@@ -189,21 +281,53 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
                   for (final f in _results!)
                     ListTile(
                       title: Text(f.name),
-                      subtitle: Text(
-                          '${f.category ?? f.source}  ·  per 100 g: '
+                      subtitle: Text('${f.category ?? f.source}  ·  per 100 g: '
                           '${f.per100g.energyKcal?.toStringAsFixed(0) ?? '—'} kcal'),
                       onTap: () => _addFromSearch(f),
                       trailing: const Icon(Icons.add),
                     ),
                   if (_results!.isEmpty)
-                    const ListTile(title: Text('No foods matched.')),
+                    const ListTile(
+                      title: Text('No foods matched.'),
+                      subtitle: Text('Try another name or enter it manually.'),
+                    ),
                 ],
-                ListTile(
-                  leading: const Icon(Icons.edit_outlined),
-                  title: const Text('Enter food manually'),
-                  onTap: _addManual,
+                Card(
+                  color: AppColors.primaryLight,
+                  child: ListTile(
+                    leading: const Icon(Icons.edit_outlined,
+                        color: AppColors.primary),
+                    title: const Text('Enter food manually'),
+                    subtitle: const Text('Add an item not found in search'),
+                    onTap: _addManual,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Manual foods are saved to your meal, but nutrient values will stay unavailable until matched to the food database.',
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      height: 1.4,
+                      color: AppColors.textSecondary),
                 ),
               ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+            decoration: const BoxDecoration(
+              color: AppColors.card,
+              border: Border(top: BorderSide(color: AppColors.border)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: FilledButton.icon(
+                onPressed: _saving || _staged.isEmpty ? null : _save,
+                icon: const Icon(Icons.check_rounded),
+                label: Text(_saving
+                    ? 'Saving meal…'
+                    : 'Save ${_staged.length} ${_staged.length == 1 ? 'food' : 'foods'}'),
+              ),
             ),
           ),
         ],
@@ -216,35 +340,41 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     required void Function(double grams) onConfirm,
   }) {
     final controller = TextEditingController(text: '100');
+    String? error;
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(foodName),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Grams eaten',
-            suffixText: 'g',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final g = double.tryParse(controller.text);
-              if (g != null && g > 0) {
-                Navigator.pop(ctx);
-                onConfirm(g);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+      builder: (ctx) => StatefulBuilder(
+          builder: (ctx, update) => AlertDialog(
+                title: Text(foodName),
+                content: TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Grams eaten',
+                    suffixText: 'g',
+                    errorText: error,
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      final g = double.tryParse(controller.text);
+                      if (g != null && g > 0 && g <= 5000) {
+                        Navigator.pop(ctx);
+                        onConfirm(g);
+                      } else {
+                        update(
+                            () => error = 'Enter an amount from 1 to 5000 g.');
+                      }
+                    },
+                    child: const Text('Add'),
+                  ),
+                ],
+              )),
     );
   }
 
@@ -253,43 +383,50 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
   }) {
     final nameCtrl = TextEditingController();
     final gramsCtrl = TextEditingController(text: '100');
+    String? error;
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Enter food'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Food name')),
-            const SizedBox(height: 8),
-            TextField(
-              controller: gramsCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                  labelText: 'Grams', suffixText: 'g'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final name = nameCtrl.text.trim();
-              final g = double.tryParse(gramsCtrl.text);
-              if (name.isNotEmpty && g != null && g > 0) {
-                Navigator.pop(ctx);
-                onConfirm(name, g);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+      builder: (ctx) => StatefulBuilder(
+          builder: (ctx, update) => AlertDialog(
+                title: const Text('Enter food'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                        controller: nameCtrl,
+                        decoration:
+                            const InputDecoration(labelText: 'Food name')),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: gramsCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                          labelText: 'Grams',
+                          suffixText: 'g',
+                          errorText: error),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      final name = nameCtrl.text.trim();
+                      final g = double.tryParse(gramsCtrl.text);
+                      if (name.isNotEmpty && g != null && g > 0 && g <= 5000) {
+                        Navigator.pop(ctx);
+                        onConfirm(name, g);
+                      } else {
+                        update(() => error = 'Enter a name and 1 to 5000 g.');
+                      }
+                    },
+                    child: const Text('Add'),
+                  ),
+                ],
+              )),
     );
   }
 }
@@ -297,8 +434,8 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
 class _MealTypeSelector extends StatelessWidget {
   const _MealTypeSelector({required this.value, required this.onChanged});
 
-  final MealType? value;
-  final ValueChanged<MealType?> onChanged;
+  final MealType value;
+  final ValueChanged<MealType> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +450,7 @@ class _MealTypeSelector extends StatelessWidget {
               child: ChoiceChip(
                 label: Text(t.label),
                 selected: value == t,
-                onSelected: (_) => onChanged(value == t ? null : t),
+                onSelected: (_) => onChanged(t),
               ),
             ),
         ],

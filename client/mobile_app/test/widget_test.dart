@@ -49,10 +49,12 @@ void main() {
       (tester) async {
     useTallView(tester);
 
-    await tester.pumpWidget(shell(FakeGateway((_) => meResponse(email: 'amara@example.test'))));
+    await tester.pumpWidget(shell(FakeGateway((_) =>
+        meResponse(email: 'amara@example.test', displayName: 'Amara Perera'))));
     await tester.pumpAndSettle();
 
-    expect(find.text('amara@example.test'), findsOneWidget);
+    expect(find.text('Amara'), findsOneWidget);
+    expect(find.text('amara@example.test'), findsNothing);
     expect(find.text('No score yet'), findsOneWidget);
     expect(find.text('No readings yet'), findsOneWidget);
     expect(find.textContaining('mg/dL'), findsNothing);
@@ -60,10 +62,11 @@ void main() {
     expect(find.text('82'), findsNothing);
   });
 
-  testWidgets('home still works when the user cannot be loaded', (tester) async {
+  testWidgets('home still works when the user cannot be loaded',
+      (tester) async {
     useTallView(tester);
-    final gateway = FakeGateway(
-        (_) => errorEnvelope(502, 'UPSTREAM_UNAVAILABLE', 'Down.'));
+    final gateway =
+        FakeGateway((_) => errorEnvelope(502, 'UPSTREAM_UNAVAILABLE', 'Down.'));
 
     await tester.pumpWidget(shell(gateway));
     await tester.pumpAndSettle();
@@ -93,7 +96,8 @@ void main() {
     expect(find.byType(HomeShell), findsNothing);
   });
 
-  testWidgets('meal history and today summary can be opened from home', (tester) async {
+  testWidgets('meal history and today summary can be opened from home',
+      (tester) async {
     useTallView(tester);
 
     await tester.pumpWidget(shell(FakeGateway((_) => meResponse())));
@@ -115,7 +119,8 @@ void main() {
   testWidgets('the Profile tab shows the account and Log out', (tester) async {
     useTallView(tester);
 
-    await tester.pumpWidget(shell(FakeGateway((_) => meResponse(email: 'amara@example.test'))));
+    await tester.pumpWidget(
+        shell(FakeGateway((_) => meResponse(email: 'amara@example.test'))));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Profile'));
     await tester.pumpAndSettle();

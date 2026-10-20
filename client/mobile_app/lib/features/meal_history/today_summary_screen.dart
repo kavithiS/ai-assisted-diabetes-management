@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
 import 'data/meal_history_api.dart';
 import 'data/meal_history_models.dart';
 import 'meal_detail_screen.dart';
@@ -35,12 +36,16 @@ class _TodaySummaryScreenState extends State<TodaySummaryScreen> {
     try {
       final now = DateTime.now();
       final offsetMinutes = now.timeZoneOffset.inMinutes;
-      final summary = await _api.dailySummary(now, utcOffsetMinutes: offsetMinutes);
+      final summary =
+          await _api.dailySummary(now, utcOffsetMinutes: offsetMinutes);
       if (mounted) setState(() => _summary = summary);
     } on MealHistoryException catch (e) {
       if (mounted) setState(() => _error = e.userMessage);
     } catch (_) {
-      if (mounted) setState(() => _error = 'Could not load summary. Check your connection.');
+      if (mounted) {
+        setState(
+            () => _error = 'Could not load summary. Check your connection.');
+      }
     }
   }
 
@@ -70,43 +75,79 @@ class _TodaySummaryScreenState extends State<TodaySummaryScreen> {
         ),
       );
     }
-    if (_summary == null) return const Center(child: CircularProgressIndicator());
+    if (_summary == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     final s = _summary!;
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.primaryDark,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
                   Text('Today',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 4),
-                  Text(
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(color: Colors.white)),
+                  const Spacer(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
                       '${s.mealCount} meal${s.mealCount == 1 ? '' : 's'} logged',
-                      style: Theme.of(context).textTheme.bodySmall),
-                  const SizedBox(height: 12),
-                  NutrientTable(s.totals),
-                ],
-              ),
+                      style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primaryDark),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 16),
+                NutrientTable(
+                  s.totals,
+                  color: Colors.white,
+                  mutedColor: Colors.white60,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 22),
           if (s.meals.isEmpty)
             const Center(child: Text('No meals logged today.'))
           else ...[
-            Text('Meals today',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
+            Text('Meals today', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 10),
             for (final meal in s.meals)
               Card(
-                margin: const EdgeInsets.only(bottom: 8),
+                margin: const EdgeInsets.only(bottom: 10),
                 child: ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.restaurant_outlined,
+                        size: 19, color: AppColors.primary),
+                  ),
                   title: Text(meal.mealType?.label ?? 'Meal'),
                   subtitle: Text(
                     _timeStr(meal.eatenAt) +
@@ -119,8 +160,7 @@ class _TodaySummaryScreenState extends State<TodaySummaryScreen> {
                     await Navigator.push<void>(
                       context,
                       MaterialPageRoute(
-                        builder: (_) =>
-                            MealDetailScreen(meal: meal, api: _api),
+                        builder: (_) => MealDetailScreen(meal: meal, api: _api),
                       ),
                     );
                     _load();

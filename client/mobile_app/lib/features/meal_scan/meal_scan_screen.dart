@@ -38,8 +38,7 @@ class MealScanScreen extends StatefulWidget {
 
 class _MealScanScreenState extends State<MealScanScreen> {
   late final MealApi _api = widget.api ?? MealApi();
-  late final MealImagePicker _pickImage =
-      widget.pickImage ?? pickMealImage;
+  late final MealImagePicker _pickImage = widget.pickImage ?? pickMealImage;
 
   _Stage _stage = _Stage.capture;
   Uint8List? _image;
@@ -82,7 +81,6 @@ class _MealScanScreenState extends State<MealScanScreen> {
       if (!mounted) return;
       setState(() {
         _result = result;
-        _stage = _Stage.result;
       });
     } on MealApiException catch (e) {
       if (!mounted) return;
@@ -104,37 +102,56 @@ class _MealScanScreenState extends State<MealScanScreen> {
     });
   }
 
+  void _handleBack() {
+    if (_stage == _Stage.review) {
+      setState(() => _stage = _Stage.capture);
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => switch (_stage) {
-        _Stage.capture => _CaptureScreen(
-            image: _image,
-            mealType: _mealType,
-            error: _error,
-            onPickPhoto: _choosePhoto,
-            onMealTypeChanged: (t) => setState(() => _mealType = t),
-            onReview: _canAnalyse
-                ? () => setState(() {
-                      _stage = _Stage.review;
-                      _error = null;
-                    })
-                : null,
-          ),
-        _Stage.review => _ReviewScreen(
-            image: _image!,
-            mealType: _mealType!,
-            onBack: () => setState(() => _stage = _Stage.capture),
-            onAnalyse: _analyse,
-            onRetake: () => setState(() => _stage = _Stage.capture),
-          ),
-        _Stage.analysing => const _AnalysingScreen(),
-        _Stage.result => MealModuleFlow(
-            analysis: _result!,
-            capturedAt: _capturedAt ?? DateTime.now(),
-            onScanAgain: _reset,
-            historyApi: widget.historyApi,
-            image: _image,
-          ),
-      };
+  Widget build(BuildContext context) => PopScope<void>(
+        canPop: _stage == _Stage.capture,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _handleBack();
+        },
+        child: switch (_stage) {
+          _Stage.capture => _CaptureScreen(
+              image: _image,
+              mealType: _mealType,
+              error: _error,
+              onPickPhoto: _choosePhoto,
+              onMealTypeChanged: (t) => setState(() => _mealType = t),
+              onReview: _canAnalyse
+                  ? () => setState(() {
+                        _stage = _Stage.review;
+                        _error = null;
+                      })
+                  : null,
+            ),
+          _Stage.review => _ReviewScreen(
+              image: _image!,
+              mealType: _mealType!,
+              onBack: () => setState(() => _stage = _Stage.capture),
+              onAnalyse: _analyse,
+              onRetake: () => setState(() => _stage = _Stage.capture),
+            ),
+          _Stage.analysing => _AnalysingScreen(
+              ready: _result != null,
+              onCompleted: () {
+                if (mounted && _stage == _Stage.analysing && _result != null) {
+                  setState(() => _stage = _Stage.result);
+                }
+              },
+            ),
+          _Stage.result => MealModuleFlow(
+              analysis: _result!,
+              capturedAt: _capturedAt ?? DateTime.now(),
+              onScanAgain: _reset,
+              historyApi: widget.historyApi,
+              image: _image,
+            ),
+        },
+      );
 }
 
 // ─── Capture Screen ──────────────────────────────────────────────────────────
@@ -163,44 +180,62 @@ class _CaptureScreen extends StatelessWidget {
           child: Column(children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
                 children: [
-                  // Title row
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 16),
-                    child: Text('Scan Meal',
-                        style: GoogleFonts.inter(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.text)),
-                  ),
-                  // Camera viewfinder
+                  Text('Scan Meal',
+                      style: Theme.of(context).textTheme.headlineSmall),
+                  const SizedBox(height: 5),
+                  Text(
+                      'Capture your plate for an estimated nutrition breakdown.',
+                      style: GoogleFonts.manrope(
+                          fontSize: 12.5, color: AppColors.textSecondary)),
+                  const SizedBox(height: 18),
                   AspectRatio(
-                    aspectRatio: 1,
+                    aspectRatio: 4 / 3,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: const Color(0xFFA9DADD),
-                            width: 2,
-                            style: BorderStyle.solid),
+                        color: AppColors.primaryDark,
+                        borderRadius: BorderRadius.circular(24),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: image == null
                           ? Stack(fit: StackFit.expand, children: [
+                              Positioned(
+                                right: -35,
+                                top: -45,
+                                child: Container(
+                                  width: 160,
+                                  height: 160,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: Colors.white.withAlpha(18),
+                                        width: 28),
+                                  ),
+                                ),
+                              ),
                               Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Icon(Icons.camera_alt_outlined,
-                                        size: 34, color: AppColors.primary),
+                                    Container(
+                                      width: 54,
+                                      height: 54,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withAlpha(22),
+                                        borderRadius: BorderRadius.circular(17),
+                                      ),
+                                      child: const Icon(
+                                          Icons.camera_alt_outlined,
+                                          size: 26,
+                                          color: Colors.white),
+                                    ),
                                     const SizedBox(height: 12),
                                     Text('Frame your meal within the guide',
                                         textAlign: TextAlign.center,
-                                        style: GoogleFonts.inter(
+                                        style: GoogleFonts.manrope(
                                             fontSize: 12.5,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.primaryDark)),
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white)),
                                   ]),
                               IgnorePointer(
                                   child: CustomPaint(
@@ -209,28 +244,40 @@ class _CaptureScreen extends StatelessWidget {
                           : Image.memory(image!, fit: BoxFit.cover),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Text(
-                      'Works best with good lighting and a top-down angle, optimized for Sri Lankan meals.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                          fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                  ),
-                  // Meal type chips
+                  const SizedBox(height: 18),
                   Text('Meal type',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                           fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                           color: AppColors.text)),
                   const SizedBox(height: 9),
                   ChipRow(
                     options: MealType.values.map((t) => t.label).toList(),
                     selected: mealType?.label,
                     onChanged: (label) => onMealTypeChanged(
-                        MealType.values
-                            .firstWhere((t) => t.label == label)),
+                        MealType.values.firstWhere((t) => t.label == label)),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Row(children: [
+                      Icon(Icons.light_mode_outlined,
+                          size: 17, color: AppColors.primary),
+                      SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          'For the clearest result, use good light and a top-down angle.',
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              height: 1.35,
+                              color: AppColors.primaryDark),
+                        ),
+                      ),
+                    ]),
                   ),
                   if (error != null) ...[
                     const SizedBox(height: 14),
@@ -241,23 +288,28 @@ class _CaptureScreen extends StatelessWidget {
                 ],
               ),
             ),
-            // Bottom action buttons
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Column(children: [
-                FilledButton.icon(
-                  style: primaryButtonStyle(),
-                  onPressed: () => onPickPhoto(ImageSource.camera),
-                  icon: const Icon(Icons.camera_alt_outlined, size: 17),
-                  label: const Text('Take Photo'),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  style: secondaryButtonStyle(),
-                  onPressed: () => onPickPhoto(ImageSource.gallery),
-                  icon: const Icon(Icons.upload_outlined, size: 17),
-                  label: const Text('Upload Image'),
-                ),
+                Row(children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: primaryButtonStyle(),
+                      onPressed: () => onPickPhoto(ImageSource.camera),
+                      icon: const Icon(Icons.camera_alt_outlined, size: 17),
+                      label: const Text('Take Photo'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: ghostButtonStyle(),
+                      onPressed: () => onPickPhoto(ImageSource.gallery),
+                      icon: const Icon(Icons.image_outlined, size: 17),
+                      label: const Text('Upload Image'),
+                    ),
+                  ),
+                ]),
                 if (onReview != null) ...[
                   const SizedBox(height: 10),
                   FilledButton(
@@ -303,24 +355,27 @@ class _ReviewScreen extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 8, bottom: 16),
                     child: Row(children: [
-                      InkWell(
-                        onTap: onBack,
-                        borderRadius: BorderRadius.circular(11),
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            borderRadius: BorderRadius.circular(11),
-                            border: Border.all(color: AppColors.border),
+                      Tooltip(
+                        message: 'Back',
+                        child: InkWell(
+                          onTap: onBack,
+                          borderRadius: BorderRadius.circular(11),
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: AppColors.card,
+                              borderRadius: BorderRadius.circular(11),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: const Icon(Icons.arrow_back,
+                                size: 17, color: AppColors.text),
                           ),
-                          child: const Icon(Icons.arrow_back,
-                              size: 17, color: AppColors.text),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Text('Review Meal',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                               color: AppColors.text)),
@@ -346,7 +401,7 @@ class _ReviewScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(mealType.label,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.primaryDark)),
@@ -358,7 +413,7 @@ class _ReviewScreen extends StatelessWidget {
                     child: Text(
                       'Use a clear image with the full plate visible for better recognition.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                           fontSize: 12, color: AppColors.textSecondary),
                     ),
                   ),
@@ -402,7 +457,10 @@ class _ReviewScreen extends StatelessWidget {
 // ─── Analysing Screen ─────────────────────────────────────────────────────────
 
 class _AnalysingScreen extends StatefulWidget {
-  const _AnalysingScreen();
+  const _AnalysingScreen({required this.ready, required this.onCompleted});
+
+  final bool ready;
+  final VoidCallback onCompleted;
 
   @override
   State<_AnalysingScreen> createState() => _AnalysingScreenState();
@@ -411,28 +469,45 @@ class _AnalysingScreen extends StatefulWidget {
 class _AnalysingScreenState extends State<_AnalysingScreen> {
   int _step = 0;
   Timer? _timer;
+  Timer? _finishTimer;
 
   static const _steps = [
-    'Detecting food regions',
-    'Identifying food items',
-    'Estimating portions',
-    'Preparing nutrition analysis',
+    'Analysing photo',
+    'Reviewing food matches',
+    'Preparing nutrition estimates',
+    'Result ready',
   ];
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(milliseconds: 900), (_) {
+    if (widget.ready) _completeSteps();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnalysingScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.ready && !oldWidget.ready) _completeSteps();
+  }
+
+  void _completeSteps() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(milliseconds: 250), (timer) {
       if (!mounted) return;
-      setState(() {
-        if (_step < _steps.length - 1) _step++;
-      });
+      setState(() => _step++);
+      if (_step == _steps.length) {
+        timer.cancel();
+        _finishTimer = Timer(const Duration(milliseconds: 350), () {
+          if (mounted) widget.onCompleted();
+        });
+      }
     });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _finishTimer?.cancel();
     super.dispose();
   }
 
@@ -457,13 +532,16 @@ class _AnalysingScreenState extends State<_AnalysingScreen> {
                 ),
                 const SizedBox(height: 22),
                 Text('Analysing Your Meal',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                         color: AppColors.text)),
                 const SizedBox(height: 6),
-                Text('AI analysis in progress · prototype simulation',
-                    style: GoogleFonts.inter(
+                Text(
+                    widget.ready
+                        ? 'Your result is ready'
+                        : 'Checking your photo. Please wait…',
+                    style: GoogleFonts.manrope(
                         fontSize: 12.5, color: AppColors.textSecondary)),
                 const SizedBox(height: 22),
                 SizedBox(
@@ -504,11 +582,7 @@ class _AnalysisStep extends StatelessWidget {
           AppColors.success,
           Icons.check_circle_outline
         ),
-      _StepState.active => (
-          AppColors.primaryLight,
-          AppColors.primary,
-          Icons.radio_button_on_outlined
-        ),
+      _StepState.active => (AppColors.primaryLight, AppColors.primary, null),
       _StepState.pending => (AppColors.border, AppColors.border, null),
     };
 
@@ -519,14 +593,23 @@ class _AnalysisStep extends StatelessWidget {
           width: 34,
           height: 34,
           margin: const EdgeInsets.symmetric(vertical: 6),
-          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(9)),
+          decoration:
+              BoxDecoration(color: bg, borderRadius: BorderRadius.circular(9)),
           child: icon != null
               ? Icon(icon, size: 16, color: iconColor)
-              : null,
+              : state == _StepState.active
+                  ? const Center(
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : null,
         ),
         const SizedBox(width: 11),
         Text(label,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
                 fontSize: 13,
                 color: state == _StepState.pending
                     ? AppColors.textSecondary

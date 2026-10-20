@@ -44,8 +44,9 @@ class NutrientProfile {
   }
 
   /// Sums [profiles] per nutrient. Like the server, a total is `null` if that nutrient is
-  /// unknown for any profile. An empty list gives all zeros.
+  /// unknown for any profile. An empty list has unknown totals.
   factory NutrientProfile.sum(List<NutrientProfile> profiles) {
+    if (profiles.isEmpty) return const NutrientProfile();
     double? total(double? Function(NutrientProfile p) pick) {
       var sum = 0.0;
       for (final profile in profiles) {
@@ -54,6 +55,28 @@ class NutrientProfile {
         sum += value;
       }
       return sum;
+    }
+
+    return NutrientProfile(
+      energyKcal: total((p) => p.energyKcal),
+      carbohydrateG: total((p) => p.carbohydrateG),
+      sugarsG: total((p) => p.sugarsG),
+      dietaryFiberG: total((p) => p.dietaryFiberG),
+      proteinG: total((p) => p.proteinG),
+      fatG: total((p) => p.fatG),
+      sodiumMg: total((p) => p.sodiumMg),
+    );
+  }
+
+  /// Adds reported values for each nutrient. A nutrient with no reported values
+  /// remains unknown. Use only for an explicitly labelled incomplete subtotal.
+  factory NutrientProfile.sumAvailable(List<NutrientProfile> profiles) {
+    double? total(double? Function(NutrientProfile p) pick) {
+      final values = [for (final profile in profiles) pick(profile)]
+          .whereType<double>()
+          .toList();
+      if (values.isEmpty) return null;
+      return values.reduce((a, b) => a + b);
     }
 
     return NutrientProfile(
@@ -91,7 +114,10 @@ class NutrientProfile {
 }
 
 class Portion {
-  const Portion({required this.grams, this.householdMeasure, required this.estimationMethod});
+  const Portion(
+      {required this.grams,
+      this.householdMeasure,
+      required this.estimationMethod});
 
   factory Portion.fromJson(Map<String, dynamic> json) {
     return Portion(
@@ -126,7 +152,8 @@ class FoodItem {
       itemId: json['item_id'] as String,
       label: json['label'] as String,
       portion: Portion.fromJson(json['portion'] as Map<String, dynamic>),
-      nutrition: NutrientProfile.fromJson(json['nutrition'] as Map<String, dynamic>),
+      nutrition:
+          NutrientProfile.fromJson(json['nutrition'] as Map<String, dynamic>),
       nutritionSource: source?['source'] as String?,
     );
   }
@@ -162,9 +189,11 @@ class MealAnalysis {
   const MealAnalysis({
     required this.analysisId,
     required this.isMock,
+    this.modelName = 'unknown',
     required this.items,
     required this.totals,
     required this.disclaimer,
+    this.warnings = const [],
     this.mealType,
   });
 
@@ -175,21 +204,38 @@ class MealAnalysis {
     return MealAnalysis(
       analysisId: json['analysis_id'] as String,
       isMock: meta['is_mock'] as bool,
+      modelName: meta['model_name'] as String? ?? 'unknown',
       items: [
         for (final item in json['items'] as List<dynamic>)
           FoodItem.fromJson(item as Map<String, dynamic>),
       ],
       totals: NutrientProfile.fromJson(json['totals'] as Map<String, dynamic>),
       disclaimer: json['disclaimer'] as String? ?? '',
-      mealType: MealType.values.where((t) => t.apiValue == mealType).firstOrNull,
+      warnings: [
+        for (final warning in (meta['warnings'] as List<dynamic>? ?? const []))
+          if (warning is String) warning,
+      ],
+      mealType:
+          MealType.values.where((t) => t.apiValue == mealType).firstOrNull,
     );
   }
 
   final String analysisId;
+
+  /// `isMock` is true when any pipeline stage is a placeholder. Recognition can still
+  /// come from the trained model while portion estimation remains a prototype.
   final bool isMock;
+  final String modelName;
+
+  bool get recognitionIsMock =>
+      modelName == 'mock-recognizer' || modelName.startsWith('mock-');
+
+  bool get hasPlaceholderPortions =>
+      items.any((item) => item.portion.estimationMethod == 'mock');
   final List<FoodItem> items;
   final NutrientProfile totals;
   final String disclaimer;
+  final List<String> warnings;
   final MealType? mealType;
 }
 

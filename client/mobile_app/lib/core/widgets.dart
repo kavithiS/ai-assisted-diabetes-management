@@ -8,7 +8,8 @@ import 'theme.dart';
 enum AppBadgeVariant { success, warning, danger, neutral }
 
 class AppBadge extends StatelessWidget {
-  const AppBadge(this.label, {super.key, this.variant = AppBadgeVariant.neutral, this.icon});
+  const AppBadge(this.label,
+      {super.key, this.variant = AppBadgeVariant.neutral, this.icon});
 
   final String label;
   final AppBadgeVariant variant;
@@ -19,12 +20,16 @@ class AppBadge extends StatelessWidget {
     final (bg, fg) = switch (variant) {
       AppBadgeVariant.success => (AppColors.successBg, AppColors.success),
       AppBadgeVariant.warning => (AppColors.warningBg, AppColors.warning),
-      AppBadgeVariant.danger  => (AppColors.dangerBg,  AppColors.danger),
-      AppBadgeVariant.neutral => (AppColors.primaryLight, AppColors.primaryDark),
+      AppBadgeVariant.danger => (AppColors.dangerBg, AppColors.danger),
+      AppBadgeVariant.neutral => (
+          AppColors.primaryLight,
+          AppColors.primaryDark
+        ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -33,7 +38,7 @@ class AppBadge extends StatelessWidget {
             const SizedBox(width: 5),
           ],
           Text(label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                   fontSize: 12, fontWeight: FontWeight.w700, color: fg)),
         ],
       ),
@@ -51,10 +56,11 @@ class AiTag extends StatelessWidget {
   Widget build(BuildContext context) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.auto_awesome, size: 16, color: AppColors.primaryDark),
+          const Icon(Icons.auto_awesome,
+              size: 16, color: AppColors.primaryDark),
           const SizedBox(width: 5),
           Text(label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primaryDark)),
@@ -82,12 +88,12 @@ class AiCard extends StatelessWidget {
           const AiTag('AI Insight'),
           const SizedBox(height: 6),
           Text(text,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                   fontSize: 13, height: 1.45, color: AppColors.text)),
           if (footer != null) ...[
             const SizedBox(height: 6),
             Text(footer!,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                     fontSize: 10.5, color: AppColors.textSecondary)),
           ],
         ]),
@@ -104,8 +110,8 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: padding ?? const EdgeInsets.all(16),
-        margin: const EdgeInsets.only(bottom: 14),
+        padding: padding ?? const EdgeInsets.all(18),
+        margin: const EdgeInsets.only(bottom: 12),
         decoration: appCardDecoration(color: color),
         child: child,
       );
@@ -122,7 +128,7 @@ class SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(text.toUpperCase(),
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
                 letterSpacing: .05,
@@ -154,10 +160,10 @@ class NutritionBarRow extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(label,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                       fontSize: 13.5, color: AppColors.text)),
               Text(value,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                       fontSize: 13.5, color: AppColors.textSecondary)),
             ],
           ),
@@ -206,13 +212,13 @@ class AppListRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                   Text(title,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: AppColors.text)),
                   if (subtitle != null)
                     Text(subtitle!,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 12, color: AppColors.textSecondary)),
                 ])),
             if (trailing != null) trailing!,
@@ -243,7 +249,7 @@ class IconContainer extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
             color: bg ?? AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(9)),
+            borderRadius: BorderRadius.circular(12)),
         child: Icon(icon, size: size * 0.5, color: color ?? AppColors.primary),
       );
 }
@@ -269,7 +275,7 @@ class DisclaimerBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
               child: Text(text,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                       fontSize: 12,
                       height: 1.45,
                       color: const Color(0xFF8A6116)))),
@@ -280,7 +286,11 @@ class DisclaimerBanner extends StatelessWidget {
 // ─── Chip Row ─────────────────────────────────────────────────────────────────
 
 class ChipRow extends StatelessWidget {
-  const ChipRow({super.key, required this.options, required this.selected, required this.onChanged});
+  const ChipRow(
+      {super.key,
+      required this.options,
+      required this.selected,
+      required this.onChanged});
 
   final List<String> options;
   final String? selected;
@@ -295,20 +305,33 @@ class ChipRow extends StatelessWidget {
             GestureDetector(
               onTap: () => onChanged(opt),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
                 decoration: BoxDecoration(
-                  color: selected == opt ? AppColors.primary : AppColors.card,
-                  borderRadius: BorderRadius.circular(20),
+                  color:
+                      selected == opt ? AppColors.primaryLight : AppColors.card,
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: selected == opt ? AppColors.primary : AppColors.border,
-                    width: 1.5,
+                    color: selected == opt
+                        ? AppColors.primarySoft
+                        : AppColors.border,
+                    width: 1.2,
                   ),
                 ),
-                child: Text(opt,
-                    style: GoogleFonts.inter(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: selected == opt ? Colors.white : AppColors.text)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (selected == opt) ...[
+                    const Icon(Icons.check_rounded,
+                        size: 15, color: AppColors.primary),
+                    const SizedBox(width: 5),
+                  ],
+                  Text(opt,
+                      style: GoogleFonts.manrope(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: selected == opt
+                              ? AppColors.primaryDark
+                              : AppColors.text)),
+                ]),
               ),
             ),
         ],
