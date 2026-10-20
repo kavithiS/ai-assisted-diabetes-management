@@ -9,6 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Same versions as C1's branch, to avoid a merge conflict.
+  http: ^1.2.2
+  http_parser: ^4.0.2
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
