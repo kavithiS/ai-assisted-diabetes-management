@@ -3,8 +3,11 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/api_client.dart';
 import '../../../core/theme.dart';
 import '../../../core/widgets.dart';
+import '../../glucose/glucose_screen.dart';
+import '../../glucose/glucose_session.dart';
 import '../../meal_history/data/meal_history_api.dart';
 import '../../meal_history/data/meal_history_models.dart';
 import '../data/meal_analysis.dart';
@@ -20,6 +23,7 @@ class MealModuleFlow extends StatefulWidget {
     required this.capturedAt,
     required this.onScanAgain,
     this.historyApi,
+    this.glucoseApi,
     this.image,
   });
 
@@ -27,6 +31,7 @@ class MealModuleFlow extends StatefulWidget {
   final DateTime capturedAt;
   final VoidCallback onScanAgain;
   final MealHistoryApi? historyApi;
+  final ApiClient? glucoseApi;
   final Uint8List? image;
 
   @override
@@ -51,6 +56,8 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
   _ReviewStep _step = _ReviewStep.recognition;
   int? _editingIndex;
   late final MealHistoryApi _historyApi = widget.historyApi ?? MealHistoryApi();
+  late final ApiClient _glucoseApi = widget.glucoseApi ?? ApiClient();
+  final GlucoseSession _glucoseSession = GlucoseSession();
   bool _saving = false;
   bool _saved = false;
   String? _saveError;
@@ -86,6 +93,26 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
 
   bool get _hasMockNutrition =>
       _includedFoods.any((food) => food.nutritionSource == 'MOCK');
+
+  bool get _canEstimateGlucose {
+    final totals = _totals;
+    return _includedFoods.isNotEmpty &&
+        !_hasMockNutrition &&
+        totals.energyKcal != null &&
+        totals.carbohydrateG != null &&
+        totals.proteinG != null &&
+        totals.fatG != null &&
+        totals.dietaryFiberG != null;
+  }
+
+  void _fillGlucoseNutrition() {
+    final totals = _totals;
+    _glucoseSession.calories.text = totals.energyKcal?.toString() ?? '';
+    _glucoseSession.carbs.text = totals.carbohydrateG?.toString() ?? '';
+    _glucoseSession.protein.text = totals.proteinG?.toString() ?? '';
+    _glucoseSession.fat.text = totals.fatG?.toString() ?? '';
+    _glucoseSession.fiber.text = totals.dietaryFiberG?.toString() ?? '';
+  }
 
   /// C1 records close and partial matches in its warnings. Show the note only
   /// while the corresponding food is included in this meal.
@@ -176,8 +203,16 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
   void _next() {
     final index = _mainSteps.indexOf(_step);
     if (index >= 0 && index < _mainSteps.length - 1) {
+      if (_step == _ReviewStep.details) _fillGlucoseNutrition();
       setState(() => _step = _mainSteps[index + 1]);
     }
+  }
+
+  @override
+  void dispose() {
+    _glucoseSession.dispose();
+    if (widget.glucoseApi == null) _glucoseApi.close();
+    super.dispose();
   }
 
   void _back() {
@@ -724,7 +759,37 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
 
   // ── Step: Glycemic ─────────────────────────────────────────────────────────
 
-  Widget _buildGlycemic() => Column(children: [
+  Widget _buildGlycemic() {
+    if (!_canEstimateGlucose) return _buildUnavailableGlycemic();
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(22, 8, 22, 0),
+        child: Text(
+          'Meal nutrients are filled from the foods and portions you reviewed. '
+          'Enter a pre-meal glucose reading to request a 4-hour prediction.',
+          style: GoogleFonts.inter(
+              fontSize: 12, height: 1.4, color: AppColors.textSecondary),
+        ),
+      ),
+      Expanded(
+        child: GlucoseScreen(
+          apiClient: _glucoseApi,
+          session: _glucoseSession,
+          nutritionReadOnly: true,
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
+        child: FilledButton(
+          style: primaryButtonStyle(),
+          onPressed: _next,
+          child: const Text('Continue to Meal Summary'),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _buildUnavailableGlycemic() => Column(children: [
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
@@ -732,6 +797,16 @@ class _MealModuleFlowState extends State<MealModuleFlow> {
               Text('Estimated glycemic impact of this meal',
                   style: GoogleFonts.inter(
                       fontSize: 12, color: AppColors.textSecondary)),
+              const SizedBox(height: 14),
+              Text(
+                _hasMockNutrition
+                    ? 'A glucose prediction is unavailable for demo nutrition.'
+                    : 'A glucose prediction needs complete calories, '
+                        'carbohydrates, protein, fat and fibre for every food. '
+                        'Review the foods instead of treating missing values as zero.',
+                style: GoogleFonts.inter(
+                    fontSize: 12, height: 1.4, color: AppColors.textSecondary),
+              ),
               const SizedBox(height: 14),
               _notices(),
               // 2x2 grid of GI metrics

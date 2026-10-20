@@ -13,7 +13,8 @@ import 'package:mobile_app/features/meal_scan/meal_scan_screen.dart';
 import 'meal_scan_test_data.dart';
 
 void main() {
-  Widget screenWith(MockClientHandler handler, {MealHistoryApi? historyApi}) =>
+  Widget screenWith(MockClientHandler handler,
+          {MealHistoryApi? historyApi, ApiClient? glucoseApi}) =>
       MaterialApp(
         home: Scaffold(
           body: MealScanScreen(
@@ -22,6 +23,7 @@ void main() {
               httpClient: MockClient(handler),
             ),
             historyApi: historyApi,
+            glucoseApi: glucoseApi,
             pickImage: (_) async => tinyPng,
           ),
         ),
@@ -49,9 +51,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> showFoodReview(
-      WidgetTester tester, MockClientHandler handler) async {
-    await tester.pumpWidget(screenWith(handler));
+  Future<void> showFoodReview(WidgetTester tester, MockClientHandler handler,
+      {ApiClient? glucoseApi}) async {
+    await tester.pumpWidget(screenWith(handler, glucoseApi: glucoseApi));
     await pickPhotoAndMealType(tester);
     await tester.tap(find.text('Review Photo'));
     await tester.pumpAndSettle();
@@ -272,6 +274,8 @@ void main() {
     await tester.tap(find.text('Continue to Glycemic Profile'));
     await tester.pumpAndSettle();
     expect(find.text('Glycemic Profile'), findsOneWidget);
+    expect(find.text('A glucose prediction is unavailable for demo nutrition.'),
+        findsOneWidget);
     expect(find.text('GLYCEMIC LOAD'), findsOneWidget);
     await tester.tap(find.text('Continue to Meal Summary'));
     await tester.pumpAndSettle();
@@ -279,6 +283,114 @@ void main() {
     await tester.tap(find.text('View Portion Recommendation'));
     await tester.pumpAndSettle();
     expect(find.text('Portion Recommendation'), findsOneWidget);
+  });
+
+  testWidgets('reviewed meal nutrients feed the glucose forecast request',
+      (tester) async {
+    useTallView(tester);
+    final analysis = mockAnalysisJson();
+    (analysis['meta'] as Map<String, dynamic>)
+      ..['model_name'] = 'mobilenet_v3_large-multilabel'
+      ..['warnings'] = <String>[];
+    for (final item in analysis['items'] as List<dynamic>) {
+      (item as Map<String, dynamic>)['nutrition_source'] = {
+        'source': 'MRI_SL_FCDB',
+        'source_food_id': 'synthetic-test-row',
+      };
+    }
+    Map<String, dynamic>? forecastBody;
+    final glucoseApi = ApiClient(
+      baseUrl: 'http://gateway.test:8000',
+      httpClient: MockClient((request) async {
+        forecastBody = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+            jsonEncode({
+              'predictions': List<double>.generate(16, (i) => 110.0 + i),
+              'horizon_minutes': List<int>.generate(16, (i) => (i + 1) * 15),
+              'unit': 'mg/dL',
+              'model_name': 'Synthetic test model',
+              'model_version': 'test',
+              'disclaimer': 'Synthetic test response.',
+            }),
+            200);
+      }),
+    );
+    addTearDown(glucoseApi.close);
+
+    await showFoodReview(
+      tester,
+      (_) async => http.Response(jsonEncode(analysis), 200),
+      glucoseApi: glucoseApi,
+    );
+    await openPortions(tester);
+    await tester.tap(find.text('Larger (225 g)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue to Nutrition'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View Nutrition Details'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue to Glycemic Profile'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Glucose Forecast'), findsOneWidget);
+    final fields = find.byType(TextFormField);
+    expect(
+        tester.widget<TextFormField>(fields.at(1)).controller?.text, '400.0');
+    expect(tester.widget<TextFormField>(fields.at(2)).controller?.text, '65.0');
+    expect(tester.widget<TextFormField>(fields.at(3)).controller?.text, '15.5');
+    expect(tester.widget<TextFormField>(fields.at(4)).controller?.text, '7.5');
+    expect(tester.widget<TextFormField>(fields.at(5)).controller?.text, '6.0');
+    expect(
+        tester
+            .widget<EditableText>(find.descendant(
+                of: fields.at(1), matching: find.byType(EditableText)))
+            .readOnly,
+        isTrue);
+    expect(forecastBody, isNull,
+        reason: 'A photo cannot supply the pre-meal glucose reading.');
+
+    await tester.enterText(fields.first, '110');
+    await tester.ensureVisible(find.text('Get 4-hour estimate'));
+    await tester.tap(find.text('Get 4-hour estimate'));
+    await tester.pumpAndSettle();
+
+    expect(forecastBody, {
+      'premeal_glucose': 110.0,
+      'calories': 400.0,
+      'carbs': 65.0,
+      'protein': 15.5,
+      'fat': 7.5,
+      'fiber': 6.0,
+    });
+    expect(find.text('Estimated glucose, next 4 hours'), findsOneWidget);
+  });
+
+  testWidgets('missing fibre never becomes a made-up glucose input',
+      (tester) async {
+    useTallView(tester);
+    final analysis = mockAnalysisJson();
+    (analysis['meta'] as Map<String, dynamic>)['model_name'] =
+        'mobilenet_v3_large-multilabel';
+    for (final item in analysis['items'] as List<dynamic>) {
+      (item as Map<String, dynamic>)['nutrition_source'] = {
+        'source': 'MRI_SL_FCDB',
+        'source_food_id': 'synthetic-test-row',
+      };
+    }
+    ((analysis['items'] as List<dynamic>).first
+        as Map<String, dynamic>)['nutrition']['dietary_fiber_g'] = null;
+
+    await showFoodReview(
+        tester, (_) async => http.Response(jsonEncode(analysis), 200));
+    await openNutrition(tester);
+    await tester.tap(find.text('View Nutrition Details'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue to Glycemic Profile'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('A glucose prediction needs complete'),
+        findsOneWidget);
+    expect(find.text('Glucose Forecast'), findsNothing);
   });
 
   testWidgets('meal summary saves foods through meal history API',
@@ -410,6 +522,9 @@ void main() {
 
     await tester.tap(find.text('Continue to Glycemic Profile'));
     await tester.pumpAndSettle();
+    expect(find.textContaining('A glucose prediction needs complete'),
+        findsOneWidget);
+    expect(find.text('Glucose Forecast'), findsNothing);
     expect(find.text('REPORTED CARBS'), findsOneWidget);
     expect(find.text('GLYCEMIC INDEX'), findsOneWidget);
     expect(find.text('Not available'), findsNWidgets(2));
@@ -423,7 +538,8 @@ void main() {
   testWidgets('model labels are shown as readable names', (tester) async {
     useTallView(tester);
     final json = realAnalysisWithUnknownFood();
-    ((json['items'] as List<dynamic>)[0] as Map<String, dynamic>)['label'] = 'pappadam';
+    ((json['items'] as List<dynamic>)[0] as Map<String, dynamic>)['label'] =
+        'pappadam';
     await showFoodReview(
         tester, (_) async => http.Response(jsonEncode(json), 200));
     expect(find.text('Pappadam'), findsOneWidget);

@@ -33,7 +33,12 @@ const _twoColumnWidth = 520.0;
 
 /// Glucose (C2): four-hour glucose forecast from pre-meal glucose and the meal's nutrition.
 class GlucoseScreen extends StatefulWidget {
-  const GlucoseScreen({super.key, this.apiClient, this.session});
+  const GlucoseScreen({
+    super.key,
+    this.apiClient,
+    this.session,
+    this.nutritionReadOnly = false,
+  });
 
   /// Injected in tests. When null, the screen creates and owns its own client.
   final ApiClient? apiClient;
@@ -41,6 +46,10 @@ class GlucoseScreen extends StatefulWidget {
   /// Inputs and results shared with the Dynamic Dietary Risk page. When null,
   /// the screen creates and owns its own session.
   final GlucoseSession? session;
+
+  /// Keep reviewed scan totals tied to the meal instead of silently editing
+  /// them in the forecast form. The standalone glucose page remains editable.
+  final bool nutritionReadOnly;
 
   @override
   State<GlucoseScreen> createState() => _GlucoseScreenState();
@@ -164,6 +173,7 @@ class _GlucoseScreenState extends State<GlucoseScreen> {
         label: 'Calories (kcal)',
         icon: Icons.local_fire_department_outlined,
         validator: (v) => validateNutrient(v, label: 'Calories'),
+        readOnly: widget.nutritionReadOnly,
       ),
       _numberField(
         theme,
@@ -171,6 +181,7 @@ class _GlucoseScreenState extends State<GlucoseScreen> {
         label: 'Carbohydrates (g)',
         icon: Icons.bakery_dining_outlined,
         validator: (v) => validateNutrient(v, label: 'Carbohydrates'),
+        readOnly: widget.nutritionReadOnly,
       ),
       _numberField(
         theme,
@@ -178,6 +189,7 @@ class _GlucoseScreenState extends State<GlucoseScreen> {
         label: 'Protein (g)',
         icon: Icons.egg_outlined,
         validator: (v) => validateNutrient(v, label: 'Protein'),
+        readOnly: widget.nutritionReadOnly,
       ),
       _numberField(
         theme,
@@ -185,6 +197,7 @@ class _GlucoseScreenState extends State<GlucoseScreen> {
         label: 'Fat (g)',
         icon: Icons.opacity,
         validator: (v) => validateNutrient(v, label: 'Fat'),
+        readOnly: widget.nutritionReadOnly,
       ),
       _numberField(
         theme,
@@ -192,6 +205,7 @@ class _GlucoseScreenState extends State<GlucoseScreen> {
         label: 'Fibre (g)',
         icon: Icons.eco_outlined,
         validator: (v) => validateNutrient(v, label: 'Fibre'),
+        readOnly: widget.nutritionReadOnly,
       ),
     ];
 
@@ -228,7 +242,9 @@ class _GlucoseScreenState extends State<GlucoseScreen> {
                 _SectionHeader(
                   icon: Icons.restaurant_outlined,
                   title: 'The meal',
-                  subtitle: 'Enter 0 for any nutrient that does not apply.',
+                  subtitle: widget.nutritionReadOnly
+                      ? 'Values from the foods and portions you reviewed.'
+                      : 'Enter 0 for any nutrient that does not apply.',
                 ),
                 const SizedBox(height: 16),
                 LayoutBuilder(
@@ -262,6 +278,7 @@ class _GlucoseScreenState extends State<GlucoseScreen> {
     required String label,
     required IconData icon,
     required String? Function(String?) validator,
+    bool readOnly = false,
   }) {
     OutlineInputBorder border(Color color, [double width = 1]) =>
         OutlineInputBorder(
@@ -271,6 +288,7 @@ class _GlucoseScreenState extends State<GlucoseScreen> {
 
     return TextFormField(
       controller: controller,
+      readOnly: readOnly,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       textInputAction: TextInputAction.next,
       decoration: InputDecoration(

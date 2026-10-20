@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../meal_history/data/meal_history_api.dart';
@@ -26,10 +27,17 @@ Future<Uint8List?> pickMealImage(ImageSource source) async {
 enum _Stage { capture, review, analysing, result }
 
 class MealScanScreen extends StatefulWidget {
-  const MealScanScreen({super.key, this.api, this.historyApi, this.pickImage});
+  const MealScanScreen({
+    super.key,
+    this.api,
+    this.historyApi,
+    this.glucoseApi,
+    this.pickImage,
+  });
 
   final MealApi? api;
   final MealHistoryApi? historyApi;
+  final ApiClient? glucoseApi;
   final MealImagePicker? pickImage;
 
   @override
@@ -148,6 +156,7 @@ class _MealScanScreenState extends State<MealScanScreen> {
               capturedAt: _capturedAt ?? DateTime.now(),
               onScanAgain: _reset,
               historyApi: widget.historyApi,
+              glucoseApi: widget.glucoseApi,
               image: _image,
             ),
         },
