@@ -144,4 +144,17 @@ void main() {
     expect(notifications, 1);
     session.dispose();
   });
+
+  test('an in-flight forecast is ignored after leaving the page', () async {
+    final pending = Completer<GlucoseForecast>();
+    final session = GlucoseSession();
+    fill(session, testMealValues);
+    final request = session.runForecast(
+        FakeGlucoseApi(forecast: () => pending.future), testMealRequest);
+
+    session.dispose();
+    pending.complete(testForecast());
+
+    expect(await request, isFalse);
+  });
 }

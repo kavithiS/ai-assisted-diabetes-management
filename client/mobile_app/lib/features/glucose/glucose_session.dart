@@ -137,6 +137,9 @@ class GlucoseSession extends ChangeNotifier {
 
   @override
   void dispose() {
+    // Ignore in-flight responses after leaving a scan or glucose page.
+    _forecastSequence++;
+    _assessmentSequence++;
     for (final controller in controllers) {
       controller.dispose();
     }
