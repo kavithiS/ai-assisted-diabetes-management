@@ -41,30 +41,59 @@ class SettingsStore {
   static const _researcherKey = 'c3.researcher_mode';
   static const _deviceIdKey = 'c3.device_id';
 
+  /// Used when device storage fails: the app keeps working for this session (settings
+  /// and the device ID are then not remembered after a restart) instead of hanging.
+  static RiskSettings? _memory;
+
   Future<RiskSettings> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    var deviceId = prefs.getString(_deviceIdKey);
-    if (deviceId == null) {
-      deviceId = newDeviceId();
-      await prefs.setString(_deviceIdKey, deviceId);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      var deviceId = prefs.getString(_deviceIdKey);
+      if (deviceId == null) {
+        deviceId = newDeviceId();
+        await prefs.setString(_deviceIdKey, deviceId);
+      }
+      return RiskSettings(
+        gatewayUrl: prefs.getString(_gatewayUrlKey) ?? AppConfig.apiBaseUrl,
+        researcherMode: prefs.getBool(_researcherKey) ?? false,
+        deviceId: deviceId,
+      );
+    } on Object {
+      return _memory ??= RiskSettings(
+        gatewayUrl: AppConfig.apiBaseUrl,
+        researcherMode: false,
+        deviceId: newDeviceId(),
+      );
     }
-    return RiskSettings(
-      gatewayUrl: prefs.getString(_gatewayUrlKey) ?? AppConfig.apiBaseUrl,
-      researcherMode: prefs.getBool(_researcherKey) ?? false,
-      deviceId: deviceId,
-    );
   }
 
   Future<void> save(RiskSettings settings) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_gatewayUrlKey, settings.gatewayUrl.trim());
-    await prefs.setBool(_researcherKey, settings.researcherMode);
+    _memory = settings;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_gatewayUrlKey, settings.gatewayUrl.trim());
+      await prefs.setBool(_researcherKey, settings.researcherMode);
+    } on Object {
+      // Kept in memory for this session (see [_memory]).
+    }
   }
 
   /// Forgets the URL and Researcher mode. The device ID is kept.
   Future<void> reset() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_gatewayUrlKey);
-    await prefs.remove(_researcherKey);
+    final memory = _memory;
+    if (memory != null) {
+      _memory = RiskSettings(
+        gatewayUrl: AppConfig.apiBaseUrl,
+        researcherMode: false,
+        deviceId: memory.deviceId,
+      );
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_gatewayUrlKey);
+      await prefs.remove(_researcherKey);
+    } on Object {
+      // Nothing stored to forget.
+    }
   }
 }
