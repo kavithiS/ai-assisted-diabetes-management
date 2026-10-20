@@ -109,10 +109,10 @@ class RiskController extends ChangeNotifier {
   }
 
   /// One throw-away request so SHAP and LIME are loaded before the demo. Not kept in
-  /// history. Returns how long it took.
+  /// history and not saved on the server. Returns how long it took.
   Future<Duration> warmUp() async {
     final watch = Stopwatch()..start();
-    await _repository!.assess(lowerRiskPreset.profile);
+    await _repository!.assess(lowerRiskPreset.profile, save: false);
     watch.stop();
     await checkConnection();
     return watch.elapsed;
