@@ -44,6 +44,14 @@ void main() {
     expect(errorIcon, findsNothing,
         reason: 'The forecast request returned an error.');
     expect(resultTitle, findsOneWidget);
+
+    // The 16 values are in a collapsed section.
+    final allValues = find.text('All 16 estimates');
+    await tester.ensureVisible(allValues);
+    await tester.pumpAndSettle();
+    await tester.tap(allValues);
+    await tester.pumpAndSettle();
+
     expect(find.text('+15 min'), findsOneWidget);
     expect(find.text('+4h'), findsOneWidget);
     expect(find.textContaining('Highest estimate:'), findsOneWidget);

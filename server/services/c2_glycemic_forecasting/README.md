@@ -7,7 +7,8 @@
 | Port | 8002 |
 | Postgres schema | `c2` |
 | Health | `GET /health` |
-| Placeholder route | `POST /v1/glucose/forecast` (returns `501 Not Implemented`) |
+| Forecast | `POST /v1/glucose/forecast` (contract `glucose_forecast`) |
+| Post-meal response indicator | `POST /v1/glucose/dietary-risk` (contract `dietary_risk`; method in `docs/dietary_risk_method.md`) |
 | Gateway prefix | `/api/v1/glucose/*` |
 
 Run locally from the repository root:

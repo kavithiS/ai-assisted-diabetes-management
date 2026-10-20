@@ -43,6 +43,22 @@ class GlucoseForecastRequest {
         'fat': fat,
         'fiber': fiber,
       };
+
+  /// Equal when every input is equal, so results can be matched to the inputs
+  /// they were computed from.
+  @override
+  bool operator ==(Object other) =>
+      other is GlucoseForecastRequest &&
+      other.premealGlucose == premealGlucose &&
+      other.calories == calories &&
+      other.carbs == carbs &&
+      other.protein == protein &&
+      other.fat == fat &&
+      other.fiber == fiber;
+
+  @override
+  int get hashCode =>
+      Object.hash(premealGlucose, calories, carbs, protein, fat, fiber);
 }
 
 class GlucoseForecast {

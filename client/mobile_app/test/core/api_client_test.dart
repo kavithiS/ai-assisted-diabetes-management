@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_app/core/api_client.dart';
 import 'package:mobile_app/features/glucose/glucose_models.dart';
 
+import '../features/glucose/dietary_risk_test_data.dart';
+
 const _request = GlucoseForecastRequest(
   premealGlucose: 110,
   calories: 600,
@@ -227,6 +229,70 @@ void main() {
             contains('could not read'),
           ),
         ),
+      );
+      client.close();
+    });
+  });
+  group('ApiClient.assessDietaryRisk', () {
+    _StubServer? stub;
+
+    tearDown(() async {
+      await stub?.stop();
+      stub = null;
+    });
+
+    test('POSTs the forecast fields to the dietary-risk endpoint', () async {
+      stub = await _StubServer.start(status: 200, body: dietaryRiskJson());
+      final client = ApiClient(baseUrl: 'http://127.0.0.1:${stub!.port}');
+
+      final result = await client.assessDietaryRisk(_request);
+      client.close();
+
+      expect(stub!.lastMethod, 'POST');
+      expect(stub!.lastPath, '/api/v1/glucose/dietary-risk');
+      expect(stub!.lastBody, _request.toJson());
+      expect(result.indicator.estimatedAbove180, isTrue);
+      expect(result.features.predictedPeakGlucose, 195);
+    });
+
+    test('parses an unavailable indicator', () async {
+      stub = await _StubServer.start(
+          status: 200, body: dietaryRiskJson(available: false));
+      final client = ApiClient(baseUrl: 'http://127.0.0.1:${stub!.port}');
+
+      final result = await client.assessDietaryRisk(_request);
+      client.close();
+
+      expect(result.indicator.available, isFalse);
+      expect(result.indicator.estimatedAbove180, isNull);
+    });
+
+    test('maps a 503 to a model-unavailable message', () async {
+      stub = await _StubServer.start(
+        status: 503,
+        body: {'detail': 'The C2 forecasting model is currently unavailable.'},
+      );
+      final client = ApiClient(baseUrl: 'http://127.0.0.1:${stub!.port}');
+
+      await expectLater(
+        client.assessDietaryRisk(_request),
+        throwsA(
+            isA<ApiException>().having((e) => e.statusCode, 'statusCode', 503)),
+      );
+      client.close();
+    });
+
+    test('rejects a body that does not match the contract', () async {
+      final body = dietaryRiskJson();
+      (body['response_indicator'] as Map<String, dynamic>)
+          .remove('estimated_above_180');
+      stub = await _StubServer.start(status: 200, body: body);
+      final client = ApiClient(baseUrl: 'http://127.0.0.1:${stub!.port}');
+
+      await expectLater(
+        client.assessDietaryRisk(_request),
+        throwsA(isA<ApiException>()
+            .having((e) => e.message, 'message', contains('could not read'))),
       );
       client.close();
     });

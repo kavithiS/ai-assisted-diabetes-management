@@ -4,6 +4,7 @@ import 'dart:io' show SocketException;
 
 import 'package:http/http.dart' as http;
 
+import '../features/glucose/dietary_risk_models.dart';
 import '../features/glucose/glucose_models.dart';
 import 'config.dart';
 
@@ -32,6 +33,20 @@ class ApiClient {
     final json = await postJson('/api/v1/glucose/forecast', request.toJson());
     try {
       return GlucoseForecast.fromJson(json);
+    } on FormatException {
+      throw const ApiException(
+          'The server sent a response this app could not read.');
+    }
+  }
+
+  /// Requests the forecast, its trajectory features and the post-meal response
+  /// indicator through the gateway (C2).
+  Future<DietaryRiskAssessment> assessDietaryRisk(
+      GlucoseForecastRequest request) async {
+    final json =
+        await postJson('/api/v1/glucose/dietary-risk', request.toJson());
+    try {
+      return DietaryRiskAssessment.fromJson(json);
     } on FormatException {
       throw const ApiException(
           'The server sent a response this app could not read.');

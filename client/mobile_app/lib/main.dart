@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/theme.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/foot_monitor/foot_monitor_screen.dart';
-import 'features/glucose/glucose_screen.dart';
+import 'features/glucose/glucose_tabs.dart';
 import 'features/meal_scan/meal_scan_screen.dart';
 import 'features/risk_profile/risk_profile_screen.dart';
 
@@ -36,18 +36,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static const List<Widget> _screens = [
     MealScanScreen(),
-    GlucoseScreen(),
+    GlucoseTabs(),
     RiskProfileScreen(),
     FootMonitorScreen(),
     DashboardScreen(),
   ];
 
   static const List<NavigationDestination> _destinations = [
-    NavigationDestination(icon: Icon(Icons.camera_alt_outlined), label: 'Meal Scan'),
+    NavigationDestination(
+        icon: Icon(Icons.camera_alt_outlined), label: 'Meal Scan'),
     NavigationDestination(icon: Icon(Icons.show_chart), label: 'Glucose'),
-    NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Risk Profile'),
+    NavigationDestination(
+        icon: Icon(Icons.assignment_outlined), label: 'Risk Profile'),
     NavigationDestination(icon: Icon(Icons.healing), label: 'Foot Monitor'),
-    NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
+    NavigationDestination(
+        icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
   ];
 
   @override

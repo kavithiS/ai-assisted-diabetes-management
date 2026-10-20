@@ -194,6 +194,13 @@ void main() {
     expect(sent.fiber, 8);
 
     expect(find.text('Estimated glucose, next 4 hours'), findsOneWidget);
+
+    // The 16 values are in a collapsed section; expand it to read them.
+    expect(find.text('+15 min'), findsNothing);
+    await tester.ensureVisible(find.text('All 16 estimates'));
+    await tester.tap(find.text('All 16 estimates'));
+    await tester.pumpAndSettle();
+
     expect(find.text('+15 min'), findsOneWidget);
     expect(find.text('110 mg/dL'), findsOneWidget); // first prediction, 110.0
     expect(find.text('+4h'), findsOneWidget);
