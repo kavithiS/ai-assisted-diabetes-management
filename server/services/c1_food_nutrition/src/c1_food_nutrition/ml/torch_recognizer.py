@@ -81,6 +81,23 @@ class TorchFoodRecognizer:
         if size < 32 or not 0.0 <= chosen <= 1.0:
             raise ModelBundleError(f"bad size {size} or threshold {chosen}")
 
+        raw_class_thresholds = bundle.get("class_thresholds", {}) if threshold is None else {}
+        if not isinstance(raw_class_thresholds, dict):
+            raise ModelBundleError("class_thresholds must be a label-to-number map")
+        unknown_thresholds = sorted(set(raw_class_thresholds) - set(classes))
+        if unknown_thresholds:
+            raise ModelBundleError(
+                f"class_thresholds contains unknown classes: {unknown_thresholds}"
+            )
+        try:
+            class_thresholds = {
+                str(label): float(value) for label, value in raw_class_thresholds.items()
+            }
+        except (TypeError, ValueError) as exc:
+            raise ModelBundleError("class_thresholds values must be numbers") from exc
+        if any(not 0.0 <= value <= 1.0 for value in class_thresholds.values()):
+            raise ModelBundleError("class_thresholds values must be between 0 and 1")
+
         self._foods = foods_for(classes, class_foods or load_class_foods())
         net = build_network(str(bundle["arch"]), len(classes))
         try:
@@ -95,6 +112,7 @@ class TorchFoodRecognizer:
         self._classes = classes
         self._size = size
         self._threshold = chosen
+        self._class_thresholds = class_thresholds
         self._arch = str(bundle["arch"])
         self._version = str(bundle.get("run") or bundle_path.stem)
         self._lock = threading.Lock()
@@ -123,6 +141,11 @@ class TorchFoodRecognizer:
     def threshold(self) -> float:
         """Minimum score for a class to be reported."""
         return self._threshold
+
+    @property
+    def class_thresholds(self) -> dict[str, float]:
+        """Validation-selected overrides for individual classes."""
+        return dict(self._class_thresholds)
 
     @property
     def input_size(self) -> int:
@@ -155,5 +178,5 @@ class TorchFoodRecognizer:
         return [
             self._food(self._classes[j], float(scores[j]))
             for j in order
-            if scores[j] >= self._threshold
+            if scores[j] >= self._class_thresholds.get(self._classes[j], self._threshold)
         ]

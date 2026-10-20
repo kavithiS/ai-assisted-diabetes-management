@@ -15,7 +15,7 @@ bitter_gourd_curry,curry_dish,SL_84,exact,Bittergourd Curry
 boiled_egg,egg,SL_165,exact,"Egg, Boiled"
 bottle_gourd,gourds,,,
 bread,bread,,,
-brinjal_dish,brinjal,,none,"no cooked brinjal dish; only raw eggplant (USDA) and Brinjal Curry (SL_72, a different dish)"
+brinjal_dish,brinjal,SL_72,close,"Brinjal Curry; owner choice 2026-10-20; the photos may show other brinjal dishes such as moju"
 burger,fast_food,,,
 buttermilk,curd_yoghurt,,,
 cabbage,cabbage_family,,,
@@ -94,7 +94,7 @@ omelet,egg,,,
 orange,citrus,,,
 pancake,biscuit_cake,,,
 papaya,papaya,,,
-pappadam,snacks_savoury,,none,no match in the allowed tables
+pappadam,snacks_savoury,US_168106,partial,"Papad (USDA SR Legacy); owner choice 2026-10-20; values are for uncooked papad, a fried papadam has more fat"
 pastry,short_eats,SL_16,exact,Pastry
 patty,short_eats,US_167660,partial,"USDA SR Legacy, beef empanada (owner choice 2026-10-18); a Sri Lankan patty differs"
 payesh,sweets_traditional,,,

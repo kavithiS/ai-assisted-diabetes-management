@@ -1,4 +1,4 @@
-"""The owner's food matches (2026-10-18) and what a plate with them returns."""
+"""The owner's food matches (2026-10-18 and 2026-10-20) and what a plate with them returns."""
 
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -20,6 +20,7 @@ TableFactory = Callable[..., Path]
 REAL_TABLE = Path(__file__).parents[5] / "data" / "c1" / "c1_foods_combined.csv"
 
 # class -> (table food_id, match), chosen by the owner on 2026-10-18
+# (brinjal_dish and pappadam: 2026-10-20)
 OWNER_MATCHES = {
     "dhal_curry": ("SL_54", "exact"),
     "fish_curry": ("SL_146", "close"),
@@ -28,17 +29,17 @@ OWNER_MATCHES = {
     "milkshake": ("US_170884", "close"),
     "submarine": ("US_170309", "partial"),
     "patty": ("US_167660", "partial"),
+    "brinjal_dish": ("SL_72", "close"),
+    "pappadam": ("US_168106", "partial"),
 }
 # no honest match in the allowed tables: nutrients stay unknown
 STAY_UNKNOWN = (
     "asmi",
-    "brinjal_dish",
     "cutlet",
     "kokis",
     "konda_kewum",
     "lunu_miris",
     "mun_kewum",
-    "pappadam",
     "shrimp_curry",
     "watalappam",
 )
@@ -88,7 +89,7 @@ def test_owner_matches_are_recorded() -> None:
     table = load_class_foods()
     for name, (food_id, match) in OWNER_MATCHES.items():
         assert (table[name].food_id, table[name].match) == (food_id, match), name
-        assert "owner choice 2026-10-18" in table[name].note, name
+        assert "owner choice 2026-10-" in table[name].note, name
     for name in STAY_UNKNOWN:
         assert table[name].food_id is None and table[name].match == "none", name
     assert "SL_32" not in {e.food_id for e in table.values()}
@@ -128,7 +129,7 @@ async def test_plate_with_every_new_match_has_known_totals(jpeg_bytes: bytes) ->
             assert getattr(item.nutrition, field) is not None, f"{name}.{field}"
         assert item.nutrition.sugars_g is None, name  # the table has no sugars column
         assert not any(w.startswith("No nutrition data") for w in result.meta.warnings), name
-    plate = await analyze(list(OWNER_MATCHES), jpeg_bytes, lookup)  # all seven together
+    plate = await analyze(list(OWNER_MATCHES), jpeg_bytes, lookup)  # all together
     assert plate.totals.energy_kcal is not None and plate.totals.carbohydrate_g is not None
     expected = sum(
         item.nutrition.energy_kcal for item in plate.items if item.nutrition.energy_kcal is not None

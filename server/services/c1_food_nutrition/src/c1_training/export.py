@@ -46,6 +46,30 @@ def choose_threshold(
     return best, micro_f1(labels, scores >= best)
 
 
+def choose_class_thresholds(
+    labels: NDArray[np.generic],
+    scores: NDArray[np.floating],
+    classes: Sequence[str],
+    candidates: Sequence[float] = THRESHOLDS,
+) -> dict[str, float]:
+    """Choose an independent validation threshold for each class.
+
+    A single micro-F1 threshold is dominated by common foods. Per-class
+    thresholds preserve recall for less frequent foods without using test data.
+    """
+    if labels.ndim != 2 or scores.ndim != 2 or labels.shape != scores.shape:
+        raise ValueError("labels and scores must be matching two-dimensional arrays")
+    if labels.shape[1] != len(classes):
+        raise ValueError("classes must match the number of label columns")
+
+    thresholds: dict[str, float] = {}
+    for index, label in enumerate(classes):
+        column_labels = labels[:, index : index + 1]
+        column_scores = scores[:, index : index + 1]
+        thresholds[label], _ = choose_threshold(column_labels, column_scores, candidates)
+    return thresholds
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """Command-line options."""
     p = argparse.ArgumentParser(description="Export a Stage 2 run as a service model bundle.")
@@ -98,6 +122,7 @@ def run(a: argparse.Namespace) -> dict[str, Any]:
     model.load_state_dict(checkpoint["state"])
     valid_map, f1_at_half, scores, labels = evaluate(model, loader, "cpu")
     threshold, f1 = choose_threshold(labels, scores)
+    class_thresholds = choose_class_thresholds(labels, scores, classes)
 
     bundle = {
         "format": BUNDLE_FORMAT,
@@ -106,6 +131,7 @@ def run(a: argparse.Namespace) -> dict[str, Any]:
         "classes": classes,
         "size": size,
         "threshold": float(threshold),
+        "class_thresholds": class_thresholds,
         "run": a.run,
         "valid_mAP": float(valid_map),
         "valid_micro_f1": float(f1),

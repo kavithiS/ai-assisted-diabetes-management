@@ -2,7 +2,8 @@
 
 Kept free of OpenCV and of top-level PyTorch imports, so the training environment can use it.
 A bundle is a ``torch.save`` dict with the keys in :data:`REQUIRED_KEYS` (and optionally
-``run``, ``valid_mAP``, ``valid_micro_f1``).
+``run``, ``valid_mAP``, ``valid_micro_f1`` and ``class_thresholds``). Class thresholds must
+be selected on validation data and override the global threshold only for that label.
 """
 
 from typing import Any

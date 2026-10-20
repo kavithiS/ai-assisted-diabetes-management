@@ -49,6 +49,26 @@ def test_threshold_override_and_empty_result(make_bundle: BundleFactory) -> None
     assert scores.shape == (3,) and scores.dtype == np.float32
 
 
+def test_bundle_can_use_a_validation_selected_threshold_for_one_class(
+    make_bundle: BundleFactory,
+) -> None:
+    from c1_food_nutrition.ml.torch_recognizer import TorchFoodRecognizer
+
+    path = make_bundle(
+        threshold=1.0,
+        class_thresholds={"kiribath": 0.0},
+    )
+    recognizer = TorchFoodRecognizer(path)
+    assert recognizer.class_thresholds == {"kiribath": 0.0}
+    assert [food.label for food in recognizer.recognize(image())] == ["kiribath"]
+
+    # An explicit global override is useful for evaluation and intentionally
+    # disables bundle-specific overrides.
+    overridden = TorchFoodRecognizer(path, threshold=1.0)
+    assert overridden.class_thresholds == {}
+    assert overridden.recognize(image()) == []
+
+
 def test_same_input_gives_same_scores(make_bundle: BundleFactory) -> None:
     from c1_food_nutrition.ml.torch_recognizer import TorchFoodRecognizer
 
@@ -92,6 +112,10 @@ def test_unmapped_class_stops_loading(make_bundle: BundleFactory) -> None:
         ({"classes": ["kiribath", "kiribath"]}, "empty or repeated"),
         ({"size": 8}, "bad size"),
         ({"threshold": 1.5}, "bad size"),
+        ({"class_thresholds": {"unknown": 0.5}}, "unknown classes"),
+        ({"class_thresholds": {"kiribath": 1.5}}, "between 0 and 1"),
+        ({"class_thresholds": {"kiribath": "low"}}, "must be numbers"),
+        ({"class_thresholds": []}, "label-to-number map"),
         ({"arch": "resnet50"}, "unsupported arch"),
         ({"classes": ("kiribath", "hoppers"), "n_outputs": 3}, "do not fit"),
     ],

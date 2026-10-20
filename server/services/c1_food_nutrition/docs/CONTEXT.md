@@ -1,6 +1,6 @@
 # C1 context: start here
 
-**Last updated:** 2026-10-18 · **Owner:** Thilakarathne K.S (IT23295742) · **Branch:** `c1-kavithi`
+**Last updated:** 2026-10-20 · **Owner:** Thilakarathne K.S (IT23295742) · **Branch:** `c1-kavithi`
 
 Read this file first in every new session, then `../AGENTS.md` (rules), then `OPEN_ITEMS.md`. Numbers come from report files and the source is named beside them. Anything marked **[UNVERIFIED]** was not re-checked when this was written. If a fact here disagrees with the code or a report file, trust the file and fix this page.
 
@@ -42,7 +42,7 @@ Component 1 of DiaCare AI (J26-IT-352), a research prototype for Sri Lankan diab
 | Food-101 pretraining comparison | **Done 2026-10-15**: test mAP 0.898 against 0.916 for ImageNet start. Not adopted |
 | Training code in the repo | **Done 2026-10-15**: package `src/c1_training/` (typed), tests in `training/tests/`, how-to in `training/README.md`. PyTorch is not a service dependency. Checked against the old scripts on the real data. `build_curation.py`, `make_class_map.py`, `process_food101.py` not moved yet |
 | Trained model wired into the API | **Done 2026-10-16, opt-in** (`RECOGNIZER=torch`, `MODEL_PATH`); default is still the mock. End-to-end checked over HTTP with real photos. Portions and nutrition are still mock, so `is_mock` stays `true` (section 5) |
-| Real nutrition values | **Done 2026-10-16, opt-in** (`NUTRITION_TABLE_PATH`): values come from `data/c1/c1_foods_combined.csv`, Sri Lankan FCDB and USDA rows only, matched per class (**38 of the model's 48 foods get values since 2026-10-18, 10 stay unknown**). Regional tables are not used (A1). The owner chose `dhal_curry` SL_54, `fish_curry` SL_146, `meat_curry` SL_158, `noodles` SL_33, and USDA SR Legacy rows for `milkshake`, `submarine`, `patty` (`docs/NUTRITION_MATCHES.md`). Database: 476 foods (241 Sri Lankan, 235 USDA) |
+| Real nutrition values | **Done 2026-10-16, opt-in** (`NUTRITION_TABLE_PATH`): values come from `data/c1/c1_foods_combined.csv`, Sri Lankan FCDB and USDA rows only, matched per class (**40 of the model's 48 foods get values since 2026-10-20, 8 stay unknown**; `brinjal_dish` and `pappadam` were added on 2026-10-20 by the owner's choice, `docs/NUTRITION_MATCHES.md`). Regional tables are not used (A1). The owner chose `dhal_curry` SL_54, `fish_curry` SL_146, `meat_curry` SL_158, `noodles` SL_33, and USDA SR Legacy rows for `milkshake`, `submarine`, `patty` (`docs/NUTRITION_MATCHES.md`). Database: 476 foods (241 Sri Lankan, 235 USDA) |
 | Portion estimation | Not started (playbook in `docs/tasks/`). Portions are still a fixed 100 g mock, so values are per 100 g |
 | Docs: task playbooks, experiment log, changelog, next steps | Done. `docs/tasks/`, `EXPERIMENTS.md`, `CHANGELOG.md`, `NEXT_STEPS.md` all current as of 2026-10-18 |
 
@@ -178,9 +178,9 @@ Caveats: the test set is small (209 images; the weakest classes have only 1 to 5
 
 1. **Decision: seed averaging.** Averaging the 3 seed models gave test mAP 0.936 (against 0.919 single). It needs 3 bundles in the service (about 3× inference time) and a threshold of 0.65 instead of 0.85. The owner decides.
 2. **A6: final model on train+valid.** Once the owner fixes the epochs and threshold, train a final model on train+valid (no validation photos remain, so settings must be locked first). Export with `python -m c1_training.export` and restart the service.
-3. **A7: weak classes needing more photos.** List the classes with low AP and few test photos. The main ones: `lunu_miris` (AP 0.53, 6 test), `fish_curry` (AP 0.64, 5 test), `vegetable_salad` (AP 0.68, 3 test), `fried_potato` (AP 0.77, 3 test). Check licences (ADR 0002) before collecting.
+3. **A7: weak classes needing more photos.** List the classes with low AP and few test photos. The main ones: `lunu_miris` (AP 0.53, 6 test), `fish_curry` (AP 0.64, 5 test), `vegetable_salad` (AP 0.68, 3 test), `fried_potato` (AP 0.77, 3 test). `brinjal_dish` also misses often: at 0.85 it was returned for 3/6 validation and 3/4 test positives. A validation-selected brinjal-only threshold of 0.50 raises validation recall to 4/6 (F1 0.545 to 0.615) but leaves test recall at 3/4; it is deployed from 2026-10-20 without changing other class thresholds. The class has only 19 train photos from 29 scenes; `pappadam` was returned for 7/8 held-out positives. Check licences (ADR 0002) before collecting.
 4. **Portion estimation.** Still a fixed 100 g mock. The reference-card approach is in `docs/tasks/`. Needs the `reference_object` format decided with C4 (OPEN_ITEMS A3).
-5. **10 unmatched nutrition classes.** `asmi`, `brinjal_dish`, `cutlet`, `kokis`, `konda_kewum`, `lunu_miris`, `mun_kewum`, `pappadam`, `shrimp_curry`, `watalappam` still return unknown nutrients. Options: find better table rows, ask supervisors about regional tables (A1), or accept them as unknown.
+5. **8 unmatched nutrition classes.** `asmi`, `cutlet`, `kokis`, `konda_kewum`, `lunu_miris`, `mun_kewum`, `shrimp_curry`, `watalappam` still return unknown nutrients (`brinjal_dish` and `pappadam` got rows on 2026-10-20). Options: find better table rows, ask supervisors about regional tables (A1), or accept them as unknown.
 6. **Engineering.** PyTorch as official optional dependency (shared `uv.lock`, team PR). `.env.example` missing `RECOGNIZER`, `MODEL_PATH`, `MODEL_DEVICE`. Gateway routes for meal history. CI never runs PyTorch tests. Contract wording fix for `carbohydrate_g`. USDA Foundation rows missing energy (158 of 232).
 7. **Clean-up.** Move remaining curation scripts into `c1_training`. Remove old scripts and backups outside git. Delete `c1_local.db`.
 

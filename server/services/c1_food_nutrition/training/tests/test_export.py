@@ -9,7 +9,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from c1_training.export import THRESHOLDS, choose_threshold
+from c1_training.export import THRESHOLDS, choose_class_thresholds, choose_threshold
 from numpy.typing import NDArray
 
 RowFactory = Callable[..., dict[str, str]]
@@ -30,6 +30,16 @@ def test_choose_threshold_with_no_good_split_still_returns_a_candidate() -> None
     threshold, f1 = choose_threshold(labels, np.array([[0.1], [0.9]]))
     assert threshold in THRESHOLDS
     assert 0.0 <= f1 <= 1.0
+
+
+def test_choose_class_thresholds_preserves_per_food_recall() -> None:
+    labels = np.array([[1, 1], [1, 0], [0, 0], [0, 0]])
+    scores = np.array([[0.4, 0.9], [0.3, 0.1], [0.2, 0.2], [0.1, 0.1]])
+
+    thresholds = choose_class_thresholds(labels, scores, ["rare_food", "common_food"])
+
+    assert thresholds["rare_food"] == 0.3
+    assert thresholds["common_food"] == 0.5
 
 
 def test_train_export_and_load_in_the_service_recogniser(

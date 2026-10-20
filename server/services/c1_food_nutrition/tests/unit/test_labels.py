@@ -59,7 +59,7 @@ def test_reviewed_food_matches_are_consistent() -> None:
     assert not table["kiribath"].is_approximate
     assert table["chicken_bun"].is_approximate and table["chicken_bun"].food_id == "SL_11"
     # No honest match: the nutrients stay unknown instead of borrowing a broad concept.
-    for name in ("lunu_miris", "brinjal_dish", "cutlet", "kokis"):
+    for name in ("lunu_miris", "cutlet", "kokis"):
         assert table[name].food_id is None and table[name].match == "none", name
     # Fried Noodles (SL_32) has the same numbers as Carrot Curry (SL_74): never matched.
     assert "SL_32" not in {e.food_id for e in table.values()}

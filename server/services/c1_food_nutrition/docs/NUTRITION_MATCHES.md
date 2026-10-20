@@ -4,7 +4,7 @@
 
 Each class the model can name is matched to one entry of the composition table. **exact** = the same dish; **close** = the same dish, a variety may differ; **partial** = the nearest entry, noticeably different (the response carries a note); **none** = no honest match, the nutrients stay unknown (`null`). A food is never given the values of a broad concept. To change a match, edit the CSV (`food_id`, `match`, `note`) and run the tests.
 
-The owner chose the seven rows marked "owner choice 2026-10-18". The other `partial`, `close` and `none` rows are still to be reviewed. No honest match exists for `asmi`, `brinjal_dish`, `cutlet`, `kokis`, `konda_kewum`, `lunu_miris`, `mun_kewum`, `pappadam`, `shrimp_curry` and `watalappam` (USDA offers only a raw cutlet, doughnuts, puffed rice cakes, unfried papad, shrimp without gravy, flan and plain eggplant); the owner declined the papad, shrimp and flan proposals and chose to keep brinjal null.
+The owner chose the rows marked "owner choice 2026-10-18" (seven) and "owner choice 2026-10-20" (`brinjal_dish` and `pappadam`, below). The other `partial`, `close` and `none` rows are still to be reviewed. No honest match exists for `asmi`, `cutlet`, `kokis`, `konda_kewum`, `lunu_miris`, `mun_kewum`, `shrimp_curry` and `watalappam` (USDA offers only a raw cutlet, doughnuts, puffed rice cakes, shrimp without gravy and flan); on 2026-10-18 the owner declined the shrimp and flan proposals. On 2026-10-20 the owner reversed the earlier choices for two classes: `brinjal_dish` now uses SL_72 Brinjal Curry (the Sri Lankan table; the photos may show another brinjal dish), and `pappadam` uses the USDA SR Legacy row Papad (values for uncooked papad: a fried papadam has more fat). To undo either, set the row back to `none` in the CSV and in the two tests.
 
 | Class | Match | Table entry | Note |
 |---|---|---|---|
@@ -40,7 +40,7 @@ The owner chose the seven rows marked "owner choice 2026-10-18". The other `part
 | string_hoppers | partial | SL_35 String Hoppers, White | String Hoppers, White; a red variant exists (SL_36) |
 | white_rice | partial | SL_6 Rice, White Nadu, Boiled | Rice, White Nadu, Boiled; other white rice varieties give nearly the same values |
 | asmi | none | — | no match in the allowed tables (only a regional-table sweet exists) |
-| brinjal_dish | none | — | no cooked brinjal dish; only raw eggplant (USDA) and Brinjal Curry (SL_72, a different dish) |
+| brinjal_dish | close | SL_72 Brinjal Curry | owner choice 2026-10-20; the photos may show other brinjal dishes such as moju |
 | cutlet | none | — | no match in the allowed tables |
 | dhal_curry | exact | SL_54 Dhal Curry, Thick | owner choice 2026-10-18; the watery (SL_55) and spinach (SL_56) versions differ a lot |
 | fish_curry | close | SL_146 Chili Fish Curry | owner choice 2026-10-18; white or dry fish curries differ |
@@ -51,12 +51,12 @@ The owner chose the seven rows marked "owner choice 2026-10-18". The other `part
 | milkshake | close | US_170884 Milk shakes, thick vanilla (USDA SR Legacy) | owner choice 2026-10-18; other flavours differ |
 | mun_kewum | none | — | no match in the allowed tables |
 | noodles | partial | SL_33 Boiled Noodles | owner choice 2026-10-18; fried noodles have more fat. SL_32 Fried Noodles is never used (same numbers as Carrot Curry, SL_74) |
-| pappadam | none | — | no match in the allowed tables |
+| pappadam | partial | US_168106 Papad (USDA SR Legacy) | owner choice 2026-10-20; values are for uncooked papad, a fried papadam has more fat |
 | patty | partial | US_167660 Beef empanada (USDA SR Legacy) | owner choice 2026-10-18; a Sri Lankan patty differs |
 | shrimp_curry | none | — | no match (the Prawn Curry row was excluded for inconsistent values) |
 | submarine | partial | US_170309 Submarine sandwich, oven roasted chicken (USDA SR Legacy) | owner choice 2026-10-18; other fillings differ |
 | watalappam | none | — | no match in the allowed tables |
 
-48 classes reviewed: 16 exact, 7 close, 15 partial, 10 none.
+48 classes reviewed: 16 exact, 8 close, 16 partial, 8 none.
 
-The three USDA rows (`US_170884`, `US_170309`, `US_167660`) come from USDA SR Legacy (read from the local FoodData Central download, per 100 g). Available carbohydrate is the USDA "by difference" total minus fibre, as for the Foundation rows; there is no sugars value. They are in `data/c1/c1_foods_combined.csv` with source `USDA FoodData Central, SR Legacy` (backup `c1_foods_combined.before_srlegacy_2026-10-18.csv`, both outside git).
+The four USDA rows (`US_170884`, `US_170309`, `US_167660`, `US_168106`) come from USDA SR Legacy (read from the local FoodData Central download, per 100 g). Available carbohydrate is the USDA "by difference" total minus fibre, as for the Foundation rows; there is no sugars value. They are in `data/c1/c1_foods_combined.csv` with source `USDA FoodData Central, SR Legacy` (backup `c1_foods_combined.before_srlegacy_2026-10-18.csv`, both outside git).

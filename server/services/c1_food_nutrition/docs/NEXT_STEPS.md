@@ -23,7 +23,7 @@ These need the owner's answer before the next training or service change.
 | T1 | **A6: train the final model on train+valid** | ~5 min per run (GPU) | After D1-D3 are decided. Combine train and valid photos, train with the locked settings, export with `python -m c1_training.export`, restart the service. If seed averaging: train 3 seeds and export 3 bundles. |
 | T2 | **A7: list weak classes needing more photos** | Small (analysis) | Classes with low AP and few test photos: `lunu_miris` (0.53 AP, 6 test), `fish_curry` (0.64, 5), `vegetable_salad` (0.68, 3), `fried_potato` (0.77, 3). Also `pumpkin_curry`, `fanta`, `iced_coffee` which dropped out after the leak fix. Check licences (ADR 0002) before collecting new photos. |
 | T3 | **Collect more Sri Lankan food photos** | Medium to large | For the weak classes above. Needs ethical clearance if photos come from patients. Public datasets or the owner's own photos are fine. |
-| T4 | **10 unmatched nutrition classes** | Small | `asmi`, `brinjal_dish`, `cutlet`, `kokis`, `konda_kewum`, `lunu_miris`, `mun_kewum`, `pappadam`, `shrimp_curry`, `watalappam`. Options: find better table rows, ask supervisors about regional tables (OPEN_ITEMS A1), or accept as unknown. |
+| T4 | **8 unmatched nutrition classes** | Small | `asmi`, `cutlet`, `kokis`, `konda_kewum`, `lunu_miris`, `mun_kewum`, `shrimp_curry`, `watalappam` (`brinjal_dish` and `pappadam` were matched on 2026-10-20). Options: find better table rows, ask supervisors about regional tables (OPEN_ITEMS A1), or accept as unknown. |
 
 ## Priority 3: portion estimation
 
@@ -52,7 +52,7 @@ These need the owner's answer before the next training or service change.
 |---|---|---|---|
 | C1 | Approve `meal_nutrition` v1 schema | C2, C3 | OPEN_ITEMS A4 |
 | C2 | Finalise `reference_object` format | C4 | OPEN_ITEMS A3 |
-| C3 | Regional nutrition tables as fallback | Supervisors | OPEN_ITEMS A1; would cover the 10 unmatched classes |
+| C3 | Regional nutrition tables as fallback | Supervisors | OPEN_ITEMS A1; would cover the 8 unmatched classes |
 | C4 | Evaluation targets | Supervisors | OPEN_ITEMS A5; no target may be written until supervisors set one |
 | C5 | GitHub usernames for CODEOWNERS | All members | OPEN_ITEMS A8 |
 
