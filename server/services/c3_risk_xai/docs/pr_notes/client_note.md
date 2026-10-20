@@ -46,7 +46,21 @@ analyzer:
 C3 put the file back to the original line. Suggest accepting the change once in a client
 commit, otherwise it shows as modified for every member after each `pub get`.
 
-## 4. Later (not needed for PP1)
+## 4. Release APK fix (android/app, 2026-10-20)
+
+The first release APK started but the Risk Profile tab never loaded. Logcat:
+`NoSuchMethodError: SharedPreferencesApiRegistrar.getAll(...)`. R8 (release shrinking)
+removed a method that `shared_preferences_android` 2.5.x calls through JNI by name. Debug
+builds are not shrunk, so `flutter run` never showed it.
+
+- Added `android/app/proguard-rules.pro` with keep rules for the plugin and the JNI bridge.
+- `android/app/build.gradle.kts`, release build type: `proguardFiles(...)` pointing to it.
+
+Every feature that uses `shared_preferences` needs this in release builds, not only C3.
+The C3 feature also falls back to in-memory settings if device storage fails, so it can
+never hang on a spinner again.
+
+## 5. Later (not needed for PP1)
 
 - ARB localisation: all C3 text is in `lib/features/risk_profile/c3_strings.dart`, ready to
   move to ARB once `flutter_localizations`/`intl` and `l10n.yaml` are set up in the shared app.
