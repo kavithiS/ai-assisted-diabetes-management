@@ -7,7 +7,7 @@
 | Port | 8004 |
 | Postgres schema | `c4` |
 | Health | `GET /health` |
-| Placeholder route | `POST /v1/foot/analyze` (returns `501 Not Implemented`) |
+| Analysis route | `POST /v1/foot/analyze` (multipart field `image`, JPEG/PNG, max 10 MiB) |
 | Gateway prefix | `/api/v1/foot/*` |
 
 Run locally from the repository root:
@@ -17,6 +17,36 @@ uv sync
 uv run uvicorn c4_foot_monitoring.main:app --reload --port 8004
 uv run pytest server/services/c4_foot_monitoring
 ```
+
+### Mock and trained model
+
+Without settings the service uses a **mock classifier**: results are synthetic and every
+response says `meta.is_mock: true`. The mock cycles Low → Medium → High so a demo shows every
+band.
+
+To use the trained ResNet50 (`best_resnet50_dfu.pth`, never committed; keep it in `data/c4/`):
+
+```bash
+uv sync --all-packages --extra model   # adds torch and torchvision to the shared .venv
+```
+
+Then set in `.env`:
+
+| Variable | Example | Note |
+|---|---|---|
+| `FOOT_MODEL_PATH` | `data/c4/best_resnet50_dfu.pth` | Missing file → warning and mock |
+| `FOOT_MODEL_CLASSES` | `["ulcer", "normal"]` | Label of output index 0 and 1, in training order. Required with the path: [INFORMATION REQUIRED] |
+| `FOOT_MODEL_DEVICE` | `cpu` | or `cuda` |
+| `FOOT_LOW_RISK_MIN_NORMAL_PROBABILITY` | `0.8` | "normal" at or above → Low, below → Medium. Placeholder cut-off, to agree with the supervisors |
+
+### Response
+
+`analysis_id`, `classification` (`normal`/`ulcer`), `risk_band` (`Low`/`Medium`/`High`),
+`recommendations`, `disclaimer`, `meta` (`is_mock`, `model_name`, `model_version`). There is
+**no confidence field**: the score stays inside the service. Errors use the shared envelope
+with `IMAGE_REQUIRED` 422, `IMAGE_TOO_LARGE` 413, `UNSUPPORTED_MEDIA_TYPE` 415 or
+`IMAGE_UNREADABLE` 422. The photo is never stored. The recommendation texts are placeholders
+until clinician-reviewed templates exist.
 
 ## Component details
 
