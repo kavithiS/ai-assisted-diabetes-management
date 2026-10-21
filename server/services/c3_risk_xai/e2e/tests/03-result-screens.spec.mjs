@@ -2,7 +2,7 @@
 // banned word or raw number on any of them (visible text and screen-reader labels).
 import { expect, test } from '@playwright/test';
 import {
-  button, expectNoBannedText, openApp, runPreset, savedCount, scrollTo, text, watchConsole, see, notSee, atHome, back } from '../support/app.mjs';
+  button, expectNoBannedText, openApp, runPreset, savedCount, scrollTo, text, watchConsole, see, notSee, atHome, back, example, goHome } from '../support/app.mjs';
 
 test('analysis: a forced failure shows Retry, and Retry gives the result', async ({ page }) => {
   await openApp(page);
@@ -14,7 +14,7 @@ test('analysis: a forced failure shows Retry, and Retry gives the result', async
     }
     return route.continue();
   });
-  await button(page, 'Higher-risk example').click();
+  await (await example(page, 'Higher-risk example')).click();
   await see(page, 'We couldn’t finish this check.', { timeout: 30_000 });
   await button(page, 'Retry').click();
   await see(page, 'Estimated risk: High', { timeout: 30_000 });
@@ -49,8 +49,7 @@ test('result: Why this score, What you can do, Update health information and Bac
   // Back from the form returns to the result; Back again goes home.
   await button(page, 'Back').click();
   await expect(button(page, 'Update health information')).toBeVisible();
-  await button(page, 'Back').click();
-  await atHome(page);
+  await goHome(page);
 
   // Home now shows the score card.
   await see(page, /Your health score \d+ out of 100/);

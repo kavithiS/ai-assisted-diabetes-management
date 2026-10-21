@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/api_client.dart';
 import '../c3_strings.dart';
+import '../c3_theme.dart';
+import '../domain/risk_presets.dart';
+import 'risk_analysis_screen.dart';
 import '../data/risk_api.dart';
 import '../data/settings_store.dart';
 import 'risk_controller.dart';
@@ -148,6 +151,20 @@ class _RiskSettingsScreenState extends State<RiskSettingsScreen> {
               label: const Text(C3Strings.deleteMine),
             ),
             TextButton(onPressed: _reset, child: const Text(C3Strings.resetDefaults)),
+            // Kept here, away from app users, for presenting and testing the feature.
+            const C3Label(C3Strings.presetsTitle),
+            for (final preset in riskPresets)
+              Card(
+                child: ListTile(
+                  title: Text(preset.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(preset.description),
+                  trailing: const Icon(Icons.play_arrow, color: C3Colors.primary),
+                  onTap: () => c3Push<void>(
+                    context,
+                    RiskAnalysisScreen(controller: widget.controller, profile: preset.profile),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

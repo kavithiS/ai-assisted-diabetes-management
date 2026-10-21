@@ -1,13 +1,12 @@
 // Past checks, Settings, delete my results and the audit log.
 import { expect, test } from '@playwright/test';
 import {
-  auditRows, button, expectNoBannedText, openApp, runPreset, savedCount, text, see, notSee, atHome } from '../support/app.mjs';
+  auditRows, button, expectNoBannedText, openApp, runPreset, savedCount, text, see, notSee, atHome, goHome, openSettings } from '../support/app.mjs';
 import { tap } from '../support/app.mjs';
 import { gatewayUrl, restartC3 } from '../support/servers.mjs';
 
 async function home(page) {
-  await button(page, 'Back').click();
-  await atHome(page);
+  await goHome(page);
 }
 
 test('Past checks: empty first, then lists server results and opens an old one', async ({ page }) => {
@@ -55,7 +54,7 @@ test('Settings: delete my saved results empties Past checks; audit keeps no heal
   await home(page);
   await expect.poll(() => savedCount(deviceId)).toBe(2);
 
-  await tap(page, 'Open connection settings');
+  await openSettings(page);
   await see(page, 'Settings');
   await expectNoBannedText(page, 'Settings');
   await button(page, 'Delete my saved results').click();
@@ -80,7 +79,7 @@ test('Settings: delete my saved results empties Past checks; audit keeps no heal
 
 test('Settings: invalid URL rejected, test connection works, saved URL survives a reload', async ({ page }) => {
   await openApp(page);
-  await tap(page, 'Open connection settings');
+  await openSettings(page);
   const url = page.getByLabel('Gateway URL');
   await url.click();
   await page.keyboard.press('Control+A');
@@ -113,7 +112,7 @@ test('Settings: invalid URL rejected, test connection works, saved URL survives 
   expect(JSON.parse(await stored())).toBe(other);
 
   // Reset to defaults forgets it.
-  await tap(page, 'Open connection settings');
+  await openSettings(page);
   await button(page, 'Reset to defaults').click();
   await expect.poll(stored).toBeNull();
 });

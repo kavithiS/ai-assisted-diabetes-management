@@ -113,10 +113,9 @@ class C3Strings {
   static const homeIntro = 'An early estimate to support healthier choices.';
   static const startQuestionnaire = 'Start a health check';
   static const history = 'Past checks';
-  static const presetsTitle = 'Try an example';
+  static const presetsTitle = 'Example answers';
   static const warmUp = 'Prepare check';
   static const warmUpDone = 'Ready';
-  static const settingsHint = 'Open connection settings';
 
   // Connection
   static const checking = 'Checking connection…';

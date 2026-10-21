@@ -1,6 +1,6 @@
 // Home screen, connection status and the three example presets.
 import { expect, test } from '@playwright/test';
-import { button, openApp, runPreset, text, watchConsole, expectNoBannedText, see, notSee } from '../support/app.mjs';
+import { button, openApp, runPreset, text, watchConsole, expectNoBannedText, see, notSee, openSettings, example, scrollTo } from '../support/app.mjs';
 import { startC3, stopC3 } from '../support/servers.mjs';
 
 test('home loads with connection status, start button, past checks and 3 examples', async ({ page }) => {
@@ -9,11 +9,16 @@ test('home loads with connection status, start button, past checks and 3 example
   await see(page, 'Connected');
   await expect(button(page, 'Start a health check')).toBeVisible();
   await expect(button(page, 'Past checks (0)')).toBeVisible();
-  for (const name of ['Higher-risk example', 'Lower-risk example', 'Missing details example']) {
-    await expect(button(page, name)).toBeVisible();
-  }
-  await expect(button(page, 'Open connection settings')).toBeVisible();
+  // App users see no example answers and no settings link on home.
+  await notSee(page, 'Example answers');
+  await notSee(page, 'Open connection settings');
+  await expect(button(page, 'Higher-risk example')).toHaveCount(0);
   await expectNoBannedText(page, 'home');
+  // The hidden way in: long-press "Connected" opens Settings with the three examples.
+  await openSettings(page);
+  for (const name of ['Higher-risk example', 'Lower-risk example', 'Missing details example']) {
+    await expect(await scrollTo(page, button(page, name))).toBeVisible();
+  }
   consoleWatch.check();
 });
 
@@ -55,7 +60,7 @@ test('Lower-risk example: Low band and no referral', async ({ page }) => {
 
 test('Missing details example: asks for more answers and shows no band', async ({ page }) => {
   await openApp(page);
-  await button(page, 'Missing details example').click();
+  await (await example(page, 'Missing details example')).click();
   await see(page, 'We need a few more answers', { timeout: 30_000 });
   await see(page, 'height and weight (BMI)');
   await notSee(page, 'estimated risk');

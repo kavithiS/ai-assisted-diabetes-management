@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'c3_strings.dart';
 import 'c3_theme.dart';
-import 'domain/risk_presets.dart';
 import 'presentation/risk_analysis_screen.dart';
 import 'presentation/risk_controller.dart';
 import 'presentation/risk_history_screen.dart';
@@ -225,35 +224,8 @@ class _RiskProfileScreenState extends State<RiskProfileScreen> {
                   icon: const Icon(Icons.history),
                   label: Text('${C3Strings.history} (${_controller.history.entries.length})'),
                 ),
-                const C3Label(C3Strings.presetsTitle),
-                for (final preset in riskPresets)
-                  Card(
-                    child: ListTile(
-                      title:
-                          Text(preset.label, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text(preset.description),
-                      trailing: const Icon(Icons.play_arrow, color: C3Colors.primary),
-                      onTap: () => _open(
-                        RiskAnalysisScreen(controller: _controller, profile: preset.profile),
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                const SizedBox(height: 16),
-                // A real button: before, this was plain text and only a long-press on
-                // the connection chip opened Settings.
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => _open(RiskSettingsScreen(controller: _controller)),
-                    icon: const Icon(Icons.settings_outlined, size: 18),
-                    label: const Text(C3Strings.settingsHint),
-                    style: TextButton.styleFrom(
-                      foregroundColor: C3Colors.text2,
-                      minimumSize: const Size(48, 48),
-                    ),
-                  ),
-                ),
+                // Example answers and connection settings are not for app users: they are on
+                // the Settings page, opened by a long-press on the connection chip.
               ],
             ),
           );

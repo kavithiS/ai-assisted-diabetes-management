@@ -2,14 +2,14 @@
   "what": "Browser time from clicking the Higher-risk example to the band on screen",
   "where": "Flutter web release build in Chrome, gateway 8010 -> C3 8013 on this laptop",
   "runs_seconds": [
-    1.982,
-    2.101,
-    1.675,
-    2.092,
-    2.875
+    1.927,
+    1.691,
+    1.756,
+    2.132,
+    2.13
   ],
-  "median_seconds": 2.092,
+  "median_seconds": 1.927,
   "target_seconds": 2,
-  "meets_target": false,
-  "measured_at": "2026-10-21T06:41:43.664Z"
+  "meets_target": true,
+  "measured_at": "2026-10-21T11:30:12.803Z"
 }
