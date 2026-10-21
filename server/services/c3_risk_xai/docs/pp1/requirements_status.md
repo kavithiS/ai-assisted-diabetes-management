@@ -35,7 +35,7 @@ Test files are under `server/services/c3_risk_xai/tests/` and `client/mobile_app
 | NFR5 | SUS ≥ 68 | PLANNED for PP2 | Needs ethics approval (submitted 21/09/2026, not approved) |
 | NFR6 | WCAG 2.2 AA principles | PARTIAL | Labels + icons (not colour only), semantic labels, 48 dp buttons; no formal audit yet |
 | NFR7 | Direction, rank, data date, quality status per assessment | DONE | AI Explanation screen; "Last assessed" date; quality warning |
-| NFR8 | Automated tests, documented API/schema versions | DONE | 85 server (77 C3) + 37 Flutter tests; `docs/contract_proposal.md` |
+| NFR8 | Automated tests, documented API/schema versions | DONE | 85 server (77 C3) + 43 Flutter (42 C3) + 68/70 Playwright browser tests (`e2e/bug_report.md`); `docs/contract_proposal.md` |
 | NFR9 | Load test at prototype concurrency | PLANNED for PP2 | |
 | NFR10 | Dataset/code version, seed, parameters recorded | PARTIAL | Seeds and settings in `config.yaml`, pinned packages, model version in each bundle; raw-data checksum manifest to regenerate in PP2 |
 | NFR11 | No automatic medication changes; reviewed referral wording for High | PARTIAL | No-medicine-change test DONE (`test_dhs.py`); referral shown for High; clinician review of wording PLANNED |

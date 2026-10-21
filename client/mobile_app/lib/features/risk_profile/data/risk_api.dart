@@ -33,7 +33,9 @@ class RiskApi implements RiskRepository {
     this.researcherMode = false,
     this.deviceId,
     this.timeout = const Duration(seconds: 10),
-  })  : _client = client ?? ApiClient(),
+    Duration? assessTimeout,
+  })  : assessTimeout = assessTimeout ?? timeout * 3,
+        _client = client ?? ApiClient(),
         _http = httpClient ?? http.Client();
 
   final ApiClient _client;
@@ -46,6 +48,11 @@ class RiskApi implements RiskRepository {
   /// the result (best-effort). Never a name; never in the URL.
   final String? deviceId;
   final Duration timeout;
+
+  /// Longer limit for an assessment: the first one without a glucose value after the
+  /// server starts takes about 17 s (one-time start-up of the explanation step), later
+  /// ones well under a second. Status, history and delete keep [timeout].
+  final Duration assessTimeout;
 
   /// Gateway route; the gateway forwards it to C3. No service port is used here.
   Uri get assessUri => _client.uri('/api/v1/risk/assess');
@@ -66,6 +73,7 @@ class RiskApi implements RiskRepository {
         headers: {'Content-Type': 'application/json', if (save) ..._deviceHeader},
         body: jsonEncode(profile.toJson()),
       ),
+      limit: assessTimeout,
     );
     try {
       return RiskAssessment.fromJson(body);
@@ -102,14 +110,18 @@ class RiskApi implements RiskRepository {
     }
   }
 
-  Future<Map<String, dynamic>> _send(Future<http.Response> Function() request) async {
+  Future<Map<String, dynamic>> _send(
+    Future<http.Response> Function() request, {
+    Duration? limit,
+  }) async {
+    final wait = limit ?? timeout;
     final http.Response response;
     try {
-      response = await request().timeout(timeout);
+      response = await request().timeout(wait);
     } on TimeoutException {
       throw RiskApiException(
         RiskApiErrorKind.timeout,
-        'No answer within ${timeout.inSeconds} seconds. The model may be warming up.',
+        'No answer within ${wait.inSeconds} seconds. The service may still be starting.',
       );
     } on http.ClientException catch (error) {
       throw RiskApiException(

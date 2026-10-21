@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_app/features/risk_profile/c3_theme.dart';
 import 'package:mobile_app/features/risk_profile/data/risk_api.dart';
@@ -12,8 +13,10 @@ import 'package:mobile_app/features/risk_profile/presentation/risk_history_scree
 import 'package:mobile_app/features/risk_profile/presentation/risk_questionnaire_screen.dart';
 import 'package:mobile_app/features/risk_profile/presentation/risk_recommendations_screen.dart';
 import 'package:mobile_app/features/risk_profile/presentation/risk_result_screen.dart';
+import 'package:mobile_app/features/risk_profile/presentation/risk_settings_screen.dart';
 import 'package:mobile_app/features/risk_profile/presentation/risk_whatif_screen.dart';
 import 'package:mobile_app/features/risk_profile/presentation/risk_xai_screen.dart';
+import 'package:mobile_app/features/risk_profile/presentation/widgets/c3_widgets.dart';
 import 'package:mobile_app/features/risk_profile/risk_profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -26,6 +29,21 @@ String allText(WidgetTester tester) => tester
     .widgetList<Text>(find.byType(Text))
     .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
     .join('\n');
+
+String allSemantics(WidgetTester tester) {
+  final labels = <String>[];
+  void visit(SemanticsNode node) {
+    final data = node.getSemanticsData();
+    labels.addAll([data.label, data.value, data.hint, data.tooltip]);
+    node.visitChildren((child) {
+      visit(child);
+      return true;
+    });
+  }
+
+  visit(tester.getSemantics(find.byType(Scaffold).first));
+  return labels.join('\n');
+}
 
 /// A tall test screen so every part of a page is built (lists build lazily).
 void tallScreen(WidgetTester tester) {
@@ -42,18 +60,19 @@ Future<RiskController> controllerWith(FakeRiskRepository repository) async {
 }
 
 void main() {
-  testWidgets('result: DHS ring, provisional tag, band, referral and disclaimer', (tester) async {
+  testWidgets('result: animated score ring, early estimate, band and referral', (tester) async {
     tallScreen(tester);
     await tester.pumpWidget(app(RiskResultView(assessment: RiskAssessment.fromJson(okJson()))));
+    await tester.pumpAndSettle();
 
-    expect(find.text('Diabetic Health Score'), findsOneWidget);
+    expect(find.text('Your health score'), findsOneWidget);
     expect(find.text('58'), findsOneWidget); // ring shows the rounded score
-    expect(find.textContaining('Provisional score'), findsOneWidget);
+    expect(find.text('Early estimate'), findsOneWidget);
     expect(find.text('High estimated risk'), findsOneWidget);
-    expect(find.text('Please arrange a blood test and a check-up.'), findsOneWidget);
-    expect(find.text('Understand my risk'), findsOneWidget);
-    expect(find.text('View recommendations (2)'), findsOneWidget);
-    expect(find.textContaining('not a diagnosis'), findsWidgets);
+    expect(find.text('Please see your doctor.'), findsOneWidget);
+    expect(find.text('Why this score'), findsOneWidget);
+    expect(find.text('What you can do (2)'), findsOneWidget);
+    expect(find.text('Estimate for self-care support. Not medical advice.'), findsOneWidget);
   });
 
   testWidgets('no probability on any patient screen, even when the server sent it', (tester) async {
@@ -72,18 +91,73 @@ void main() {
       expect(text, isNot(contains('56.6')));
       expect(text, isNot(contains('%')));
       expect(text.toLowerCase(), isNot(contains('probability')));
+      expect(text.toLowerCase(), isNot(contains('diagnosis')));
     }
   });
 
-  testWidgets('long-pressing the result title opens the researcher view', (tester) async {
+  testWidgets('no diagnosis wording on the patient result', (tester) async {
+    await tester.pumpWidget(app(RiskResultView(assessment: RiskAssessment.fromJson(okJson()))));
+    final patientText = '${allText(tester)}\n${allSemantics(tester)}'.toLowerCase();
+    expect(patientText, isNot(contains('diagnosis')));
+    expect(find.text('High estimated risk'), findsOneWidget);
+  });
+
+  testWidgets('patient screens and semantics contain no removed terms', (tester) async {
+    tallScreen(tester);
+    final semantics = tester.ensureSemantics();
+    final assessment = RiskAssessment.fromJson(okJson());
+    final controller = await controllerWith(FakeRiskRepository([okJson()]));
+    final forbidden = RegExp(
+      r'\b(?:AI|artificial intelligence|machine learning|model|algorithm|SHAP|LIME|prototype|research(?:er)?|demo|debug|probability|agreement|warm up|provisional|pending clinician review)\b',
+      caseSensitive: false,
+    );
+    final screens = <Widget>[
+      Scaffold(body: RiskProfileScreen(controller: controller)),
+      RiskQuestionnaireScreen(controller: controller),
+      RiskAnalysisScreen(controller: controller, profile: lowerRiskPreset.profile),
+      RiskResultView(assessment: assessment),
+      RiskXaiScreen(assessment: assessment),
+      RiskRecommendationsScreen(assessment: assessment),
+      RiskWhatIfScreen(
+        controller: controller,
+        profile: higherRiskPreset.profile,
+        base: assessment,
+      ),
+      RiskHistoryScreen(controller: controller),
+      RiskSettingsScreen(controller: controller),
+    ];
+    for (final screen in screens) {
+      // A fresh app per screen: otherwise a route pushed by one screen (the analysis
+      // screen opens the result) hides every later screen and they are never checked.
+      await tester.pumpWidget(KeyedSubtree(key: UniqueKey(), child: app(screen)));
+      // The analysis screen replaces itself with the result once the answer arrives:
+      // check its first frame. Every other screen is checked once it has settled.
+      final transient = screen is RiskAnalysisScreen;
+      if (transient) {
+        await tester.pump();
+      } else {
+        await tester.pumpAndSettle();
+      }
+      expect(find.byWidget(screen), findsOneWidget,
+          reason: '${screen.runtimeType} must be the screen being checked');
+      final visible = '${allText(tester)}\n${allSemantics(tester)}';
+      expect(visible, isNot(matches(forbidden)), reason: screen.runtimeType.toString());
+      if (transient) await tester.pumpAndSettle();
+    }
+    semantics.dispose();
+    controller.dispose();
+  });
+
+  testWidgets('long-pressing the result title opens Details without raw probability',
+      (tester) async {
     final assessment = RiskAssessment.fromJson(okJson(debug: debugJson));
     await tester.pumpWidget(app(RiskResultView(assessment: assessment)));
 
-    await tester.longPress(find.text('Your estimated risk'));
+    await tester.longPress(find.text('Your estimate'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Researcher view (not for patients)'), findsOneWidget);
-    expect(find.text('Calibrated probability: 0.5657'), findsOneWidget);
+    expect(find.text('Details'), findsOneWidget);
+    expect(allText(tester), isNot(contains('0.5657')));
   });
 
   testWidgets('insufficient_data: no band, no score, the missing answers are listed',
@@ -97,8 +171,8 @@ void main() {
 
     expect(find.text('We need a few more answers'), findsOneWidget);
     expect(find.text('height and weight (BMI)'), findsOneWidget);
-    expect(find.textContaining(RegExp(r'^(Low|Moderate|High) estimated risk')), findsNothing);
-    expect(find.text('Diabetic Health Score'), findsNothing);
+    expect(find.textContaining(RegExp(r'^Estimated risk: (Low|Moderate|High)')), findsNothing);
+    expect(find.text('Your health score'), findsNothing);
   });
 
   testWidgets('invalid_input: no band, the problems are listed', (tester) async {
@@ -117,28 +191,26 @@ void main() {
     tallScreen(tester);
     await tester.pumpWidget(app(RiskXaiScreen(assessment: RiskAssessment.fromJson(okJson()))));
 
-    expect(find.text('FACTORS INCREASING RISK'), findsOneWidget);
-    expect(find.text('FACTORS REDUCING RISK (PROTECTIVE)'), findsOneWidget);
+    expect(find.text('MAY RAISE YOUR ESTIMATE'), findsOneWidget);
+    expect(find.text('MAY LOWER YOUR ESTIMATE'), findsOneWidget);
     expect(find.text('blood glucose'), findsOneWidget); // raising bar
     expect(find.text('body mass index (BMI)'), findsOneWidget); // protective bar
-    expect(find.text('AI Explanation'), findsWidgets);
-    expect(find.text('The two methods agree on 4 of their top 5 factors.'), findsOneWidget);
+    expect(find.text('Why this score'), findsWidgets);
   });
 
-  testWidgets('recommendations: top priority with current and target, all provisional',
-      (tester) async {
+  testWidgets('recommendations: top priority with current and target', (tester) async {
     tallScreen(tester);
     await tester.pumpWidget(
       app(RiskRecommendationsScreen(assessment: RiskAssessment.fromJson(okJson()))),
     );
 
-    expect(find.text('Top priority'), findsOneWidget);
+    expect(find.text('Try this first'), findsOneWidget);
     expect(find.text('Increase physical activity'), findsOneWidget);
     expect(find.text('Low activity'), findsOneWidget);
     expect(find.text('150 min of moderate activity per week (WHO guideline)'), findsOneWidget);
     expect(find.text('Review your cholesterol with your doctor'), findsOneWidget);
-    expect(find.textContaining('pending clinician review'), findsWidgets);
-    expect(find.textContaining('never ask'), findsOneWidget);
+    expect(find.textContaining('pending clinician review'), findsNothing);
+    expect(find.textContaining('never ask'), findsNothing);
   });
 
   testWidgets('analysis: a network error shows Retry and the hint; Retry opens the result',
@@ -153,8 +225,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Cannot reach the gateway.'), findsOneWidget);
-    expect(find.textContaining('demo.ps1'), findsOneWidget);
+    expect(find.text('Could not connect. Check the address and try again.'), findsOneWidget);
+    expect(find.textContaining('Start the service'), findsOneWidget);
     expect(find.textContaining('DEMO DATA'), findsNothing); // no silent mock fallback
 
     await tester.tap(find.text('Retry'));
@@ -213,7 +285,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Connected'), findsOneWidget);
-    expect(find.textContaining('No score yet'), findsOneWidget);
+    expect(find.text('Start with a quick health check.'), findsOneWidget);
     for (final preset in riskPresets) {
       expect(find.text(preset.label), findsOneWidget);
     }
@@ -226,12 +298,70 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    expect(find.text('58 /100', findRichText: true), findsOneWidget);
-    expect(find.text('RISK FACTORS'), findsOneWidget);
+    expect(find.text('58'), findsOneWidget);
+    expect(find.text('/100'), findsOneWidget);
+    expect(find.text('YOUR FACTORS'), findsOneWidget);
     expect(find.text('Low activity'), findsOneWidget);
     expect(find.text('Borderline high'), findsOneWidget);
     expect(find.text('Non-smoker'), findsOneWidget);
-    expect(find.text('Recalculate score'), findsOneWidget);
+    expect(find.text('Check again'), findsOneWidget);
+  });
+
+  testWidgets('a fast double tap on an example sends and saves the check only once',
+      (tester) async {
+    tallScreen(tester);
+    final repository = FakeRiskRepository([okJson()]);
+    final controller = await controllerWith(repository);
+    await tester.pumpWidget(app(Scaffold(body: RiskProfileScreen(controller: controller))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(higherRiskPreset.label));
+    await tester.pump(const Duration(milliseconds: 40));
+    await tester.tap(find.text(higherRiskPreset.label), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(repository.sent, hasLength(1));
+    expect(find.byType(RiskResultView), findsOneWidget);
+  });
+
+  testWidgets('an out-of-range answer far up the form is shown and explained on Save',
+      (tester) async {
+    final controller = await controllerWith(FakeRiskRepository([okJson()]));
+    await tester.pumpWidget(app(RiskQuestionnaireScreen(controller: controller)));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextFormField, 'Weight (kg)'), '500');
+    await tester.scrollUntilVisible(find.text('Save & recalculate'), 400,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Save & recalculate'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Please check the answers marked in red.'), findsOneWidget);
+    expect(find.text('Enter a value from 20 to 300').hitTestable(), findsOneWidget);
+    expect(find.byType(RiskAnalysisScreen), findsNothing);
+  });
+
+  testWidgets('home and result rings both follow the risk band colour', (tester) async {
+    tallScreen(tester);
+    const expected = {
+      'Low': C3Colors.success,
+      'Moderate': C3Colors.warning,
+      'High': C3Colors.danger,
+    };
+    for (final MapEntry(key: band, value: colour) in expected.entries) {
+      final controller = await controllerWith(FakeRiskRepository([okJson(band: band)]));
+      await tester.pumpWidget(KeyedSubtree(
+        key: UniqueKey(),
+        child: app(Scaffold(body: RiskProfileScreen(controller: controller))),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(higherRiskPreset.label));
+      await tester.pumpAndSettle();
+      expect(tester.widget<DhsGauge>(find.byType(DhsGauge)).colour, colour, reason: '$band result');
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(tester.widget<DhsGauge>(find.byType(DhsGauge)).colour, colour, reason: '$band home');
+    }
   });
 
   testWidgets('what-if: a new estimate from the server, not saved', (tester) async {
@@ -249,14 +379,14 @@ void main() {
     );
 
     await tester.tap(find.text('High').first);
-    await tester.tap(find.text('Estimate'));
+    await tester.tap(find.text('Update estimate'));
     await tester.pumpAndSettle();
 
     expect(find.text('58 → 70'), findsOneWidget);
     expect(repository.unsaved, 1);
     expect(repository.sent.single.physicalActivity, 'high');
     expect(controller.history.entries, isEmpty);
-    expect(find.textContaining('not a guaranteed medical outcome'), findsOneWidget);
+    expect(find.text('Preview only. This check is not saved.'), findsOneWidget);
   });
 
   testWidgets('unreachable gateway: home tells how to start the server, Check again retries',
@@ -271,14 +401,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Not connected'), findsOneWidget);
-    expect(find.textContaining('demo.ps1'), findsOneWidget);
+    expect(find.textContaining('Start the service'), findsOneWidget);
 
     repository.statusError = null; // the user started the server
     await tester.tap(find.text('Check again'));
     await tester.pumpAndSettle();
 
     expect(find.text('Connected'), findsOneWidget);
-    expect(find.textContaining('demo.ps1'), findsNothing);
+    expect(find.textContaining('Start the service'), findsNothing);
   });
 
   testWidgets('history shows the results saved on the server', (tester) async {
@@ -305,9 +435,9 @@ void main() {
     await tester.pumpWidget(app(RiskHistoryScreen(controller: controller)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Saved results on the server (newest first)'), findsOneWidget);
-    expect(find.text('Estimated risk band: High'), findsOneWidget);
-    expect(find.text('More answers were needed (no band)'), findsOneWidget);
+    expect(find.text('Saved checks'), findsOneWidget);
+    expect(find.text('Estimated risk: High'), findsOneWidget);
+    expect(find.text('More answers needed'), findsOneWidget);
     expect(find.textContaining('2026-10-19 10:05'), findsOneWidget);
   });
 
@@ -323,8 +453,8 @@ void main() {
     await tester.pumpWidget(app(RiskHistoryScreen(controller: controller)));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Saved results are not available right now'), findsOneWidget);
-    expect(find.text('Estimated risk band: Low'), findsOneWidget);
+    expect(find.textContaining('Past checks are offline'), findsOneWidget);
+    expect(find.text('Estimated risk: Low'), findsOneWidget);
   });
 
   testWidgets('a result the server could not save says so, and is still shown', (tester) async {
@@ -333,7 +463,7 @@ void main() {
     await tester.pumpWidget(app(RiskResultView(assessment: assessment)));
 
     expect(find.text('Low estimated risk'), findsOneWidget);
-    expect(find.textContaining('This result was not saved'), findsOneWidget);
+    expect(find.textContaining('This check wasn’t saved'), findsOneWidget);
   });
 
   test('device ID is made once, kept, and identifies nobody', () async {

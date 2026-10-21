@@ -1,9 +1,7 @@
+import '../c3_strings.dart';
 import 'risk_profile.dart';
 
-/// Three made-up people for the PP1 demo. They are INPUTS only. The model answers match
-/// the Python examples in `server/services/c3_risk_xai/src/c3_risk_xai/ml/predict.py`
-/// (EXAMPLE_PATIENT and LOW_RISK_PATIENT); the lifestyle answers only feed the DHS and
-/// the recommendations.
+/// Three example profiles. They are inputs only; every estimate comes from C3.
 class RiskPreset {
   const RiskPreset({required this.label, required this.description, required this.profile});
 
@@ -13,8 +11,8 @@ class RiskPreset {
 }
 
 const higherRiskPreset = RiskPreset(
-  label: 'Higher-risk example',
-  description: '58-year-old man, high blood pressure, low activity, borderline cholesterol',
+  label: C3Strings.presetHigher,
+  description: C3Strings.presetHigherNote,
   profile: RiskProfile(
     age: 58,
     sexMale: 1,
@@ -39,8 +37,8 @@ const higherRiskPreset = RiskPreset(
 );
 
 const lowerRiskPreset = RiskPreset(
-  label: 'Lower-risk example',
-  description: '29-year-old woman, normal blood pressure, active, normal cholesterol',
+  label: C3Strings.presetLower,
+  description: C3Strings.presetLowerNote,
   profile: RiskProfile(
     age: 29,
     sexMale: 0,
@@ -67,8 +65,8 @@ const lowerRiskPreset = RiskPreset(
 /// The higher-risk person without height and weight: BMI is critical, so the server
 /// must answer `insufficient_data` and show no band.
 const missingBmiPreset = RiskPreset(
-  label: 'Missing BMI example',
-  description: 'Same person as the higher-risk example, but no height or weight',
+  label: C3Strings.presetMissing,
+  description: C3Strings.presetMissingNote,
   profile: RiskProfile(
     age: 58,
     sexMale: 1,

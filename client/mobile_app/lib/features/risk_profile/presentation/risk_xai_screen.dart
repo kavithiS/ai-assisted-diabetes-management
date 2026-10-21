@@ -7,11 +7,8 @@ import '../domain/risk_profile.dart';
 import 'risk_controller.dart';
 import 'risk_recommendations_screen.dart';
 import 'widgets/c3_widgets.dart';
-import 'widgets/risk_widgets.dart';
 
-/// "AI Explanation" (prototype Module 3): SHAP factors that raised or lowered the
-/// model's estimate, the server's plain-language summary, and the LIME cross-check.
-/// Bars have no numbers: SHAP values are parts of a probability.
+/// Plain-language view of factors that shaped the estimate.
 class RiskXaiScreen extends StatelessWidget {
   const RiskXaiScreen({super.key, required this.assessment, this.controller, this.profile});
 
@@ -24,7 +21,6 @@ class RiskXaiScreen extends StatelessWidget {
     final explanation = assessment.explanation!;
     final raising = explanation.shap.where((f) => f.shap > 0).toList();
     final protective = explanation.shap.where((f) => f.shap <= 0).toList();
-    final agreement = explanation.agreement;
     return Scaffold(
       appBar: AppBar(title: const Text(C3Strings.aiExplanation)),
       body: ListView(
@@ -46,38 +42,18 @@ class RiskXaiScreen extends StatelessWidget {
               _Legend(colour: C3Colors.success, text: C3Strings.legendProtective),
             ],
           ),
-          AiExplanationCard(text: explanation.explanationText, footnote: C3Strings.shapFootnote),
-          const C3Label(C3Strings.secondCheck),
-          const Text(C3Strings.secondCheckIntro, style: TextStyle(fontSize: 13)),
-          for (final factor in explanation.lime)
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                factor.weight > 0 ? Icons.arrow_upward : Icons.arrow_downward,
-                color: factor.weight > 0 ? C3Colors.danger : C3Colors.success,
-              ),
-              title: Text(
-                '${factor.readable}: ${factor.weight > 0 ? C3Strings.raises : C3Strings.lowers}',
-              ),
-              subtitle: Text(factor.rule),
-            ),
-          Text(C3Strings.agreement(agreement.shared.length, agreement.shapTop.length)),
-          Text(C3Strings.limeFit(explanation.limeFidelity),
-              style: const TextStyle(color: C3Colors.text2)),
-          if (explanation.explanationQuality != 'consistent') ...[
-            const SizedBox(height: 8),
-            NoticeBox(icon: Icons.warning_amber_outlined, text: explanation.explanationQuality),
-          ],
+          // Built from the factor names, not the server's longer technical summary.
+          AiExplanationCard(
+              text: C3Strings.mainReasons(raising.take(2).map((f) => f.readable).toList()),
+              footnote: C3Strings.shapFootnote),
           const SizedBox(height: 18),
           FilledButton(
-            onPressed: () => Navigator.of(context).push(
-              c3Route<void>(
-                RiskRecommendationsScreen(
-                  assessment: assessment,
-                  controller: controller,
-                  profile: profile,
-                ),
+            onPressed: () => c3Push<void>(
+              context,
+              RiskRecommendationsScreen(
+                assessment: assessment,
+                controller: controller,
+                profile: profile,
               ),
             ),
             child: Text(C3Strings.viewRecommendations(assessment.recommendations.length)),

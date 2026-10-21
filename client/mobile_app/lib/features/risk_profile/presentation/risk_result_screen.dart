@@ -31,8 +31,8 @@ class RiskResultView extends StatelessWidget {
   final RiskProfile? profile;
 
   void _openResearcherView(BuildContext context) {
-    final info = assessment.researcherInfo;
     showModalBottomSheet<void>(
+      isScrollControlled: true,
       context: context,
       builder: (context) => Padding(
         padding: const EdgeInsets.all(20),
@@ -42,27 +42,14 @@ class RiskResultView extends StatelessWidget {
           children: [
             Text(C3Strings.researcherTitle, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
-            if (info == null)
-              const Text(C3Strings.researcherOff)
-            else ...[
-              Text('Calibrated probability: ${info.riskProbability.toStringAsFixed(4)}'),
-              for (final entry in info.thresholds.entries)
-                Text('Cut-off ${entry.key}: ${entry.value.toStringAsFixed(4)}'),
-              Text('Model: ${assessment.modelUsed} (${assessment.featureSet})'),
-            ],
-            if (assessment.dhs != null)
-              Text(
-                'DHS today ${assessment.dhs!.todayScore}, previous '
-                '${assessment.dhs!.previousScore ?? '-'}, shown ${assessment.dhs!.score}',
-              ),
+            const Text(C3Strings.detailsBody),
           ],
         ),
       ),
     );
   }
 
-  void _push(BuildContext context, Widget screen) =>
-      Navigator.of(context).push(c3Route<void>(screen));
+  void _push(BuildContext context, Widget screen) => c3Push<void>(context, screen);
 
   @override
   Widget build(BuildContext context) {
@@ -74,11 +61,11 @@ class RiskResultView extends StatelessWidget {
         AssessmentStatus.invalidInput => _invalidContent(context),
       },
       const SizedBox(height: 20),
-      NoticeBox(icon: Icons.medical_information_outlined, text: assessment.disclaimer),
+      const NoticeBox(icon: Icons.info_outline, text: C3Strings.resultFooter),
     ];
     return Scaffold(
       appBar: AppBar(
-        // Hidden researcher view: long-press the title.
+        // Long-press the title to open the off-screen details sheet.
         title: GestureDetector(
           onLongPress: () => _openResearcherView(context),
           child: const Text(C3Strings.resultTitle),
@@ -117,9 +104,13 @@ class RiskResultView extends StatelessWidget {
           ),
         ),
       ),
-      if (assessment.referral != null) ...[
+      if (band == RiskBand.high || assessment.referral != null) ...[
         const SizedBox(height: 8),
-        NoticeBox(icon: Icons.local_hospital_outlined, text: assessment.referral!, strong: true),
+        const NoticeBox(
+          icon: Icons.local_hospital_outlined,
+          text: C3Strings.highReferral,
+          strong: true,
+        ),
       ],
       if (assessment.saved == false) ...[
         const SizedBox(height: 8),
@@ -158,22 +149,6 @@ class RiskResultView extends StatelessWidget {
         ),
       ],
       const SizedBox(height: 12),
-      Text(
-        assessment.imputedFields.isEmpty
-            ? C3Strings.allAnswersUsed
-            : C3Strings.imputedIntro +
-                assessment.imputedFields.map((f) => c3FieldLabels[f] ?? f).join(', '),
-        style: const TextStyle(fontSize: 12.5),
-      ),
-      if (assessment.modelUsed != null)
-        Text(
-          C3Strings.modelLine(
-            assessment.modelUsed!,
-            assessment.modelVersion ?? '?',
-            assessment.featureSet == 'with_glucose',
-          ),
-          style: const TextStyle(fontSize: 11.5, color: C3Colors.text2),
-        ),
     ];
   }
 

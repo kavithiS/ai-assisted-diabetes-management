@@ -27,11 +27,13 @@ SHAP/LIME, DHS, recommendation rules, C3 API + database, all Module 3 Flutter sc
 ## Slide B: Evidence and next steps
 
 **Results (public DiaBD data, real held-out test set of 1,058 people never used in training)**
-- ROC-AUC **0.779** without glucose · **0.853** with glucose
+- ROC-AUC **0.78** without glucose (95% CI 0.72–0.84) · **0.85** with glucose (95% CI 0.80–0.90)
 - SHAP-LIME top-5 agreement **80%** (target 60%)
-- Speed: median **2.22 s** per full assessment vs the 2 s target: **missed slightly**, reported honestly
+- Speed: server median **2.22 s** per full assessment (target 2 s, missed slightly); in the browser, click to result
+  **1.6–2.1 s** (median of 5, four runs): about 2 s, reported honestly
 
-**Testing.** **85** server tests (77 for C3), **37** Flutter tests, lint and strict typing clean;
+**Testing.** **85** server tests (77 for C3), **43** Flutter tests (42 for C3), **68 of 70** Playwright browser
+tests at phone and desktop size (1 test-server timeout under load, 1 skipped by design), lint and strict typing clean;
 the three demo presets match the Python model exactly through the gateway.
 
 **Feedback and data access.** Supervisors: demo must be in Flutter (done). National Hospital

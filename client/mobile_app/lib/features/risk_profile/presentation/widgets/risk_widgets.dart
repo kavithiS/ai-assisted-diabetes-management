@@ -11,9 +11,9 @@ class BandCard extends StatelessWidget {
   final RiskBand band;
 
   static String label(RiskBand band) => switch (band) {
-        RiskBand.low => 'Low',
-        RiskBand.moderate => 'Moderate',
-        RiskBand.high => 'High',
+        RiskBand.low => C3Strings.bandLow,
+        RiskBand.moderate => C3Strings.bandModerate,
+        RiskBand.high => C3Strings.bandHigh,
       };
 
   @override
@@ -210,9 +210,15 @@ class ConnectionIndicator extends StatelessWidget {
             GatewayState.modelNotLoaded => (Icons.cloud_queue, C3Strings.notLoaded),
             GatewayState.offline => (Icons.cloud_off_outlined, C3Strings.offline),
           };
+    // One button for screen readers, kept apart from the heading next to it (container),
+    // with the chip's own semantics hidden so it is not also read as a checkbox.
     return Semantics(
+      container: true,
       button: true,
-      label: '$text. Tap to check again.',
+      label: '$text ${C3Strings.connectionButtonHint}',
+      onTap: controller.checkConnection,
+      onLongPress: onOpenSettings,
+      excludeSemantics: true,
       child: GestureDetector(
         onLongPress: onOpenSettings,
         child: ActionChip(

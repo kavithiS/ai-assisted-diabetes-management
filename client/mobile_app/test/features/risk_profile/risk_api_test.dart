@@ -69,6 +69,12 @@ void main() {
     );
   });
 
+  test('an assessment may take up to 30 s (cold start); other calls keep 10 s', () {
+    final api = RiskApi(client: ApiClient(baseUrl: 'http://localhost:8000'));
+    expect(api.timeout, const Duration(seconds: 10));
+    expect(api.assessTimeout, const Duration(seconds: 30));
+  });
+
   test('a slow server times out instead of hanging', () async {
     final api = apiAnswering(
       (_) => Completer<http.Response>().future,
