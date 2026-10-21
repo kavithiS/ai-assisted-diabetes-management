@@ -16,7 +16,7 @@ Flutter app → team gateway (`/api/v1/risk/*`) → C3 → model → PostgreSQL.
 forecast join in PP2 through the contract. *Evidence:* `docs/contract_proposal.md`, live demo.
 
 **4. What testing and feedback evidence?**
-85 server tests (77 for C3), 37 Flutter tests, presets checked against Python through the gateway,
+85 server tests (77 for C3), 43 Flutter tests (42 for C3), 68 of 70 browser tests, presets checked against Python through the gateway,
 latency measured (median 2.22 s). Feedback: supervisors required Flutter (done); hospital and KDU
 meetings on data access. *Evidence:* `tests/`, `client/mobile_app/test/`, `data/c3/outputs/reports/latency_pp1.json`.
 

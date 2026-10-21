@@ -5,9 +5,9 @@ import '../c3_strings.dart';
 import '../data/risk_api.dart';
 import '../data/settings_store.dart';
 import 'risk_controller.dart';
+import 'widgets/c3_widgets.dart';
 
-/// Hidden settings (long-press the connection status): gateway URL with
-/// "Test connection", Researcher mode, and the pseudonymous device ID.
+/// Connection settings (open from the connection status).
 class RiskSettingsScreen extends StatefulWidget {
   const RiskSettingsScreen({super.key, required this.controller});
 
@@ -20,7 +20,6 @@ class RiskSettingsScreen extends StatefulWidget {
 class _RiskSettingsScreenState extends State<RiskSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _url;
-  late bool _researcher;
   String? _testResult;
   bool _testing = false;
 
@@ -30,7 +29,6 @@ class _RiskSettingsScreenState extends State<RiskSettingsScreen> {
   void initState() {
     super.initState();
     _url = TextEditingController(text: _current.gatewayUrl);
-    _researcher = _current.researcherMode;
   }
 
   @override
@@ -48,12 +46,10 @@ class _RiskSettingsScreenState extends State<RiskSettingsScreen> {
     final api = RiskApi(client: ApiClient(baseUrl: _url.text.trim()));
     String result;
     try {
-      final status = await api.status();
-      result = status.modelLoaded
-          ? 'OK: C3 reachable, models ${status.models}'
-          : 'Reachable, but the model is not loaded: ${status.detail ?? ''}';
-    } on RiskApiException catch (error) {
-      result = error.message;
+      await api.status();
+      result = C3Strings.connectionSuccess;
+    } on RiskApiException {
+      result = C3Strings.connectionFailed;
     }
     if (!mounted) return;
     setState(() {
@@ -65,7 +61,7 @@ class _RiskSettingsScreenState extends State<RiskSettingsScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     await widget.controller.updateSettings(
-      _current.copyWith(gatewayUrl: _url.text.trim(), researcherMode: _researcher),
+      _current.copyWith(gatewayUrl: _url.text.trim()),
     );
     if (mounted) Navigator.of(context).pop();
   }
@@ -91,8 +87,8 @@ class _RiskSettingsScreenState extends State<RiskSettingsScreen> {
     String message;
     try {
       message = C3Strings.deleted(await widget.controller.deleteMyRecords());
-    } on Object catch (error) {
-      message = '$error';
+    } on Object {
+      message = C3Strings.connectionFailed;
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -129,23 +125,20 @@ class _RiskSettingsScreenState extends State<RiskSettingsScreen> {
               icon: const Icon(Icons.network_check),
               label: const Text(C3Strings.testConnection),
             ),
-            if (_testing) const LinearProgressIndicator(),
+            if (_testing) const C3LoadingSkeleton(lines: 1),
             if (_testResult != null)
-              Padding(padding: const EdgeInsets.only(top: 8), child: Text(_testResult!)),
+              // A live region, so screen readers announce the result of the test.
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Semantics(
+                  container: true,
+                  liveRegion: true,
+                  label: _testResult,
+                  excludeSemantics: true,
+                  child: Text(_testResult!),
+                ),
+              ),
             const SizedBox(height: 16),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(C3Strings.researcherMode),
-              subtitle: const Text(C3Strings.researcherModeHelp),
-              value: _researcher,
-              onChanged: (value) => setState(() => _researcher = value),
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(C3Strings.deviceId),
-              subtitle: SelectableText(_current.deviceId),
-            ),
             const SizedBox(height: 16),
             FilledButton(onPressed: _save, child: const Text(C3Strings.save)),
             const SizedBox(height: 8),

@@ -14,9 +14,9 @@ import '../../domain/risk_assessment.dart';
     };
 
 String bandWord(RiskBand band) => switch (band) {
-      RiskBand.low => 'Low',
-      RiskBand.moderate => 'Moderate',
-      RiskBand.high => 'High',
+      RiskBand.low => C3Strings.bandLow,
+      RiskBand.moderate => C3Strings.bandModerate,
+      RiskBand.high => C3Strings.bandHigh,
     };
 
 /// Pill such as "High estimated risk" (prototype badge).
@@ -86,28 +86,35 @@ class DhsGauge extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-        label: '${C3Strings.dhsName} ${score.round()} out of 100',
-        excludeSemantics: true,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: CustomPaint(
-            painter: _RingPainter(score / 100, colour),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    score.round().toString(),
-                    style: const TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.w800,
-                      color: C3Colors.text,
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0, end: score.clamp(0, 100).toDouble()),
+        duration: const Duration(milliseconds: 900),
+        curve: Curves.easeOutCubic,
+        builder: (context, value, _) => Semantics(
+          label: C3Strings.scoreSemantics(score.round()),
+          excludeSemantics: true,
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: CustomPaint(
+              painter: _RingPainter(value / 100, colour),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      value.round().toString(),
+                      style: const TextStyle(
+                        fontSize: 38,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const Text('/100', style: TextStyle(fontSize: 13, color: C3Colors.text2)),
-                ],
+                    const Text(
+                      C3Strings.scoreDenominator,
+                      style: TextStyle(fontSize: 13, color: C3Colors.text2),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -290,7 +297,8 @@ class AiExplanationCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            Text(text, style: const TextStyle(fontSize: 13, height: 1.45)),
+            // Fixed dark text: the card stays light in dark mode too.
+            Text(text, style: const TextStyle(fontSize: 13, height: 1.45, color: C3Colors.text)),
             const SizedBox(height: 6),
             Text(footnote, style: const TextStyle(fontSize: 11, color: C3Colors.text2)),
           ],
@@ -318,6 +326,38 @@ class C3Label extends StatelessWidget {
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
             ),
+          ),
+        ),
+      );
+}
+
+/// Quiet placeholder shown while a check is loading.
+class C3LoadingSkeleton extends StatelessWidget {
+  const C3LoadingSkeleton({super.key, this.lines = 3});
+
+  final int lines;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < lines; i++) ...[
+                if (i > 0) const SizedBox(height: 12),
+                FractionallySizedBox(
+                  widthFactor: i == lines - 1 ? 0.58 : 0.86,
+                  child: Container(
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: C3Colors.border,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       );

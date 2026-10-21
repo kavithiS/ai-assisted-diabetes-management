@@ -6,6 +6,7 @@ import '../data/risk_api.dart';
 import '../domain/risk_profile.dart';
 import 'risk_controller.dart';
 import 'risk_result_screen.dart';
+import 'widgets/c3_widgets.dart';
 import 'widgets/risk_widgets.dart';
 
 /// "Analyzing Your Risk" (prototype Module 3): one real call to C3 through the gateway.
@@ -17,16 +18,7 @@ class RiskAnalysisScreen extends StatefulWidget {
   final RiskController controller;
   final RiskProfile profile;
 
-  static const steps = [
-    'Blood pressure and body mass index',
-    'Physical activity',
-    'Smoking status',
-    'Medication adherence',
-    'Cholesterol',
-    'Kidney and liver condition',
-    'Explaining the estimate (SHAP + LIME)',
-    'Generating your Diabetic Health Score',
-  ];
+  static const steps = [C3Strings.analysisStepFactors, C3Strings.analysisStepScore];
 
   @override
   State<RiskAnalysisScreen> createState() => _RiskAnalysisScreenState();
@@ -81,10 +73,7 @@ class _RiskAnalysisScreenState extends State<RiskAnalysisScreen> {
               decoration: const BoxDecoration(color: C3Colors.primaryLight, shape: BoxShape.circle),
               child: failed
                   ? const Icon(Icons.cloud_off_outlined, color: C3Colors.danger, size: 34)
-                  : const Padding(
-                      padding: EdgeInsets.all(20),
-                      child: CircularProgressIndicator(strokeWidth: 3),
-                    ),
+                  : const Icon(Icons.favorite_outline, color: C3Colors.primary, size: 34),
             ),
           ),
           const SizedBox(height: 16),
@@ -101,7 +90,7 @@ class _RiskAnalysisScreenState extends State<RiskAnalysisScreen> {
           ),
           const SizedBox(height: 18),
           if (failed) ...[
-            Text('$_error'),
+            const Text(C3Strings.connectionFailed),
             if (_serverDown) ServerDownHint(onCheckAgain: _run),
             const SizedBox(height: 12),
             FilledButton.icon(
@@ -110,30 +99,7 @@ class _RiskAnalysisScreenState extends State<RiskAnalysisScreen> {
               label: const Text(C3Strings.retry),
             ),
           ] else
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                child: Column(
-                  children: [
-                    for (final step in RiskAnalysisScreen.steps)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 7),
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(child: Text(step, style: const TextStyle(fontSize: 13))),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
+            const C3LoadingSkeleton(lines: 4),
         ],
       ),
     );

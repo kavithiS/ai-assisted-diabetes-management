@@ -4,7 +4,7 @@
     <!-- Research prototype: the local gateway is plain http (laptop IP / 10.0.2.2).
          Remove cleartext once the gateway is served over HTTPS (NFR3). -->
     <application
-        android:label="DiaCare AI"
+        android:label="DiaCare"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">

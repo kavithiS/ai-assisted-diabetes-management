@@ -6,9 +6,10 @@ import '../domain/risk_assessment.dart';
 import '../domain/server_history.dart';
 import 'risk_controller.dart';
 import 'risk_result_screen.dart';
+import 'widgets/c3_widgets.dart';
 import 'widgets/risk_widgets.dart';
 
-/// Saved results from the server (FR13), newest first. If the server history cannot be
+/// Saved checks from the server, newest first. If server history cannot be
 /// read (database stopped), it says so and shows this session's results instead.
 class RiskHistoryScreen extends StatefulWidget {
   const RiskHistoryScreen({super.key, required this.controller});
@@ -47,7 +48,10 @@ class _RiskHistoryScreenState extends State<RiskHistoryScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: C3LoadingSkeleton(lines: 5),
+            );
           }
           if (snapshot.hasError) return _sessionFallback(context);
           final items = snapshot.data!;
@@ -76,10 +80,9 @@ class _RiskHistoryScreenState extends State<RiskHistoryScreen> {
                           : Icons.help_outline,
                     ),
                     title: Text(_title(item.status, item.band)),
-                    subtitle: Text(
-                      '${_when(item.assessedAt)} · model ${item.modelVersion ?? '-'} · '
-                      'schema ${item.schemaVersion}',
-                    ),
+                    subtitle: Text(_when(item.assessedAt)),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _openSaved(context, item),
                   ),
               ],
             ),
@@ -88,6 +91,40 @@ class _RiskHistoryScreenState extends State<RiskHistoryScreen> {
       ),
     );
   }
+
+  /// The server keeps only the band, date and status of a saved check (no answers), so
+  /// an old check opens as a short summary.
+  void _openSaved(BuildContext context, ServerHistoryItem item) => showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        builder: (context) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  child: const Text(
+                    C3Strings.savedCheckTitle,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(_when(item.assessedAt), style: const TextStyle(color: C3Colors.text2)),
+                const SizedBox(height: 12),
+                if (item.status == 'ok' && item.band != null)
+                  BandBadge(band: item.band!)
+                else
+                  Text(_title(item.status, item.band)),
+                const SizedBox(height: 12),
+                const Text(C3Strings.savedCheckNote),
+              ],
+            ),
+          ),
+        ),
+      );
 
   Widget _sessionFallback(BuildContext context) {
     final entries = widget.controller.history.entries;
@@ -103,12 +140,11 @@ class _RiskHistoryScreenState extends State<RiskHistoryScreen> {
             title: Text(_title('ok', entry.assessment.band)),
             subtitle: Text(_when(entry.assessedAt)),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              c3Route<void>(
-                RiskResultView(
-                  assessment: entry.assessment,
-                  isDemoData: widget.controller.isDemoData,
-                ),
+            onTap: () => c3Push<void>(
+              context,
+              RiskResultView(
+                assessment: entry.assessment,
+                isDemoData: widget.controller.isDemoData,
               ),
             ),
           ),

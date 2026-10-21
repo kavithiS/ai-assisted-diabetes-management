@@ -69,8 +69,13 @@ Map<String, dynamic> okJson({
           'overlap_ratio': 0.8,
           'meets_target': true,
         },
-        'explanation_quality': 'consistent',
-        'explanation_text': 'Your estimated risk band is High.',
+        // Wording exactly as the real C3 server sends it (ml/explain.py), so the
+        // removed-terms test catches any server text that reaches a patient screen.
+        'explanation_quality':
+            'check: SHAP and LIME agree weakly or the LIME fit is poor; treat factors with care',
+        'explanation_text': 'Your estimated risk band is High. Factors you can work on that raised '
+            "it: blood glucose. These are contributions to the model's estimate, not medical "
+            'causes. Discuss any concerns with a healthcare professional.',
       },
       'dhs': {
         'score': dhs,
@@ -124,7 +129,7 @@ Map<String, dynamic> okJson({
           'id': 'cholesterol',
           'factor': 'cholesterol_level',
           'title': 'Review your cholesterol with your doctor',
-          'trigger': 'Cholesterol answered as borderline high or high',
+          'trigger': "Body mass index raised the model's estimate",
           'raised_estimate': false,
           'window': 'your latest answers',
           'action': 'Choose fewer fried and fatty foods.',

@@ -32,8 +32,6 @@ class RiskProfileScreen extends StatefulWidget {
 class _RiskProfileScreenState extends State<RiskProfileScreen> {
   late final RiskController _controller;
   late final bool _ownsController;
-  String? _warmUpMessage;
-  bool _warming = false;
 
   @override
   void initState() {
@@ -49,26 +47,7 @@ class _RiskProfileScreenState extends State<RiskProfileScreen> {
     super.dispose();
   }
 
-  void _open(Widget screen) => Navigator.of(context).push(c3Route<void>(screen));
-
-  Future<void> _warmUp() async {
-    setState(() {
-      _warming = true;
-      _warmUpMessage = null;
-    });
-    String message;
-    try {
-      final took = await _controller.warmUp();
-      message = '${C3Strings.warmUpDone} (${(took.inMilliseconds / 1000).toStringAsFixed(1)} s)';
-    } on Object catch (error) {
-      message = '$error';
-    }
-    if (!mounted) return;
-    setState(() {
-      _warming = false;
-      _warmUpMessage = message;
-    });
-  }
+  void _open(Widget screen) => c3Push<void>(context, screen);
 
   static String _when(DateTime t) {
     String two(int n) => n.toString().padLeft(2, '0');
@@ -103,21 +82,8 @@ class _RiskProfileScreenState extends State<RiskProfileScreen> {
           child: Column(
             children: [
               const C3Label(C3Strings.yourCurrentDhs),
-              Semantics(
-                label: '${C3Strings.dhsName} ${dhs.score.round()} out of 100',
-                excludeSemantics: true,
-                child: Text.rich(
-                  TextSpan(
-                    text: dhs.score.round().toString(),
-                    style: const TextStyle(
-                        fontSize: 44, fontWeight: FontWeight.w800, color: C3Colors.text),
-                    children: const [
-                      TextSpan(
-                          text: ' /100', style: TextStyle(fontSize: 16, color: C3Colors.text2)),
-                    ],
-                  ),
-                ),
-              ),
+              // Same band colour as the result screen, so one score never shows two colours.
+              DhsGauge(score: dhs.score, size: 156, colour: bandStyle(latest.band!).$1),
               const SizedBox(height: 6),
               BandBadge(band: latest.band!),
               const SizedBox(height: 6),
@@ -200,13 +166,21 @@ class _RiskProfileScreenState extends State<RiskProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Theme(
-      data: c3Theme(),
+      data: c3Theme(brightness: MediaQuery.platformBrightnessOf(context)),
       child: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {
-          if (!_controller.isReady) return const Center(child: CircularProgressIndicator());
+          if (!_controller.isReady) {
+            return ColoredBox(
+              color: Theme.of(context).colorScheme.surface,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: C3LoadingSkeleton(lines: 5),
+              ),
+            );
+          }
           return ColoredBox(
-            color: C3Colors.background,
+            color: Theme.of(context).colorScheme.surface,
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -216,10 +190,12 @@ class _RiskProfileScreenState extends State<RiskProfileScreen> {
                     Expanded(
                       child: Semantics(
                         header: true,
-                        child: const Text(
+                        child: Text(
                           C3Strings.dhsName,
                           style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w800, color: C3Colors.text),
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: Theme.of(context).colorScheme.onSurface),
                         ),
                       ),
                     ),
@@ -263,18 +239,20 @@ class _RiskProfileScreenState extends State<RiskProfileScreen> {
                     ),
                   ),
                 const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: _warming ? null : _warmUp,
-                  icon: const Icon(Icons.local_fire_department_outlined),
-                  label: const Text(C3Strings.warmUp),
-                ),
-                if (_warming) const LinearProgressIndicator(),
-                if (_warmUpMessage != null)
-                  Padding(padding: const EdgeInsets.only(top: 8), child: Text(_warmUpMessage!)),
                 const SizedBox(height: 16),
-                const Text(
-                  C3Strings.settingsHint,
-                  style: TextStyle(fontSize: 11.5, color: C3Colors.text2),
+                // A real button: before, this was plain text and only a long-press on
+                // the connection chip opened Settings.
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => _open(RiskSettingsScreen(controller: _controller)),
+                    icon: const Icon(Icons.settings_outlined, size: 18),
+                    label: const Text(C3Strings.settingsHint),
+                    style: TextButton.styleFrom(
+                      foregroundColor: C3Colors.text2,
+                      minimumSize: const Size(48, 48),
+                    ),
+                  ),
                 ),
               ],
             ),

@@ -43,15 +43,12 @@ class RiskRecommendationsScreen extends StatelessWidget {
             ],
           ],
           const SizedBox(height: 10),
-          const Text(C3Strings.recommendationsFooter,
-              style: TextStyle(fontSize: 11.5, color: C3Colors.text2)),
           if (controller != null && profile != null && assessment.dhs != null) ...[
             const SizedBox(height: 14),
             OutlinedButton(
-              onPressed: () => Navigator.of(context).push(
-                c3Route<void>(
-                  RiskWhatIfScreen(controller: controller!, profile: profile!, base: assessment),
-                ),
+              onPressed: () => c3Push<void>(
+                context,
+                RiskWhatIfScreen(controller: controller!, profile: profile!, base: assessment),
               ),
               child: const Text(C3Strings.exploreWhatIf),
             ),
@@ -90,7 +87,7 @@ class _TopPriority extends StatelessWidget {
                           color: C3Colors.primaryDark, fontWeight: FontWeight.w700, fontSize: 12),
                     ),
                   ),
-                  ProvisionalTag(text: item.reviewStatus),
+                  const ProvisionalTag(text: C3Strings.provisionalScore),
                 ],
               ),
               const SizedBox(height: 10),
@@ -105,7 +102,7 @@ class _TopPriority extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 10),
-              Text(item.action),
+              Text(item.action, maxLines: 2, overflow: TextOverflow.ellipsis),
               if (item.seekCare != null) ...[
                 const SizedBox(height: 8),
                 Row(
@@ -113,13 +110,16 @@ class _TopPriority extends StatelessWidget {
                   children: [
                     const Icon(Icons.local_hospital_outlined, size: 18, color: C3Colors.primary),
                     const SizedBox(width: 6),
-                    Expanded(child: Text(item.seekCare!)),
+                    Expanded(
+                        child: Text(item.seekCare!, maxLines: 2, overflow: TextOverflow.ellipsis)),
                   ],
                 ),
               ],
               const SizedBox(height: 8),
               Text(
-                C3Strings.because(item.trigger, item.window, item.raisedEstimate),
+                C3Strings.because(item.window, item.raisedEstimate),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 11.5, color: C3Colors.text2),
               ),
             ],
@@ -159,6 +159,8 @@ class _Suggestion extends StatelessWidget {
           title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
           subtitle: Text(
             [item.action, if (item.seekCare != null) item.seekCare!].join('\n'),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       );

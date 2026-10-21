@@ -1,0 +1,12 @@
+{
+  "name": "c3-e2e",
+  "private": true,
+  "description": "Browser checks of the C3 Flutter web build (Playwright with the installed Chrome).",
+  "scripts": {
+    "test": "playwright test",
+    "shots": "node screenshots.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

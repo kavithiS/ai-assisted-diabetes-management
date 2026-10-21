@@ -64,16 +64,20 @@ class _RiskWhatIfScreenState extends State<RiskWhatIfScreen> {
           ChoiceGroup<String>(
             label: C3Strings.activityLevel,
             value: _activity,
-            options: const {'low': 'Low', 'moderate': 'Moderate', 'high': 'High'},
+            options: const {
+              'low': C3Strings.activityLow,
+              'moderate': C3Strings.activityModerate,
+              'high': C3Strings.activityHigh,
+            },
             onChanged: (v) => setState(() => _activity = v),
           ),
           ChoiceGroup<String>(
             label: C3Strings.cholesterolManagement,
             value: _cholesterol,
             options: const {
-              'normal': 'Normal',
-              'borderline_high': 'Borderline high',
-              'high': 'High'
+              'normal': C3Strings.cholesterolNormal,
+              'borderline_high': C3Strings.cholesterolBorderlineHigh,
+              'high': C3Strings.cholesterolHigh,
             },
             onChanged: (v) => setState(() => _cholesterol = v),
           ),
@@ -83,7 +87,10 @@ class _RiskWhatIfScreenState extends State<RiskWhatIfScreen> {
             child: Text(_busy ? C3Strings.estimating : C3Strings.estimate),
           ),
           if (_error != null)
-            Padding(padding: const EdgeInsets.only(top: 8), child: Text('$_error')),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(C3Strings.connectionFailed),
+            ),
           const SizedBox(height: 14),
           Card(
             child: Padding(

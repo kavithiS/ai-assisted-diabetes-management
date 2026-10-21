@@ -27,6 +27,9 @@ class RiskQuestionnaireScreen extends StatefulWidget {
 
 class _RiskQuestionnaireScreenState extends State<RiskQuestionnaireScreen> {
   final _formKey = GlobalKey<FormState>();
+
+  /// One key per number field, in screen order, to scroll to the first answer with a problem.
+  final _fieldKeys = <TextEditingController, GlobalKey<FormFieldState<String>>>{};
   late final TextEditingController _age;
   final _height = TextEditingController();
   final _weight = TextEditingController();
@@ -106,7 +109,9 @@ class _RiskQuestionnaireScreenState extends State<RiskQuestionnaireScreen> {
     final height = _number(_height);
     final weight = _number(_weight);
     if (height != null && weight != null) {
-      if (!heightRule.accepts(height) || !weightRule.accepts(weight)) return null;
+      if (!heightRule.accepts(height) || !weightRule.accepts(weight)) {
+        return null;
+      }
       return bmiFrom(heightCm: height, weightKg: weight);
     }
     return widget.initial?.bmi;
@@ -142,15 +147,27 @@ class _RiskQuestionnaireScreenState extends State<RiskQuestionnaireScreen> {
       );
 
   void _submit() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    Navigator.of(context).push(
-      c3Route<void>(RiskAnalysisScreen(controller: widget.controller, profile: _profile())),
-    );
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      // The button is at the bottom: bring the first problem into view and say so.
+      final firstError = _fieldKeys.values
+          .map((key) => key.currentState)
+          .firstWhere((state) => state?.hasError ?? false, orElse: () => null);
+      if (firstError != null) {
+        Scrollable.ensureVisible(firstError.context,
+            alignment: 0.2, duration: const Duration(milliseconds: 300));
+      }
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text(C3Strings.checkAnswers)));
+      return;
+    }
+    c3Push<void>(context, RiskAnalysisScreen(controller: widget.controller, profile: _profile()));
   }
 
   Widget _field(TextEditingController c, String label, FieldRule rule, {String? help}) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: TextFormField(
+          key: _fieldKeys.putIfAbsent(c, GlobalKey<FormFieldState<String>>.new),
           controller: c,
           keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
           decoration: InputDecoration(labelText: '$label (${rule.unit})', helperText: help),
@@ -165,125 +182,138 @@ class _RiskQuestionnaireScreenState extends State<RiskQuestionnaireScreen> {
       appBar: AppBar(title: const Text(C3Strings.inputTitle)),
       body: Form(
         key: _formKey,
-        child: ListView(
+        // Not a lazy ListView: every field stays built, so every field is validated
+        // even when it is scrolled off screen.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          children: [
-            const Text(C3Strings.inputIntro, style: TextStyle(color: C3Colors.text2)),
-            const C3Label(C3Strings.stepAbout),
-            _field(_age, 'Age', ageRule, help: C3Strings.required),
-            ChoiceGroup<int>(
-              label: C3Strings.sex,
-              value: _sexMale,
-              options: const {1: C3Strings.male, 0: C3Strings.female},
-              onChanged: (v) => setState(() => _sexMale = v),
-            ),
-            const C3Label(C3Strings.stepBody),
-            Row(
-              children: [
-                Expanded(child: _field(_height, 'Height', heightRule)),
-                const SizedBox(width: 10),
-                Expanded(child: _field(_weight, 'Weight', weightRule)),
-              ],
-            ),
-            Text(
-              bmi == null ? C3Strings.bmiNeeded : '${C3Strings.bmiPrefix}$bmi',
-              style: const TextStyle(color: C3Colors.text2),
-            ),
-            const C3Label(C3Strings.bloodPressure),
-            Row(
-              children: [
-                Expanded(child: _field(_systolic, 'Systolic', systolicRule)),
-                const SizedBox(width: 10),
-                Expanded(child: _field(_diastolic, 'Diastolic', diastolicRule)),
-              ],
-            ),
-            const C3Label(C3Strings.lifestyleTitle),
-            const Text(C3Strings.lifestyleNote,
-                style: TextStyle(color: C3Colors.text2, fontSize: 12)),
-            const SizedBox(height: 8),
-            ChoiceGroup<String>(
-              label: C3Strings.activityLevel,
-              value: _activity,
-              options: const {'low': 'Low', 'moderate': 'Moderate', 'high': 'High'},
-              onChanged: (v) => setState(() => _activity = v),
-            ),
-            ChoiceGroup<int>(
-              label: C3Strings.smokingStatus,
-              value: _smoker,
-              options: const {1: C3Strings.yes, 0: C3Strings.no},
-              onChanged: (v) => setState(() => _smoker = v),
-            ),
-            ChoiceGroup<String>(
-              label: C3Strings.adherence,
-              value: _adherence,
-              options: const {'poor': 'Poor', 'fair': 'Fair', 'good': 'Good'},
-              onChanged: (v) => setState(() => _adherence = v),
-            ),
-            ChoiceGroup<String>(
-              label: C3Strings.cholesterol,
-              value: _cholesterol,
-              options: const {
-                'normal': 'Normal',
-                'borderline_high': 'Borderline high',
-                'high': 'High',
-              },
-              onChanged: (v) => setState(() => _cholesterol = v),
-            ),
-            ChoiceGroup<int>(
-              label: C3Strings.kidney,
-              value: _kidney,
-              options: const {1: C3Strings.yes, 0: C3Strings.no},
-              onChanged: (v) => setState(() => _kidney = v),
-            ),
-            ChoiceGroup<int>(
-              label: C3Strings.liver,
-              value: _liver,
-              options: const {1: C3Strings.yes, 0: C3Strings.no},
-              onChanged: (v) => setState(() => _liver = v),
-            ),
-            _field(_weightChange, C3Strings.weightChange, weightChangeRule,
-                help: C3Strings.weightChangeHelp),
-            const C3Label(C3Strings.optionalClinical),
-            _field(_pulse, 'Resting pulse', pulseRule, help: C3Strings.optional),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(C3Strings.hasGlucose),
-              value: _hasGlucose,
-              onChanged: (value) => setState(() => _hasGlucose = value),
-            ),
-            if (_hasGlucose)
-              _field(_glucose, 'Blood glucose', glucoseRule)
-            else
-              const Text(C3Strings.glucoseOffNote, style: TextStyle(color: C3Colors.text2)),
-            const C3Label(C3Strings.historyTitle),
-            YesNoQuestion(
-              question: C3Strings.familyDiabetes,
-              value: _familyDiabetes,
-              onChanged: (v) => setState(() => _familyDiabetes = v),
-            ),
-            YesNoQuestion(
-              question: C3Strings.familyPressure,
-              value: _familyPressure,
-              onChanged: (v) => setState(() => _familyPressure = v),
-            ),
-            YesNoQuestion(
-              question: C3Strings.diagnosedPressure,
-              value: _hypertensive,
-              onChanged: (v) => setState(() => _hypertensive = v),
-            ),
-            YesNoQuestion(
-              question: C3Strings.heartDisease,
-              value: _heartDisease,
-              onChanged: (v) => setState(() => _heartDisease = v),
-            ),
-            YesNoQuestion(
-              question: C3Strings.stroke,
-              value: _stroke,
-              onChanged: (v) => setState(() => _stroke = v),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(onPressed: _submit, child: const Text(C3Strings.saveAndRecalculate)),
-          ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(C3Strings.inputIntro, style: TextStyle(color: C3Colors.text2)),
+              const C3Label(C3Strings.stepAbout),
+              _field(_age, C3Strings.age, ageRule, help: C3Strings.required),
+              ChoiceGroup<int>(
+                label: C3Strings.sex,
+                value: _sexMale,
+                options: const {1: C3Strings.male, 0: C3Strings.female},
+                onChanged: (v) => setState(() => _sexMale = v),
+              ),
+              const C3Label(C3Strings.stepBody),
+              Row(
+                children: [
+                  Expanded(child: _field(_height, C3Strings.height, heightRule)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _field(_weight, C3Strings.weight, weightRule)),
+                ],
+              ),
+              Text(
+                bmi == null ? C3Strings.bmiNeeded : '${C3Strings.bmiPrefix}$bmi',
+                style: const TextStyle(color: C3Colors.text2),
+              ),
+              const C3Label(C3Strings.bloodPressure),
+              Row(
+                children: [
+                  Expanded(child: _field(_systolic, C3Strings.systolic, systolicRule)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _field(_diastolic, C3Strings.diastolic, diastolicRule)),
+                ],
+              ),
+              const C3Label(C3Strings.lifestyleTitle),
+              const Text(C3Strings.lifestyleNote,
+                  style: TextStyle(color: C3Colors.text2, fontSize: 12)),
+              const SizedBox(height: 8),
+              ChoiceGroup<String>(
+                label: C3Strings.activityLevel,
+                value: _activity,
+                options: const {
+                  'low': C3Strings.activityLow,
+                  'moderate': C3Strings.activityModerate,
+                  'high': C3Strings.activityHigh,
+                },
+                onChanged: (v) => setState(() => _activity = v),
+              ),
+              ChoiceGroup<int>(
+                label: C3Strings.smokingStatus,
+                value: _smoker,
+                options: const {1: C3Strings.yes, 0: C3Strings.no},
+                onChanged: (v) => setState(() => _smoker = v),
+              ),
+              ChoiceGroup<String>(
+                label: C3Strings.adherence,
+                value: _adherence,
+                options: const {
+                  'poor': C3Strings.adherencePoor,
+                  'fair': C3Strings.adherenceFair,
+                  'good': C3Strings.adherenceGood,
+                },
+                onChanged: (v) => setState(() => _adherence = v),
+              ),
+              ChoiceGroup<String>(
+                label: C3Strings.cholesterol,
+                value: _cholesterol,
+                options: const {
+                  'normal': C3Strings.cholesterolNormal,
+                  'borderline_high': C3Strings.cholesterolBorderlineHigh,
+                  'high': C3Strings.cholesterolHigh,
+                },
+                onChanged: (v) => setState(() => _cholesterol = v),
+              ),
+              ChoiceGroup<int>(
+                label: C3Strings.kidney,
+                value: _kidney,
+                options: const {1: C3Strings.yes, 0: C3Strings.no},
+                onChanged: (v) => setState(() => _kidney = v),
+              ),
+              ChoiceGroup<int>(
+                label: C3Strings.liver,
+                value: _liver,
+                options: const {1: C3Strings.yes, 0: C3Strings.no},
+                onChanged: (v) => setState(() => _liver = v),
+              ),
+              _field(_weightChange, C3Strings.weightChange, weightChangeRule,
+                  help: C3Strings.weightChangeHelp),
+              const C3Label(C3Strings.optionalClinical),
+              _field(_pulse, C3Strings.restingPulse, pulseRule, help: C3Strings.optional),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(C3Strings.hasGlucose),
+                value: _hasGlucose,
+                onChanged: (value) => setState(() => _hasGlucose = value),
+              ),
+              if (_hasGlucose)
+                _field(_glucose, C3Strings.bloodGlucose, glucoseRule)
+              else
+                const Text(C3Strings.glucoseOffNote, style: TextStyle(color: C3Colors.text2)),
+              const C3Label(C3Strings.historyTitle),
+              YesNoQuestion(
+                question: C3Strings.familyDiabetes,
+                value: _familyDiabetes,
+                onChanged: (v) => setState(() => _familyDiabetes = v),
+              ),
+              YesNoQuestion(
+                question: C3Strings.familyPressure,
+                value: _familyPressure,
+                onChanged: (v) => setState(() => _familyPressure = v),
+              ),
+              YesNoQuestion(
+                question: C3Strings.diagnosedPressure,
+                value: _hypertensive,
+                onChanged: (v) => setState(() => _hypertensive = v),
+              ),
+              YesNoQuestion(
+                question: C3Strings.heartDisease,
+                value: _heartDisease,
+                onChanged: (v) => setState(() => _heartDisease = v),
+              ),
+              YesNoQuestion(
+                question: C3Strings.stroke,
+                value: _stroke,
+                onChanged: (v) => setState(() => _stroke = v),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(onPressed: _submit, child: const Text(C3Strings.saveAndRecalculate)),
+            ],
+          ),
         ),
       ),
     );
