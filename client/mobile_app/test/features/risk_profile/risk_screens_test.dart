@@ -52,6 +52,14 @@ void tallScreen(WidgetTester tester) {
   addTearDown(tester.view.reset);
 }
 
+/// The example answers are not on home: a long-press on the connection chip opens
+/// Settings, where they are kept for presenting and testing.
+Future<void> openExamples(WidgetTester tester) async {
+  await tester.longPress(find.text('Connected'));
+  await tester.pumpAndSettle();
+  expect(find.byType(RiskSettingsScreen), findsOneWidget);
+}
+
 Future<RiskController> controllerWith(FakeRiskRepository repository) async {
   SharedPreferences.setMockInitialValues({});
   final controller = RiskController(repositoryBuilder: (_) => repository);
@@ -286,16 +294,25 @@ void main() {
 
     expect(find.text('Connected'), findsOneWidget);
     expect(find.text('Start with a quick health check.'), findsOneWidget);
+    // App users see no example answers and no settings link on home.
+    for (final preset in riskPresets) {
+      expect(find.text(preset.label), findsNothing);
+    }
+    expect(find.text('Example answers'), findsNothing);
+    expect(find.text('Open connection settings'), findsNothing);
+
+    await openExamples(tester);
     for (final preset in riskPresets) {
       expect(find.text(preset.label), findsOneWidget);
     }
-
     await tester.tap(find.text(higherRiskPreset.label));
     await tester.pumpAndSettle();
     expect(find.text('High estimated risk'), findsOneWidget);
     expect(repository.sent.single.toJson(), higherRiskPreset.profile.toJson());
 
-    await tester.pageBack();
+    await tester.pageBack(); // result -> Settings
+    await tester.pumpAndSettle();
+    await tester.pageBack(); // Settings -> home
     await tester.pumpAndSettle();
 
     expect(find.text('58'), findsOneWidget);
@@ -314,6 +331,7 @@ void main() {
     final controller = await controllerWith(repository);
     await tester.pumpWidget(app(Scaffold(body: RiskProfileScreen(controller: controller))));
     await tester.pumpAndSettle();
+    await openExamples(tester);
 
     await tester.tap(find.text(higherRiskPreset.label));
     await tester.pump(const Duration(milliseconds: 40));
@@ -354,11 +372,14 @@ void main() {
         child: app(Scaffold(body: RiskProfileScreen(controller: controller))),
       ));
       await tester.pumpAndSettle();
+      await openExamples(tester);
       await tester.tap(find.text(higherRiskPreset.label));
       await tester.pumpAndSettle();
       expect(tester.widget<DhsGauge>(find.byType(DhsGauge)).colour, colour, reason: '$band result');
 
-      await tester.pageBack();
+      await tester.pageBack(); // result -> Settings
+      await tester.pumpAndSettle();
+      await tester.pageBack(); // Settings -> home
       await tester.pumpAndSettle();
       expect(tester.widget<DhsGauge>(find.byType(DhsGauge)).colour, colour, reason: '$band home');
     }

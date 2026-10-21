@@ -143,10 +143,38 @@ export async function typeInto(page, label, value) {
   if (value !== '') await page.keyboard.type(String(value));
 }
 
-/** Opens a preset from home and waits for the result screen. */
+/**
+ * Opens Settings the hidden way: a long-press on the connection chip at the top of home
+ * (app users see neither Settings nor the example answers on home).
+ */
+export async function openSettings(page) {
+  const chip = button(page, 'Tap to check again');
+  if (!(await chip.isVisible())) {
+    // Back to the top of home; then let the scroll settle, or Flutter can treat the
+    // long-press as part of the scroll.
+    const size = page.viewportSize();
+    await page.mouse.move(size.width / 2, size.height / 2);
+    await page.mouse.wheel(0, -5000);
+    await page.waitForTimeout(800);
+  }
+  await expect(chip).toBeVisible();
+  const box = await chip.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1000);
+  await page.mouse.up();
+  await see(page, 'Gateway URL');
+}
+
+/** Opens Settings and returns the example-answers button `label`, ready to click. */
+export async function example(page, label) {
+  await openSettings(page);
+  return scrollTo(page, button(page, label));
+}
+
+/** Runs an example from Settings and waits for the result screen. */
 export async function runPreset(page, label) {
-  // After a first check the examples sit lower on home: scroll to them.
-  await (await scrollTo(page, button(page, label))).click();
+  await (await example(page, label)).click();
   // A button that only the result screen has.
   await expect(button(page, 'Update health information')).toBeVisible({ timeout: 30_000 });
 }
@@ -190,4 +218,14 @@ export async function atHome(page) {
 export async function back(page) {
   await button(page, 'Back').click();
   await page.waitForTimeout(600);
+}
+
+/** Presses Back until home shows (from a result: result -> Settings -> home). */
+export async function goHome(page) {
+  for (let i = 0; i < 4; i += 1) {
+    if (await page.getByRole('heading', { name: 'DiaCare' }).isVisible()) return;
+    await button(page, 'Back').click();
+    await page.waitForTimeout(600);
+  }
+  await atHome(page);
 }

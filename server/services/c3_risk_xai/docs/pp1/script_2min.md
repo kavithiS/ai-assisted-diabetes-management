@@ -9,7 +9,7 @@
 history, activity, smoking, medication. My component, C3, turns these into one clear,
 explained picture, as an estimate, never a diagnosis."
 
-**(Input, 15 s)** `[CUE: tap "Higher-risk example"]`
+**(Input, 15 s)** `[CUE: long-press "Connected" → tap "Higher-risk example"]`
 "Here is a 58-year-old man with high blood pressure and low activity. The app sends his
 answers through the team gateway to my C3 service."
 
@@ -18,12 +18,12 @@ answers through the team gateway to my C3 service."
 out of 100. It combines the model with his lifestyle answers. The score is marked provisional
 until a clinician reviews the weights. Because the band is High, the app adds a referral note."
 
-**(F2 explanation, 30 s)** `[CUE: tap "Understand my risk"]`
+**(F2 explanation, 30 s)** `[CUE: tap "Why this score"]`
 "Function two: why. SHAP shows which answers raised the estimate, here diagnosed high blood
 pressure and BMI. LIME checks it a second way; the two methods agree on four of the top
 five factors. The app says clearly: these are contributions, not medical causes."
 
-**(Recommendation, 15 s)** `[CUE: tap "View recommendations"]`
+**(Recommendation, 15 s)** `[CUE: tap "What you can do"]`
 "Recommendations come only from fixed templates for things he can change. They never touch
 his medicines."
 

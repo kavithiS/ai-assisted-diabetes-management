@@ -10,14 +10,14 @@ PowerShell, always first: `cd C:\Users\ALFARES\Desktop\c3-risk-profiling`
 3. Emulator instead (optional, boots in 1-3 min, needs ~10 GB free on C:):
    `& "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd C3_Demo -no-snapshot -gpu swiftshader_indirect -no-boot-anim`
    Once: `& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" install -r client\mobile_app\build\app\outputs\flutter-apk\app-release.apk`
-4. App: **Risk Profile** tab → **Connected** → **Warm up the model** → run **Higher-risk example** once.
+4. App: **Risk Profile** tab → **Connected** → long-press the **Connected** chip → Settings → **Example answers** → run **Higher-risk example** once, Back twice.
 
 ## The 2-minute demo (click → say)
-1. **Higher-risk example** → "His answers go through the team gateway to my C3 service."
+1. Long-press **Connected** → **Higher-risk example** → "His answers go through the team gateway to my C3 service."
 2. Result → "F1: High band, health score 58, provisional, referral note."
-3. **Understand my risk** → "F2: SHAP and LIME agree on 4 of 5 factors; contributions, not causes."
-4. **View recommendations** → "Templates for things he can change; never his medicines."
-5. Close with evidence → "0.78 / 0.85 ROC-AUC on 1,058 unseen people, 85 + 37 tests, saved in PostgreSQL.
+3. **Why this score** → "F2: SHAP and LIME agree on 4 of 5 factors; contributions, not causes."
+4. **What you can do** → "Templates for things he can change; never his medicines."
+5. Close with evidence → "0.78 / 0.85 ROC-AUC on 1,058 unseen people, 85 server + 43 Flutter + 68/70 browser tests, saved in PostgreSQL.
    Ethics submitted 21 September, not approved, so demo data only."
 
 ## If something fails

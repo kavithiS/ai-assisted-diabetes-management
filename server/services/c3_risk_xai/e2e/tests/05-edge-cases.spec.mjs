@@ -1,10 +1,10 @@
 // Edge cases: double taps, fast navigation, browser back, refresh, slow network, errors.
 import { expect, test } from '@playwright/test';
-import { button, enableSemantics, openApp, runPreset, savedCount, text, watchConsole, see, notSee, atHome } from '../support/app.mjs';
+import { button, enableSemantics, openApp, runPreset, savedCount, text, watchConsole, see, notSee, atHome, example } from '../support/app.mjs';
 
 test('double-click on an example saves only one result', async ({ page }) => {
   const deviceId = await openApp(page);
-  await button(page, 'Higher-risk example').dblclick();
+  await (await example(page, 'Higher-risk example')).dblclick();
   await see(page, 'Estimated risk: High', { timeout: 30_000 });
   await page.waitForTimeout(3000);
   expect(await savedCount(deviceId)).toBe(1);
@@ -32,7 +32,9 @@ test('rapid navigation between result screens causes no errors', async ({ page }
 test('browser back from the result returns to home', async ({ page }) => {
   await openApp(page);
   await runPreset(page, 'Higher-risk example');
-  await page.goBack();
+  await page.goBack(); // result -> Settings, where the example was opened
+  await see(page, 'Gateway URL');
+  await page.goBack(); // Settings -> home
   await atHome(page);
   await see(page, 'Check again');
 });
@@ -55,7 +57,7 @@ test('slow network (2 s delay): the preparing screen shows, then the result', as
     await new Promise((r) => setTimeout(r, 2000));
     await route.continue();
   });
-  await button(page, 'Higher-risk example').click();
+  await (await example(page, 'Higher-risk example')).click();
   await see(page, 'Preparing your estimate');
   await see(page, 'Estimated risk: High', { timeout: 30_000 });
 });
@@ -65,7 +67,7 @@ for (const status of [500, 503]) {
     await openApp(page);
     await page.route('**/api/v1/risk/assess**', (route) =>
       route.fulfill({ status, contentType: 'application/json', body: '{"detail":"Internal Server Error"}' }));
-    await button(page, 'Higher-risk example').click();
+    await (await example(page, 'Higher-risk example')).click();
     await see(page, 'We couldn’t finish this check.', { timeout: 30_000 });
     await expect(button(page, 'Retry')).toBeVisible();
     await notSee(page, 'Internal Server Error');
